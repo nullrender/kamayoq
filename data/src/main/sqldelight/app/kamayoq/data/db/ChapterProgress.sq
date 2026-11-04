@@ -1,0 +1,34 @@
+-- The reading of one chapter (section 2b). Times are milliseconds since 1970 in UTC.
+CREATE TABLE chapter_progress (
+    chapter_id TEXT NOT NULL PRIMARY KEY REFERENCES chapter(id),
+    -- Null read_at means not read.
+    read_at INTEGER,
+    -- ReadMarkSource name from core.
+    read_source TEXT,
+    -- All four null means never opened.
+    position_page INTEGER,
+    position_total INTEGER,
+    position_at INTEGER,
+    position_device TEXT,
+    complete_reads INTEGER NOT NULL CHECK (complete_reads >= 0),
+    -- A read mark has both its time and its source, or neither.
+    CHECK ((read_at IS NULL AND read_source IS NULL) OR (read_at IS NOT NULL AND read_source IS NOT NULL)),
+    -- A position has all four parts, or none.
+    CHECK (
+        (position_page IS NULL AND position_total IS NULL AND position_at IS NULL AND position_device IS NULL)
+        OR (position_page IS NOT NULL AND position_total IS NOT NULL AND position_at IS NOT NULL
+            AND position_device IS NOT NULL)
+    ),
+    -- Page equal to the total is the end-of-chapter block (contract, section 9).
+    CHECK (position_total >= 1 AND position_page BETWEEN 0 AND position_total)
+);
+
+progressOf:
+SELECT read_at, read_source, position_page, position_total, position_at, position_device, complete_reads
+FROM chapter_progress
+WHERE chapter_id = ?;
+
+save:
+INSERT OR REPLACE INTO chapter_progress
+    (chapter_id, read_at, read_source, position_page, position_total, position_at, position_device, complete_reads)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The app's name. A proper noun: never translated. -->
+    <string name="app_name" translatable="false">Kamayoq</string>
+    <!-- Title of the main screen: the app's own library (from the product vocabulary). -->
+    <string name="library_title">Library</string>
+    <!-- Main screen, before any folder was chosen. "Library" is the folder's name on disk: never translated. -->
+    <string name="no_folder">Choose a folder for Kamayoq. Your works go in its Library folder, which Kamayoq creates if it is missing. Kamayoq never changes your files.</string>
+    <!-- Button that opens the system folder picker. -->
+    <string name="choose_folder">Choose folder</string>
+    <!-- Button on the main screen to pick another folder instead of the current one. -->
+    <string name="change_folder">Change folder</string>
+    <!-- Main screen, when Android no longer lets the app open the chosen folder. -->
+    <string name="folder_access_lost">Kamayoq can no longer open the chosen folder. Choose it again to see your works.</string>
+    <!-- Main screen, when Android let the app keep no access to the folder just chosen. -->
+    <string name="folder_access_refused">Android didn\'t let Kamayoq keep access to this folder. Choose it again, or choose another folder.</string>
+    <!-- While the chosen folder is being read. -->
+    <string name="reading_folder">Reading the folder…</string>
+    <!-- When reading the chosen folder failed; the works already shown stay. -->
+    <string name="reading_folder_failed">Couldn\'t read the folder. The works below are from the last time it worked.</string>
+    <!-- After reading the Library folder with nothing the app can read. "Library" is the folder's name on disk. -->
+    <string name="no_works_found">No works in the Library folder. Put your works there, then close Kamayoq and open it again.</string>
+    <!-- Row above the works: how many files the folder convention left out. -->
+    <plurals name="ignored_files">
+        <item quantity="one">%d file left out</item>
+        <item quantity="other">%d files left out</item>
+    </plurals>
+    <!-- Second line of the row above, which opens the list of those files. -->
+    <string name="see_ignored_files">See which and why</string>
+    <!-- Second line of a work in the library: how many chapters or volumes it has. -->
+    <plurals name="chapter_count">
+        <item quantity="one">%d chapter</item>
+        <item quantity="other">%d chapters</item>
+    </plurals>
+    <!-- Title of the screen listing the files left out. -->
+    <string name="ignored_files_title">Files left out</string>
+    <!-- Why a file was left out: a format the app does not read yet, such as EPUB. -->
+    <string name="reason_unsupported_format">Format not read yet</string>
+    <!-- Why a file was left out: it is not where works and chapters are expected, such as an image loose in a work folder. -->
+    <string name="reason_unexpected_place">Not where a work or chapter is expected</string>
+    <!-- Button at the top of a screen that goes back to the previous one. -->
+    <string name="back">Back</string>
+    <!-- Work screen: button that opens the chapter where the reading stopped. %s is the chapter's name. -->
+    <string name="continue_reading">Continue: %s</string>
+    <!-- Work screen: button that opens the first chapter, when nothing was read yet. -->
+    <string name="start_reading">Start reading</string>
+    <!-- Work screen: second line of a chapter already read. -->
+    <string name="chapter_read">Read</string>
+    <!-- While a chapter is being opened (a CBZ is read once, start to end). -->
+    <string name="reader_opening">Opening the chapter…</string>
+    <!-- When the chapter's file is no longer in the chosen folder. -->
+    <string name="reader_missing">This chapter\'s file is no longer in the folder.</string>
+    <!-- When the chapter could not be opened for another reason. -->
+    <string name="reader_failed">Couldn\'t open this chapter.</string>
+    <!-- When the chapter has no image that can be shown. -->
+    <string name="reader_no_pages">This chapter has no images to show.</string>
+    <!-- In place of one image of the chapter that cannot be shown. -->
+    <string name="reader_page_failed">This image doesn\'t open.</string>
+    <!-- What TalkBack says for a page: %1$d is the page, %2$d how many there are. -->
+    <string name="reader_page_label">Image %1$d of %2$d</string>
+    <!-- What TalkBack offers on the reader: the same as a tap in the middle of the screen. -->
+    <string name="reader_show_controls">Show controls</string>
+    <string name="reader_hide_controls">Hide controls</string>
+    <!-- When the reading position could not be saved; the reading goes on and the next image tries again. -->
+    <string name="reader_save_failed">Couldn\'t save where you stopped. You can keep reading.</string>
+    <!-- Title of the block after the last image of a chapter. -->
+    <string name="end_of_chapter">End of the chapter</string>
+    <!-- End-of-chapter block: button that opens the next chapter. %s is its name. -->
+    <string name="next_chapter">Next: %s</string>
+    <!-- End-of-chapter block, when there is no next chapter in the folder. -->
+    <string name="no_next_chapter">This is the last chapter in the folder.</string>
+    <!-- Library screen, until the Settings screen exists: writes a backup to the Backups folder. -->
+    <string name="back_up">Back up</string>
+    <string name="backup_writing">Writing the backup…</string>
+    <!-- %1$s is the chosen folder's name, %2$s the file's name. "Backups" is the folder's name on disk:
+         never translated. First place the word shows, so it says what a backup keeps (product vocabulary). -->
+    <string name="backup_written">Backup written to %1$s/Backups/%2$s. It keeps your works, what you\'ve read and where you stopped in each. The works\' files are not in the backup.</string>
+    <!-- The same, when the folder did not say what it named the file. %1$s is the chosen folder's name. -->
+    <string name="backup_written_unnamed">Backup written to %1$s/Backups. It keeps your works, what you\'ve read and where you stopped in each. The works\' files are not in the backup.</string>
+    <string name="backup_write_failed">Couldn\'t write the backup. Your progress is still kept in Kamayoq.</string>
+    <!-- The file read back after writing is not the backup written, so the app deleted it. -->
+    <string name="backup_mismatch">The backup didn\'t come out the same as what Kamayoq wrote, so Kamayoq deleted it. It may be lack of space, a storage problem or a problem in Kamayoq itself. Back up again.</string>
+    <!-- The Kavita connection screen. "Kavita" is a product name, never translated. -->
+    <string name="kavita_connect">Connect to Kavita</string>
+    <string name="kavita_address">Server address</string>
+    <string name="kavita_key">Authentication key</string>
+    <!-- "Auth Keys / OPDS" is the menu's name inside Kavita, in English there. -->
+    <string name="kavita_key_hint">In Kavita, open Settings, then Auth Keys / OPDS, and copy a key.</string>
+    <string name="kavita_connect_button">Connect</string>
+    <string name="kavita_connecting">Connecting…</string>
+    <!-- %1$s is the version Kavita reports, such as 0.9.1.4. -->
+    <string name="kavita_connected">Connected · Kavita %1$s</string>
+    <string name="kavita_refused">Kavita refused access.</string>
+    <!-- %1$s is the address the person typed. -->
+    <string name="kavita_unreachable">Couldn\'t reach the server. The address %1$s didn\'t answer.</string>
+    <!-- %1$s is the address the person typed. -->
+    <string name="kavita_not_kavita">The address %1$s answered, but it doesn\'t look like a Kavita. Check the address.</string>
+    <!-- Decision 6: the saved key is kept; only the person can provide it again. -->
+    <string name="kavita_key_unreadable">Couldn\'t open the key saved on this device. Type the key again.</string>
+    <string name="kavita_key_not_saved">Connected, but this device couldn\'t keep the key. You\'ll need to type it again next time.</string>
+    <!-- Decision 13: shown while the address starts with http://. -->
+    <string name="kavita_http_warning">This address has no encryption, so others on the network could read the key. Use it only on a network you trust.</string>
+    <!-- Shown instead of the library when its database cannot be opened. -->
+    <string name="library_failed_title">Couldn\'t open your library</string>
+    <!-- The database was written by a later version of the app. -->
+    <string name="library_failed_newer">It was saved by a newer version of the app. Update Kamayoq to open it. Your works and your progress stay on this device.</string>
+    <!-- The database could not be opened or migrated; the app never erases it to recover. -->
+    <string name="library_failed_not_opened">Nothing was erased: your library stays on this device. Close the app and open it again. If this keeps happening, wait for an update of Kamayoq.</string>
+    <string name="origin_kavita">Kavita</string>
+    <string name="kavita_other_account">This key belongs to another account or another Kavita. Nothing changed: the works here stay as they are.</string>
+    <string name="kavita_libraries">Libraries</string>
+    <string name="kavita_include_hint">Mark what goes to your Library. Including doesn\'t download any file.</string>
+    <string name="kavita_include">Include in the Library</string>
+    <string name="kavita_including">Including…</string>
+    <string name="kavita_included">Done. The marked libraries are in your Library.</string>
+    <string name="kavita_libraries_failed">Couldn\'t read the libraries from Kavita. Check the connection and try again.</string>
+    <string name="kavita_read_failed">Couldn\'t reach Kavita. The works below are from the last reading that worked.</string>
+    <string name="reader_download_failed">Couldn\'t download this chapter from Kavita. Check the connection and try again.</string>
+    <string name="reader_epub_not_yet">Kamayoq doesn\'t open EPUB books yet.</string>
+    <string name="reader_format_not_yet">Kamayoq doesn\'t open this format yet.</string>
+    <string name="position_page">page %1$d of %2$d</string>
+    <string name="position_end">end of the chapter</string>
+    <string name="conflict_title">This chapter changed on both sides</string>
+    <string name="conflict_hint">Choose where to continue. The other position stays saved in the work.</string>
+    <string name="conflict_here">On this device · %1$s</string>
+    <string name="conflict_kavita">On Kavita · %1$s</string>
+    <string name="moved_notice">Opened where you stopped on another device.</string>
+    <string name="moved_go_back">Go back to the previous one</string>
+    <string name="moved_close">Close</string>
+    <string name="other_position">Other position: %1$s, %2$s</string>
+    <string name="other_position_use">Use</string>
+</resources>

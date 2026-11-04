@@ -1,0 +1,70 @@
+-- Where a work's content comes from: origin plus its place there (section 3). Phase 1 has one
+-- version per work, but progress is already kept per version.
+CREATE TABLE work_version (
+    id TEXT NOT NULL PRIMARY KEY,
+    work_id TEXT NOT NULL REFERENCES work(id),
+    -- 'local' or 'kavita'.
+    origin TEXT NOT NULL,
+    -- The folder the person chose and the work's path inside it; for Kavita, the server and the series id.
+    source TEXT NOT NULL,
+    path TEXT NOT NULL,
+    -- 0 when the folder is gone: kept with its progress, out of the list (rule E1).
+    present INTEGER NOT NULL,
+    sort_index INTEGER NOT NULL,
+    -- Kavita only: every progress sent must carry it, and it hides a work of an unmarked library
+    -- with no network.
+    remote_library_id INTEGER,
+    UNIQUE (origin, source, path)
+);
+
+-- Everything stored for a folder: the store tells apart an exact path from one that only changed
+-- letter case (decision of 30/10/2026).
+versionsOfSource:
+SELECT id, work_id, present, path FROM work_version WHERE origin = ? AND source = ?;
+
+movePath:
+UPDATE work_version SET path = ? WHERE id = ?;
+
+insert:
+INSERT INTO work_version (id, work_id, origin, source, path, present, sort_index) VALUES (?, ?, ?, ?, ?, 1, ?);
+
+remoteVersions:
+SELECT work_version.id, work_version.work_id, work_version.present, work_version.path,
+    work_version.remote_library_id, work.title
+FROM work_version
+JOIN work ON work.id = work_version.work_id
+WHERE work_version.origin = ? AND work_version.source = ?;
+
+insertRemote:
+INSERT INTO work_version (id, work_id, origin, source, path, present, sort_index, remote_library_id)
+VALUES (?, ?, ?, ?, ?, 1, ?, ?);
+
+markRemotePresent:
+UPDATE work_version SET present = 1, sort_index = ?, remote_library_id = ? WHERE id = ?;
+
+markPresent:
+UPDATE work_version SET present = 1, sort_index = ? WHERE id = ?;
+
+markAbsentExcept:
+UPDATE work_version SET present = 0 WHERE origin = ? AND source = ? AND id NOT IN ?;
+
+markLibrariesAbsentExcept:
+UPDATE work_version SET present = 0 WHERE origin = ? AND source = ? AND remote_library_id NOT IN ?;
+
+markOtherSourcesAbsent:
+UPDATE work_version SET present = 0 WHERE origin = ? AND source <> ?;
+
+presentWorks:
+SELECT work.id, work.title, work.alternative_title, work.type, work.subtype, work_version.origin
+FROM work_version
+JOIN work ON work.id = work_version.work_id
+WHERE work_version.present = 1
+ORDER BY CASE work_version.origin WHEN 'local' THEN 0 ELSE 1 END, work_version.sort_index;
+
+-- Every version, present or gone, for the backup (rule E1).
+allForBackup:
+SELECT work_version.id, work_version.work_id, work_version.origin, work_version.source, work_version.path,
+    work_version.present, work_version.remote_library_id, work.title, work.alternative_title, work.type, work.subtype
+FROM work_version
+JOIN work ON work.id = work_version.work_id
+ORDER BY work_version.present DESC, work_version.sort_index, work_version.path;

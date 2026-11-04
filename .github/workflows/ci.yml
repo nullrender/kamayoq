@@ -1,0 +1,217 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# Least privilege: read-only by default; only the publish job gets write access and the signing key.
+permissions:
+  contents: read
+
+jobs:
+  # Runs on every event, with no secrets: tests, lint and a build check that is never published.
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      # Actions are pinned to the commit of each release, checked on 2026-10-24.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history: test builds are numbered by the commit count.
+          fetch-depth: 0
+
+      # Refuses a gradle-wrapper.jar that is not an official Gradle release.
+      - uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          java-version: '21'
+          distribution: temurin
+
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - name: Core tests (JVM)
+        run: ./gradlew :core:test --stacktrace
+
+      # Runs even when the core tests fail, so one red step never hides another (27/10/2026).
+      - name: Data tests (JVM, SQLite)
+        if: ${{ !cancelled() }}
+        run: ./gradlew :data:test --stacktrace
+
+      # The plugin hangs this on `check`, which nothing here calls: without this step an incomplete
+      # migration would reach the phone.
+      - name: Database migration check
+        if: ${{ !cancelled() }}
+        run: ./gradlew :data:verifyMainKamayoqDatabaseMigration --stacktrace
+
+      # Robolectric fetches its copy of Android here while the tests run; a failed download once
+      # broke a run that had nothing to do with it. Its key follows the version in use.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: robolectric-${{ hashFiles('gradle/libs.versions.toml') }}
+
+      # Robolectric: the app's lifecycle on the JVM, no emulator (docs/research/android-tests-for-recreation.md).
+      - name: App tests (Robolectric)
+        if: ${{ !cancelled() }}
+        run: ./gradlew :app:testDebugUnitTest --stacktrace
+
+      # These too run after a red test, which the method makes on purpose.
+      - name: Android lint
+        if: ${{ !cancelled() }}
+        run: ./gradlew :app:lintDebug --stacktrace
+
+      # Signed with a throwaway key and not uploaded: installing it could block real updates.
+      - name: Build check
+        if: ${{ !cancelled() }}
+        run: ./gradlew :app:assembleDebug --stacktrace
+
+      # Test and lint reports, kept when something fails, so the reason is readable.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: reports-${{ github.run_number }}
+          path: |
+            core/build/reports/tests/
+            data/build/reports/tests/
+            app/build/reports/
+
+  # Runs on every event, with no secrets, against a real Kavita that lives and dies with the run.
+  kavita:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history: the build refuses a shallow clone, even for a module that ignores the count.
+          fetch-depth: 0
+
+      - uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          java-version: '21'
+          distribution: temurin
+
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - name: Generate test comics
+        run: ./gradlew :data:kavitaFixtures --stacktrace
+
+      # Pinned by digest, the only place that says which Kavita the tests prove: tag 0.9.1 =
+      # v0.9.1.4, pushed on 2026-09-02, checked on 2026-10-30 (Docker Hub).
+      - name: Start Kavita
+        run: |
+          docker run -d --name kavita -p 5000:5000 \
+            -v "$PWD/data/build/kavita-fixtures/comics:/manga:ro" \
+            -v "$PWD/data/build/kavita-fixtures/mutable:/mutable:ro" \
+            -v "$PWD/data/build/kavita-fixtures/books:/books:ro" \
+            jvmilazz0/kavita@sha256:31181a32f0dda73cae68721867028a7253d57881b58bea5754cd9e578e75421a
+          start=$SECONDS
+          until [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5000/api/Health)" = 200 ]; do
+            if [ $((SECONDS - start)) -ge 120 ]; then
+              echo "Kavita did not answer in 120 s" >&2
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "Kavita answered after $((SECONDS - start)) s"
+
+      - name: Kavita tests
+        env:
+          KAVITA_URL: http://localhost:5000
+          KAVITA_FIXTURES: ${{ github.workspace }}/data/build/kavita-fixtures/mutable
+        run: ./gradlew :data:kavitaTest --stacktrace
+
+      - name: Kavita log
+        if: failure()
+        run: docker logs kavita
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: kavita-reports-${{ github.run_number }}
+          path: data/build/reports/tests/
+
+  # Only pushes to main, only after verify passes: builds the APK with the fixed debug key and
+  # publishes it as a pre-release for Obtainium.
+  publish:
+    needs: [verify, kavita]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      KAMAYOQ_PUBLISH: 'true'
+      KAMAYOQ_DEBUG_STORE_PASSWORD: ${{ secrets.KAMAYOQ_DEBUG_STORE_PASSWORD }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          # The publishing token stays out of git, where the build could reach it.
+          persist-credentials: false
+
+      - uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          java-version: '21'
+          distribution: temurin
+
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - name: Commit count
+        # The same count as app/build.gradle.kts, with the commits made before this history.
+        run: echo "COMMIT_COUNT=$(( $(git rev-list --count HEAD) + $(sed -n 's/^kamayoqEarlierCommits=//p' gradle.properties) ))" >> "$GITHUB_ENV"
+
+      # The fixed debug key comes from the repository secrets, decoded to a temporary file
+      # outside the workspace; it is never printed or committed.
+      - name: Decode debug signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.KAMAYOQ_DEBUG_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then echo "Missing secret KAMAYOQ_DEBUG_KEYSTORE_B64" >&2; exit 1; fi
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/kamayoq-debug.jks"
+          echo "KAMAYOQ_DEBUG_KEYSTORE_PATH=$RUNNER_TEMP/kamayoq-debug.jks" >> "$GITHUB_ENV"
+
+      - name: Build signed test APK
+        run: ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk "kamayoq-r${COMMIT_COUNT}.apk"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kamayoq-r${{ env.COMMIT_COUNT }}
+          path: kamayoq-r${{ env.COMMIT_COUNT }}.apk
+
+      # One pre-release per build on main, tagged r<commit count>, so Obtainium sees each new
+      # build as an update (it compares tag names). Safe to rerun: an existing tag on this same
+      # commit means the build is already published; a tag on another commit is an error.
+      # Never overwrites a published APK or moves a tag.
+      - name: Publish test pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="r${COMMIT_COUNT}"
+          # Obtainium takes the newest by publishing date, so only the head of main publishes: an
+          # older build whose checks ended last must not win. A concurrency group would not help: it
+          # can cancel the newest one waiting.
+          latest=$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq .sha)
+          if [ "$latest" != "$GITHUB_SHA" ]; then
+            echo "main is already at $latest; a newer build will publish."
+            exit 0
+          fi
+          if tagged=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${tag}" --jq .sha 2>/dev/null); then
+            if [ "$tagged" != "$GITHUB_SHA" ]; then
+              echo "Tag $tag already points to $tagged, not to $GITHUB_SHA; refusing to publish." >&2
+              exit 1
+            fi
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "$tag is already published for this commit; nothing to do."
+              exit 0
+            fi
+          fi
+          gh release create "$tag" "kamayoq-r${COMMIT_COUNT}.apk" \
+            --prerelease --target "$GITHUB_SHA" \
+            --title "Kamayoq Dev r${COMMIT_COUNT}" \
+            --notes "Test build (debug). Not for distribution."

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Name of the test build on the launcher, so it is not mistaken for the release build. -->
+    <string name="app_name" translatable="false">Kamayoq Dev</string>
+</resources>

@@ -1,0 +1,19 @@
+-- A Kavita server the person connected to. The key never comes here: it stays encrypted in a file
+-- Android does not copy (decision of 30/10/2026).
+CREATE TABLE kavita_server (
+    id TEXT NOT NULL PRIMARY KEY,
+    -- Changes when the server moves; the id does not, so its works stay linked.
+    address TEXT NOT NULL,
+    last_version TEXT,
+    -- Progress in Kavita belongs to a user: another account is another reading.
+    account_id INTEGER
+);
+
+all:
+SELECT * FROM kavita_server ORDER BY id;
+
+insert:
+INSERT INTO kavita_server (id, address, last_version, account_id) VALUES (?, ?, ?, ?);
+
+updateConnection:
+UPDATE kavita_server SET address = ?, last_version = ?, account_id = ? WHERE id = ?;

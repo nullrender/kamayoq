@@ -1,0 +1,15 @@
+-- A work, with an identifier the app generates and never changes (progress contract, section 3).
+CREATE TABLE work (
+    id TEXT NOT NULL PRIMARY KEY,
+    title TEXT NOT NULL,
+    alternative_title TEXT,
+    -- WorkType and ComicsSubtype names from core.
+    type TEXT NOT NULL,
+    subtype TEXT
+);
+
+insert:
+INSERT INTO work (id, title, alternative_title, type, subtype) VALUES (?, ?, ?, ?, ?);
+
+update:
+UPDATE work SET title = ?, alternative_title = ?, type = ?, subtype = ? WHERE id = ?;

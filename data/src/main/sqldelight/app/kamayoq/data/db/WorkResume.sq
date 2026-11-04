@@ -1,0 +1,25 @@
+-- Which chapter a work reopens in (section 2a). Its own table, so work_version and chapter do not
+-- refer to each other.
+CREATE TABLE work_resume (
+    version_id TEXT NOT NULL PRIMARY KEY REFERENCES work_version(id),
+    chapter_id TEXT NOT NULL,
+    -- The chapter must belong to the same version, not to another work.
+    FOREIGN KEY (version_id, chapter_id) REFERENCES chapter(version_id, id)
+);
+
+save:
+INSERT OR REPLACE INTO work_resume (version_id, chapter_id) VALUES (?, ?);
+
+resumeOfWork:
+SELECT chapter.id, work_version.work_id, chapter.path, chapter.name, chapter.kind, chapter.number, chapter.format,
+    -- Kept even when the file is gone, so reading resumes there if it comes back (rule E1).
+    CASE WHEN chapter.present = 1 AND work_version.present = 1 THEN 1 ELSE 0 END AS present,
+    CASE WHEN chapter.needs_check = 1 OR chapter.content_hash IS NULL THEN 1 ELSE 0 END AS needs_content_check,
+    work_version.origin
+FROM work_resume
+JOIN work_version ON work_version.id = work_resume.version_id
+JOIN chapter ON chapter.id = work_resume.chapter_id
+WHERE work_version.work_id = ?;
+
+resumeOfVersion:
+SELECT chapter_id FROM work_resume WHERE version_id = ?;

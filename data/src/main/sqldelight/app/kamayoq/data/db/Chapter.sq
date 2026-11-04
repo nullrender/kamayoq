@@ -1,0 +1,151 @@
+-- A reading unit, with its own identifier; the path is only where it is now (section 3).
+CREATE TABLE chapter (
+    id TEXT NOT NULL PRIMARY KEY,
+    version_id TEXT NOT NULL REFERENCES work_version(id),
+    path TEXT NOT NULL,
+    name TEXT NOT NULL,
+    -- UnitKind name from core.
+    kind TEXT NOT NULL,
+    number REAL,
+    -- ChapterFormat name from core.
+    format TEXT NOT NULL,
+    sort_index INTEGER NOT NULL,
+    -- 0 when the file is gone: kept with its progress, out of the list (rule E1).
+    present INTEGER NOT NULL,
+    -- Size and date of the file(s), from core's ContentCheck: cheap, and only a hint.
+    stamp TEXT NOT NULL,
+    -- SHA-256 of the whole content, kept from the first opening; null before it.
+    content_hash TEXT,
+    -- 1 when the stamp changed or the file came back while there was something to protect: the
+    -- hash must confirm the content on the next opening.
+    needs_check INTEGER NOT NULL,
+    -- The new edition that took this one's place; this one keeps its progress (rule E1). Checked
+    -- at commit, because the two rows are written in the same transaction.
+    replaced_by TEXT REFERENCES chapter(id) DEFERRABLE INITIALLY DEFERRED,
+    -- Kavita only, null for local chapters. Pages as the server counts them, for the 8b rule; the
+    -- smallest file name, for its tie-break (the API gives no name, and files[0] has no set order);
+    -- the volume, which every progress sent to the server must carry.
+    page_count INTEGER CHECK (page_count >= 0),
+    remote_file TEXT,
+    remote_volume_id INTEGER,
+    -- Lets work_resume require a chapter of its own version.
+    UNIQUE (version_id, id)
+);
+
+-- One current chapter per path; previous editions at the same path are kept beside it.
+CREATE UNIQUE INDEX chapter_current_path ON chapter (version_id, path) WHERE replaced_by IS NULL;
+
+-- As versionsOfSource: the current edition of each path of a version.
+currentOfVersion:
+SELECT id, present, stamp, content_hash, needs_check, path
+FROM chapter
+WHERE version_id = ? AND replaced_by IS NULL;
+
+remoteOfVersion:
+SELECT id, present, stamp, content_hash, needs_check, path, number, page_count, remote_file
+FROM chapter
+WHERE version_id = ? AND replaced_by IS NULL;
+
+movePath:
+UPDATE chapter SET path = ? WHERE id = ?;
+
+insert:
+INSERT INTO chapter (id, version_id, path, name, kind, number, format, sort_index, present, stamp, content_hash, needs_check)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, NULL, 0);
+
+insertRemote:
+INSERT INTO chapter (id, version_id, path, name, kind, number, format, sort_index, present, stamp, content_hash,
+    needs_check, page_count, remote_file, remote_volume_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, NULL, 0, ?, ?, ?);
+
+updateRemote:
+UPDATE chapter
+SET name = ?, kind = ?, number = ?, format = ?, sort_index = ?, stamp = ?, needs_check = ?, present = 1,
+    page_count = ?, remote_file = ?, remote_volume_id = ?
+WHERE id = ?;
+
+update:
+UPDATE chapter
+SET name = ?, kind = ?, number = ?, format = ?, sort_index = ?, stamp = ?, needs_check = ?, present = 1
+WHERE id = ?;
+
+markAbsentExcept:
+UPDATE chapter SET present = 0 WHERE version_id = ? AND id NOT IN ?;
+
+byId:
+SELECT * FROM chapter WHERE id = ?;
+
+hasProgress:
+SELECT count(*) FROM chapter_progress WHERE chapter_id = ?;
+
+confirm:
+UPDATE chapter SET content_hash = ?, needs_check = 0 WHERE id = ?;
+
+doubt:
+UPDATE chapter SET needs_check = 1 WHERE id = ?;
+
+replace:
+UPDATE chapter SET replaced_by = ?, present = 0 WHERE id = ?;
+
+insertEdition:
+INSERT INTO chapter
+    (id, version_id, path, name, kind, number, format, sort_index, present, stamp, content_hash, needs_check,
+    page_count, remote_file, remote_volume_id)
+SELECT ?, version_id, path, name, kind, number, format, sort_index, ?, stamp, ?, 0,
+    page_count, remote_file, remote_volume_id
+FROM chapter
+WHERE id = ?;
+
+presentOfWork:
+SELECT chapter.id, work_version.work_id, chapter.path, chapter.name, chapter.kind, chapter.number, chapter.format,
+    CASE WHEN chapter.present = 1 AND work_version.present = 1 THEN 1 ELSE 0 END AS present,
+    CASE WHEN chapter.needs_check = 1 OR chapter.content_hash IS NULL THEN 1 ELSE 0 END AS needs_content_check,
+    work_version.origin
+FROM chapter
+JOIN work_version ON work_version.id = chapter.version_id
+-- A chapter of a work whose folder is gone is not in the folder either.
+WHERE work_version.work_id = ? AND chapter.present = 1 AND work_version.present = 1
+ORDER BY chapter.sort_index;
+
+versionOfChapter:
+SELECT version_id FROM chapter WHERE id = ?;
+
+-- Every edition of a version's chapters, present or gone, for the backup (rule E1). The presence is
+-- the chapter's own, and replaced_by links each previous edition to the next: the work's presence
+-- and the order cannot say which edition is current.
+allOfVersion:
+SELECT chapter.id, chapter.replaced_by, chapter.path, chapter.name, chapter.kind, chapter.number,
+    chapter.format, chapter.content_hash, chapter.present, chapter.page_count, chapter.remote_file,
+    chapter.remote_volume_id
+FROM chapter
+WHERE chapter.version_id = ?
+-- Editions at one path keep the order they were found in: the rowid grows with each insert.
+ORDER BY chapter.sort_index, chapter.rowid;
+
+-- The Kavita chapters whose position goes back and forth; text ones wait for the EPUB reader.
+syncItems:
+SELECT chapter.id, chapter.path, chapter.remote_volume_id, chapter.page_count, work_version.path AS series,
+    work_version.remote_library_id, progress_agreement.page AS agreed_page, progress_agreement.server_at,
+    progress_outbox.state AS outbox_state, progress_outbox.page AS outbox_page,
+    EXISTS (SELECT 1 FROM chapter AS previous WHERE previous.replaced_by = chapter.id) AS is_edition
+FROM chapter
+JOIN work_version ON work_version.id = chapter.version_id
+LEFT JOIN progress_agreement ON progress_agreement.chapter_id = chapter.id
+LEFT JOIN progress_outbox ON progress_outbox.chapter_id = chapter.id
+WHERE work_version.origin = 'kavita' AND work_version.source = ? AND chapter.replaced_by IS NULL
+    AND chapter.present = 1 AND work_version.present = 1 AND chapter.format = 'ARCHIVE' AND chapter.page_count > 0
+    -- Until the hash says, no one knows whose position this is.
+    AND chapter.needs_check = 0
+ORDER BY chapter.sort_index;
+
+syncItem:
+SELECT chapter.id, chapter.path, chapter.remote_volume_id, chapter.page_count, work_version.path AS series,
+    work_version.remote_library_id, progress_agreement.page AS agreed_page, progress_agreement.server_at,
+    progress_outbox.state AS outbox_state, progress_outbox.page AS outbox_page,
+    EXISTS (SELECT 1 FROM chapter AS previous WHERE previous.replaced_by = chapter.id) AS is_edition
+FROM chapter
+JOIN work_version ON work_version.id = chapter.version_id
+LEFT JOIN progress_agreement ON progress_agreement.chapter_id = chapter.id
+LEFT JOIN progress_outbox ON progress_outbox.chapter_id = chapter.id
+WHERE chapter.id = ? AND work_version.origin = 'kavita' AND chapter.present = 1 AND work_version.present = 1
+    AND chapter.format = 'ARCHIVE' AND chapter.page_count > 0 AND chapter.needs_check = 0;

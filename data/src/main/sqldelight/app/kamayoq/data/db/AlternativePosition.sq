@@ -1,0 +1,37 @@
+-- The position a work could go back to: the one not chosen in a conflict and the previous one can
+-- live side by side, so the reason is part of the key (decision 3, docs/decisions/kavita-step-3-2026-10-30.md).
+CREATE TABLE alternative_position (
+    version_id TEXT NOT NULL REFERENCES work_version(id),
+    reason TEXT NOT NULL CHECK (reason IN ('CONFLICT', 'PREVIOUS')),
+    chapter_id TEXT NOT NULL,
+    -- Same rules as a position in chapter_progress.
+    page INTEGER NOT NULL,
+    total INTEGER NOT NULL,
+    at INTEGER NOT NULL,
+    -- 'kavita' for a position that came from the server.
+    device TEXT NOT NULL,
+    PRIMARY KEY (version_id, reason),
+    -- The chapter must belong to the same version, not to another work.
+    FOREIGN KEY (version_id, chapter_id) REFERENCES chapter(version_id, id),
+    CHECK (total >= 1 AND page BETWEEN 0 AND total)
+);
+
+ofVersion:
+SELECT * FROM alternative_position WHERE version_id = ? ORDER BY reason;
+
+keep:
+INSERT OR REPLACE INTO alternative_position (version_id, reason, chapter_id, page, total, at, device)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+forget:
+DELETE FROM alternative_position WHERE version_id = ? AND reason = ?;
+
+ofWork:
+SELECT alternative_position.reason, alternative_position.chapter_id, alternative_position.page,
+    alternative_position.total, alternative_position.at, alternative_position.device, chapter.name
+FROM alternative_position
+JOIN work_version ON work_version.id = alternative_position.version_id
+JOIN chapter ON chapter.id = alternative_position.chapter_id
+-- A chapter replaced or gone has nothing to go back to: its reading stays stored (rule E1).
+WHERE work_version.work_id = ? AND chapter.replaced_by IS NULL AND chapter.present = 1
+ORDER BY alternative_position.reason;

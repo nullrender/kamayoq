@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_title">Biblioteca</string>
+    <string name="no_folder">Escolha uma pasta para o Kamayoq. Suas obras ficam na pasta Library dentro dela, que o Kamayoq cria se faltar. O Kamayoq nunca altera seus arquivos.</string>
+    <string name="choose_folder">Escolher pasta</string>
+    <string name="change_folder">Trocar pasta</string>
+    <string name="folder_access_lost">O Kamayoq não consegue mais abrir a pasta escolhida. Escolha a pasta de novo para ver suas obras.</string>
+    <string name="folder_access_refused">O Android não deixou o Kamayoq guardar o acesso a esta pasta. Escolha de novo ou escolha outra pasta.</string>
+    <string name="reading_folder">Lendo a pasta…</string>
+    <string name="reading_folder_failed">Não foi possível ler a pasta. As obras abaixo são da última leitura que deu certo.</string>
+    <string name="no_works_found">Nenhuma obra na pasta Library. Coloque suas obras lá, depois feche o Kamayoq e abra de novo.</string>
+    <!-- In pt-BR, 0 and 1 use "one" (CLDR plural rules); the row only shows with 1 or more. -->
+    <plurals name="ignored_files">
+        <item quantity="one">%d arquivo deixado de fora</item>
+        <item quantity="other">%d arquivos deixados de fora</item>
+    </plurals>
+    <string name="see_ignored_files">Ver quais e por quê</string>
+    <!-- A work always has at least one chapter, so the "one" form never shows 0. -->
+    <plurals name="chapter_count">
+        <item quantity="one">%d capítulo</item>
+        <item quantity="other">%d capítulos</item>
+    </plurals>
+    <string name="ignored_files_title">Arquivos deixados de fora</string>
+    <string name="reason_unsupported_format">Formato ainda não lido</string>
+    <string name="reason_unexpected_place">Fora do lugar de obra ou capítulo</string>
+    <string name="back">Voltar</string>
+    <string name="continue_reading">Continuar: %s</string>
+    <string name="start_reading">Começar a ler</string>
+    <string name="chapter_read">Lido</string>
+    <string name="reader_opening">Abrindo o capítulo…</string>
+    <string name="reader_missing">O arquivo deste capítulo não está mais na pasta.</string>
+    <string name="reader_failed">Não foi possível abrir este capítulo.</string>
+    <string name="reader_no_pages">Este capítulo não tem imagens para mostrar.</string>
+    <string name="reader_page_failed">Esta imagem não abre.</string>
+    <string name="reader_page_label">Imagem %1$d de %2$d</string>
+    <string name="reader_show_controls">Mostrar controles</string>
+    <string name="reader_hide_controls">Esconder controles</string>
+    <string name="reader_save_failed">Não foi possível guardar onde você parou. A leitura continua.</string>
+    <string name="end_of_chapter">Fim do capítulo</string>
+    <string name="next_chapter">Próximo: %s</string>
+    <string name="no_next_chapter">Este é o último capítulo da pasta.</string>
+    <string name="back_up">Fazer backup</string>
+    <string name="backup_writing">Gravando o backup…</string>
+    <string name="backup_written">Backup gravado em %1$s/Backups/%2$s. Ele guarda suas obras, o que você já leu e onde parou em cada uma. Os arquivos das obras não vão no backup.</string>
+    <string name="backup_written_unnamed">Backup gravado em %1$s/Backups. Ele guarda suas obras, o que você já leu e onde parou em cada uma. Os arquivos das obras não vão no backup.</string>
+    <string name="backup_write_failed">Não foi possível gravar o backup. Seu progresso continua guardado no Kamayoq.</string>
+    <string name="backup_mismatch">O backup não ficou igual ao que o Kamayoq gravou, então o Kamayoq o apagou. Pode ser falta de espaço, um problema no armazenamento ou no próprio Kamayoq. Faça o backup de novo.</string>
+    <string name="kavita_connect">Conectar ao Kavita</string>
+    <string name="kavita_address">Endereço do servidor</string>
+    <string name="kavita_key">Chave de autenticação</string>
+    <string name="kavita_key_hint">No Kavita, abra as configurações, depois Auth Keys / OPDS, e copie uma chave.</string>
+    <string name="kavita_connect_button">Conectar</string>
+    <string name="kavita_connecting">Conectando…</string>
+    <string name="kavita_connected">Conectado · Kavita %1$s</string>
+    <string name="kavita_refused">O Kavita recusou o acesso.</string>
+    <string name="kavita_unreachable">Não foi possível acessar o servidor. O endereço %1$s não respondeu.</string>
+    <string name="kavita_not_kavita">O endereço %1$s respondeu, mas não parece ser um Kavita. Confira o endereço.</string>
+    <string name="kavita_key_unreadable">Não foi possível abrir a chave guardada neste aparelho. Digite a chave de novo.</string>
+    <string name="kavita_key_not_saved">Conectado, mas este aparelho não conseguiu guardar a chave. Da próxima vez, será preciso digitá-la de novo.</string>
+    <string name="kavita_http_warning">Este endereço não tem criptografia: outras pessoas na rede poderiam ler a chave. Use só numa rede em que você confia.</string>
+    <string name="library_failed_title">Não foi possível abrir sua biblioteca</string>
+    <string name="library_failed_newer">Ela foi salva por uma versão mais nova do app. Atualize o Kamayoq para abri-la. Suas obras e seu progresso continuam neste aparelho.</string>
+    <string name="library_failed_not_opened">Nada foi apagado: sua biblioteca continua neste aparelho. Feche o app e abra de novo. Se continuar acontecendo, aguarde uma atualização do Kamayoq.</string>
+    <string name="origin_kavita">Kavita</string>
+    <string name="kavita_other_account">Esta chave é de outra conta ou de outro Kavita. Nada mudou: as obras daqui ficam como estão.</string>
+    <string name="kavita_libraries">Bibliotecas</string>
+    <string name="kavita_include_hint">Marque o que entra na sua Biblioteca. Incluir não baixa nenhum arquivo.</string>
+    <string name="kavita_include">Incluir na Biblioteca</string>
+    <string name="kavita_including">Incluindo…</string>
+    <string name="kavita_included">Pronto. As bibliotecas marcadas estão na sua Biblioteca.</string>
+    <string name="kavita_libraries_failed">Não foi possível ler as bibliotecas do Kavita. Confira a conexão e tente de novo.</string>
+    <string name="kavita_read_failed">Não foi possível acessar o Kavita. As obras abaixo são da última leitura que deu certo.</string>
+    <string name="reader_download_failed">Não foi possível baixar este capítulo do Kavita. Confira a conexão e tente de novo.</string>
+    <string name="reader_epub_not_yet">O Kamayoq ainda não abre livros EPUB.</string>
+    <string name="reader_format_not_yet">O Kamayoq ainda não abre este formato.</string>
+    <string name="position_page">página %1$d de %2$d</string>
+    <string name="position_end">fim do capítulo</string>
+    <string name="conflict_title">Este capítulo mudou nos dois lados</string>
+    <string name="conflict_hint">Escolha onde continuar. A outra posição fica guardada na Obra.</string>
+    <string name="conflict_here">Neste aparelho · %1$s</string>
+    <string name="conflict_kavita">No Kavita · %1$s</string>
+    <string name="moved_notice">Aberto onde você parou em outro aparelho.</string>
+    <string name="moved_go_back">Voltar à anterior</string>
+    <string name="moved_close">Fechar</string>
+    <string name="other_position">Outra posição: %1$s, %2$s</string>
+    <string name="other_position_use">Usar</string>
+</resources>

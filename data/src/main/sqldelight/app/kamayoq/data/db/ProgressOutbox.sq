@@ -1,0 +1,20 @@
+-- What still has to reach Kavita, one row per chapter (progress contract, section 2d). The row
+-- leaves when the server confirms.
+CREATE TABLE progress_outbox (
+    chapter_id TEXT NOT NULL PRIMARY KEY REFERENCES chapter(id),
+    page INTEGER NOT NULL CHECK (page >= 0),
+    book_scroll_id TEXT,
+    local_cfi TEXT,
+    state TEXT NOT NULL CHECK (state IN ('TO_SEND', 'SENT_UNCONFIRMED')),
+    queued_at INTEGER NOT NULL
+);
+
+ofChapter:
+SELECT * FROM progress_outbox WHERE chapter_id = ?;
+
+queue:
+INSERT OR REPLACE INTO progress_outbox (chapter_id, page, book_scroll_id, local_cfi, state, queued_at)
+VALUES (?, ?, NULL, NULL, ?, ?);
+
+clear:
+DELETE FROM progress_outbox WHERE chapter_id = ?;

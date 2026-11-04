@@ -1,0 +1,22 @@
+-- The last position both sides agreed on (progress contract, section 2d).
+CREATE TABLE progress_agreement (
+    chapter_id TEXT NOT NULL PRIMARY KEY REFERENCES chapter(id),
+    page INTEGER NOT NULL CHECK (page >= 0),
+    book_scroll_id TEXT,
+    -- Kavita's own text, only compared for equality; null when it has no record.
+    server_at TEXT,
+    -- 1 when going back was this reader's own choice (rule C1), not news from the server.
+    own_reread INTEGER NOT NULL CHECK (own_reread IN (0, 1)),
+    -- Kavita does not give the CFI back, so it stays with the value agreed; null for images.
+    local_cfi TEXT
+);
+
+ofChapter:
+SELECT * FROM progress_agreement WHERE chapter_id = ?;
+
+forget:
+DELETE FROM progress_agreement WHERE chapter_id = ?;
+
+agree:
+INSERT OR REPLACE INTO progress_agreement (chapter_id, page, book_scroll_id, server_at, own_reread, local_cfi)
+VALUES (?, ?, NULL, ?, ?, NULL);

@@ -1,0 +1,15 @@
+-- The server libraries the person marked.
+CREATE TABLE kavita_library (
+    server_id TEXT NOT NULL REFERENCES kavita_server(id),
+    library_id INTEGER NOT NULL,
+    PRIMARY KEY (server_id, library_id)
+);
+
+ofServer:
+SELECT library_id FROM kavita_library WHERE server_id = ? ORDER BY library_id;
+
+mark:
+INSERT INTO kavita_library (server_id, library_id) VALUES (?, ?);
+
+unmarkAll:
+DELETE FROM kavita_library WHERE server_id = ?;

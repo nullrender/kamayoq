@@ -1,0 +1,50 @@
+-- From version 1 to 2: only adds, so every local work, chapter and position stays as it was.
+ALTER TABLE work_version ADD COLUMN remote_library_id INTEGER;
+
+ALTER TABLE chapter ADD COLUMN page_count INTEGER CHECK (page_count >= 0);
+ALTER TABLE chapter ADD COLUMN remote_file TEXT;
+ALTER TABLE chapter ADD COLUMN remote_volume_id INTEGER;
+
+CREATE TABLE kavita_server (
+    id TEXT NOT NULL PRIMARY KEY,
+    address TEXT NOT NULL,
+    last_version TEXT,
+    account_id INTEGER
+);
+
+CREATE TABLE kavita_library (
+    server_id TEXT NOT NULL REFERENCES kavita_server(id),
+    library_id INTEGER NOT NULL,
+    PRIMARY KEY (server_id, library_id)
+);
+
+CREATE TABLE progress_agreement (
+    chapter_id TEXT NOT NULL PRIMARY KEY REFERENCES chapter(id),
+    page INTEGER NOT NULL CHECK (page >= 0),
+    book_scroll_id TEXT,
+    server_at TEXT,
+    own_reread INTEGER NOT NULL CHECK (own_reread IN (0, 1)),
+    local_cfi TEXT
+);
+
+CREATE TABLE progress_outbox (
+    chapter_id TEXT NOT NULL PRIMARY KEY REFERENCES chapter(id),
+    page INTEGER NOT NULL CHECK (page >= 0),
+    book_scroll_id TEXT,
+    local_cfi TEXT,
+    state TEXT NOT NULL CHECK (state IN ('TO_SEND', 'SENT_UNCONFIRMED')),
+    queued_at INTEGER NOT NULL
+);
+
+CREATE TABLE alternative_position (
+    version_id TEXT NOT NULL REFERENCES work_version(id),
+    reason TEXT NOT NULL CHECK (reason IN ('CONFLICT', 'PREVIOUS')),
+    chapter_id TEXT NOT NULL,
+    page INTEGER NOT NULL,
+    total INTEGER NOT NULL,
+    at INTEGER NOT NULL,
+    device TEXT NOT NULL,
+    PRIMARY KEY (version_id, reason),
+    FOREIGN KEY (version_id, chapter_id) REFERENCES chapter(version_id, id),
+    CHECK (total >= 1 AND page BETWEEN 0 AND total)
+);
