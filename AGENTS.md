@@ -18,14 +18,18 @@ Sources: dora.dev, "Trunk-based development"; Fabio Akita, public skills in `aki
 - Test before code: CI shows the test failing and then passing. The red fails on behavior, not on compilation: the new API goes in first, with no effect, together with the test.
 - Every bug becomes a regression test written before the fix.
 - A characterization test (it pins down what an outside service does today) goes in green: there is no honest red for it (`docs/decisions/kavita-step-3-2026-10-30.md`).
+- Measurements of the reading engine go in green too: the emulator rehearsal and the hostile book's positive control (the same book with the defenses off) measure what the WebView and foliate-js do, and a red there would be staged.
 - Integration tests run against the real service (Kavita in a container, in CI); never against a hand-written imitation.
 - One change per commit, small enough to review; CI green before moving on.
 - Work directly on `main`, in small commits. A short branch only for parallel work or for a large, risky change that spans several days (for example, a database schema migration).
 - Wait for CI by the run number (`gh run list --limit 1 --json databaseId`), not by `--commit` with the short hash: the filter does not find the run.
 - A repeated mistake becomes a line in this file.
+- Test names in `androidTest` have no commas: DEX refuses them, and the error only shows when the emulator build runs. JVM test names may keep them.
 - A documentation-only commit may carry `[skip ci]`. The GitHub documentation does not say which commit of a push with several commits is checked: push the code commit separately, before the documentation ones.
 
 ## How to check
 - `./gradlew :core:test :data:test`: rules and storage, on the JVM.
 - `./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug`: app (Robolectric), lint and APK.
 - Tests against the real Kavita: the `kavita` CI job.
+- `./gradlew :epub-fixtures:test` and `node --test third_party/upstream-check.test.mjs app/src/jsTest/*.test.mjs`: the generated EPUBs, the copy of foliate-js and the reader's own scripts.
+- Text reader in a real WebView: the `Emulator` workflow (`./gradlew :app:connectedDebugAndroidTest` on an emulator).

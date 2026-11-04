@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "kamayoq"
-include(":core", ":data", ":app")
+include(":core", ":data", ":app", ":epub-fixtures")

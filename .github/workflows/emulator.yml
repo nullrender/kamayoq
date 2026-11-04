@@ -1,0 +1,75 @@
+name: Emulator
+
+# The real WebView, which Robolectric cannot run (docs/research/android-tests-for-recreation.md).
+# Kept apart from ci.yml, by paths, so a change away from the reader spends no emulator minutes.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/emulator.yml
+      # The build that puts the fork in the APK, the library versions and the manifest's network
+      # permission change what these tests prove.
+      - app/build.gradle.kts
+      - app/src/main/AndroidManifest.xml
+      - gradle/libs.versions.toml
+      - core/src/main/kotlin/app/kamayoq/core/progress/**
+      - app/src/androidTest/**
+      - app/src/main/assets/reader/**
+      - app/src/main/java/app/kamayoq/android/Reader*.kt
+      - core/src/main/kotlin/app/kamayoq/core/reader/**
+      - epub-fixtures/**
+      - third_party/foliate-js/**
+
+permissions:
+  contents: read
+
+jobs:
+  emulator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history: the build refuses a shallow clone.
+          fetch-depth: 0
+
+      - uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          java-version: '21'
+          distribution: temurin
+
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      # Before the emulator takes the memory of a 2-core runner.
+      - name: Build the app and its tests
+        run: ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
+
+      # Without this the runner's user cannot open /dev/kvm (the action's README).
+      - name: Enable KVM
+        run: |
+          ls -l /dev/kvm
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+
+      - name: Run the tests on the emulator
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          # The image measured in the rehearsal of 02/11/2026 (docs/research/epub-step-4-design/emulator-rehearsal.md).
+          api-level: 36
+          target: default
+          arch: x86_64
+          ram-size: 2048M
+          script: |
+            adb shell dumpsys webviewupdate
+            ./gradlew :app:connectedDebugAndroidTest --stacktrace
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: emulator-reports-${{ github.run_number }}
+          path: app/build/reports/androidTests/
+          retention-days: 7

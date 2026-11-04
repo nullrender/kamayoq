@@ -1,3 +1,5 @@
+import javax.inject.Inject
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -43,6 +45,7 @@ android {
         targetSdk = 36
         versionCode = releaseVersionCode
         versionName = nextRelease
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
@@ -91,6 +94,33 @@ android {
     }
 }
 
+// The copy of foliate-js reaches the APK under reader/, beside the page that uses it, and its
+// record stays out (third_party/foliate-js/UPSTREAM.md).
+abstract class CopyReaderLibrary : DefaultTask() {
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val library: DirectoryProperty
+
+    @get:OutputDirectory
+    abstract val assets: DirectoryProperty
+
+    @get:Inject
+    abstract val files: FileSystemOperations
+
+    @TaskAction
+    fun copy() {
+        files.sync {
+            from(library) { exclude("UPSTREAM.md") }
+            into(assets.dir("reader/foliate-js"))
+        }
+    }
+}
+
+val copyReaderLibrary = tasks.register<CopyReaderLibrary>("copyReaderLibrary") {
+    library.set(rootProject.layout.projectDirectory.dir("third_party/foliate-js"))
+    assets.set(layout.buildDirectory.dir("generated/reader-library"))
+}
+
 dependencies {
     implementation(project(":core"))
     implementation(project(":data"))
@@ -100,6 +130,7 @@ dependencies {
     implementation(libs.compose.foundation)
     implementation(libs.compose.material3)
     implementation(libs.activity.compose)
+    implementation(libs.androidx.webkit)
 
     // The app's lifecycle on the JVM, without an emulator (docs/research/android-tests-for-recreation.md).
     testImplementation(libs.junit4)
@@ -110,12 +141,21 @@ dependencies {
     testImplementation(platform(libs.compose.bom))
     testImplementation(libs.compose.ui.test.junit4)
     debugImplementation(libs.compose.ui.test.manifest)
+
+    // The real WebView, on an emulator (.github/workflows/emulator.yml).
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(project(":epub-fixtures"))
 }
 
 // Test builds: versionCode is the commit count and the name says which release they lead to,
 // e.g. 0.1.0-r27. The test build has its own application id, so its numbers never mix with
 // the release ones.
 androidComponents {
+    onVariants { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(copyReaderLibrary, CopyReaderLibrary::assets)
+    }
     onVariants(selector().withBuildType("debug")) { variant ->
         variant.outputs.forEach { output ->
             output.versionCode.set(commitCount)
