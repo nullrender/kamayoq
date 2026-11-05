@@ -122,7 +122,13 @@ internal object KavitaServer {
     }
 
     /** Saves as the web reader does, with the date a slower device would have sent. */
-    fun saveProgress(work: KavitaWork, chapter: KavitaChapter, page: Int, lastModifiedUtc: String? = null) {
+    fun saveProgress(
+        work: KavitaWork,
+        chapter: KavitaChapter,
+        page: Int,
+        lastModifiedUtc: String? = null,
+        bookScrollId: String? = null,
+    ) {
         val progress = buildJsonObject {
             put("volumeId", chapter.volumeId)
             put("chapterId", chapter.id)
@@ -130,6 +136,7 @@ internal object KavitaServer {
             put("seriesId", work.id)
             put("libraryId", work.libraryId)
             if (lastModifiedUtc != null) put("lastModifiedUtc", lastModifiedUtc)
+            if (bookScrollId != null) put("bookScrollId", bookScrollId)
         }
         send("/api/Reader/progress", progress, "x-api-key" to authKey)
     }
@@ -138,6 +145,10 @@ internal object KavitaServer {
     fun volumeNumbers(workId: Int): List<Double> =
         Json.parseToJsonElement(get("/api/Series/volumes?seriesId=$workId", key = authKey).body).jsonArray
             .map { it.jsonObject.getValue("minNumber").jsonPrimitive.double }
+
+    /** The table of contents of an EPUB chapter, as the web reader asks for it. */
+    fun bookContents(chapter: KavitaChapter): List<JsonObject> =
+        Json.parseToJsonElement(get("/api/Book/${chapter.id}/chapters", key = authKey).body).jsonArray.map { it.jsonObject }
 
     fun progress(chapter: KavitaChapter): JsonObject =
         Json.parseToJsonElement(get("/api/Reader/get-progress?chapterId=${chapter.id}", key = authKey).body).jsonObject

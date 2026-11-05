@@ -46,14 +46,35 @@ fun main(args: Array<String>) {
     val books = File(root, "books")
     for (name in listOf("A file", "B file", "C file")) writeEpub(File(books, "Same Title/$name.epub"), "Same Title")
     writeEpub(File(books, "Lone Book/Lone Book.epub"), "Lone Book")
+    // The middle section is out of the linear reading and the table of contents points into a
+    // section: both decide whether Kavita's page is the spine index foliate-js counts.
+    writeEpub(
+        File(books, "Spine Book/Spine Book.epub"),
+        "Spine Book",
+        nonLinear = setOf(1),
+        contents = listOf("s0.xhtml" to "One", "s1.xhtml" to "Two", "s2.xhtml" to "Three", "s2.xhtml#x" to "Three, part"),
+    )
+    // Named as numbered chapters of one work, with each file's own title.
+    writeEpub(File(books, "Chapters Folder/Cap. 0928.epub"), "Alpha Story")
+    writeEpub(File(books, "Chapters Folder/Cap. 0929.epub"), "Beta Story")
+    // One book per progress test, so no test finds a record another one left.
+    for (name in listOf("Unmarked Book", "Marked Book", "Id Book", "Zero Book")) writeEpub(File(books, "$name/$name.epub"), name)
 }
 
 /** An EPUB of three sections, with invented text: the book is what the OPF title says. */
-internal fun writeEpub(file: File, title: String) {
+internal fun writeEpub(
+    file: File,
+    title: String,
+    nonLinear: Set<Int> = emptySet(),
+    contents: List<Pair<String, String>> = listOf("s0.xhtml" to "x"),
+) {
     file.parentFile.mkdirs()
     val sections = 0..2
     val items = sections.joinToString("") { """<item id="s$it" href="s$it.xhtml" media-type="application/xhtml+xml"/>""" }
-    val spine = sections.joinToString("") { """<itemref idref="s$it"/>""" }
+    val spine = sections.joinToString("") {
+        if (it in nonLinear) """<itemref idref="s$it" linear="no"/>""" else """<itemref idref="s$it"/>"""
+    }
+    val links = contents.joinToString("") { (href, label) -> """<li><a href="$href">$label</a></li>""" }
     val draft = File(file.parentFile, "${file.name}.draft")
     ZipOutputStream(draft.outputStream()).use { zip ->
         fun entry(name: String, text: String) {
@@ -78,12 +99,12 @@ internal fun writeEpub(file: File, title: String) {
         entry(
             "nav.xhtml",
             """<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><body>""" +
-                """<nav epub:type="toc"><ol><li><a href="s0.xhtml">x</a></li></ol></nav></body></html>""",
+                """<nav epub:type="toc"><ol>$links</ol></nav></body></html>""",
         )
         for (section in sections) {
             entry(
                 "s$section.xhtml",
-                """<html xmlns="http://www.w3.org/1999/xhtml"><head><title>$section</title></head><body><p>$title $section</p></body></html>""",
+                """<html xmlns="http://www.w3.org/1999/xhtml"><head><title>$section</title></head><body><p>$title $section</p><p id="x">$section</p></body></html>""",
             )
         }
     }
