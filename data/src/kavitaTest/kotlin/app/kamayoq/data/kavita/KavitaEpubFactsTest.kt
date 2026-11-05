@@ -59,7 +59,7 @@ class KavitaEpubFactsTest {
     }
 
     @Test
-    fun `dado o marcador id("x"), quando leio o progresso, então ele volta igual`() {
+    fun `dado o marcador na forma id de elemento, quando leio o progresso, então ele volta igual`() {
         val work = book("Id Book")
         val chapter = work.chapter()
 
