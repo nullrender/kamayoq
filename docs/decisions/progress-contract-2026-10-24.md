@@ -109,7 +109,13 @@ Every automatic change records "who changed = rule" and the previous value (2c).
 
 **Consequences (inference):** the EPUB section passes exactly in both directions; the position inside the section does not (CFI ↔ XPath loses precision). The contract stores the CFI here and sends Kavita the section and bookmark. The real precision can only be measured with the round-trip test; until then, no app text promises "page by page". A reading done offline and sent two days later shows up on Kavita with the date it was sent; the date shown in the conflict ("Neste aparelho · 10/10 20h14" — "On this device · 10/10 20:14") is the local time of the reading, stored here.
 
-**Pending:** how Kavita represents "chapters missing" (`Ended`, not yet checked in Kavita); the exact correspondence between the section index of foliate-js (Readest fork) and Kavita's; testing sending and confirmation (2d) with a real server.
+**Measured on Kavita 0.9.1.4** (the CI image, 04/11/2026; `KavitaEpubFactsTest`):
+- an EPUB's `pages` is the number of spine items, `linear="no"` included, and the `nav` document outside the spine is not counted; the table of contents (`Book/{id}/chapters`) gives each item's spine index as `page`, and an anchor inside a section in `part`. foliate-js counts sections the same way (code reading, `docs/research/epub-step-4-design.md`, "Kavita and EPUB");
+- with no record, page 0 is answered with 200 and nothing is stored, marker included; once a record exists, page 0 and its marker are stored. So the position inside the first section only reaches Kavita after some other page has been sent;
+- `bookScrollId` comes back exactly as sent, an XPath or `id("x")`;
+- two EPUBs in the same folder with different OPF titles are two series.
+
+**Pending:** how Kavita represents "chapters missing" (`Ended`, not yet checked in Kavita); testing sending and confirmation (2d) with a real server.
 
 ## 6b. Future proposal to Kavita
 
