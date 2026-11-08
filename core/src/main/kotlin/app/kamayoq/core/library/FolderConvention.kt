@@ -9,6 +9,7 @@ import java.text.Normalizer
  */
 object FolderConvention {
     private val archiveExtensions = setOf("cbz", "zip")
+    private const val EPUB = "epub"
     internal val imageExtensions = setOf("jpg", "jpeg", "png", "webp", "gif", "avif")
 
     // One English name per type, matched after removing accents and case, so "COMICS" and "comics"
@@ -90,7 +91,12 @@ object FolderConvention {
                 if (isSkipped(name)) continue
                 val path = childPath(folder.path, name)
                 when (extension(name)) {
-                    in archiveExtensions -> works += looseWork(path, name, type)
+                    in archiveExtensions -> works += looseWork(path, name, type, UnitContent.Archive)
+                    EPUB -> if (readsEpub(type)) {
+                        works += looseWork(path, name, type, UnitContent.Epub)
+                    } else {
+                        ignore(path, IgnoreReason.UNSUPPORTED_FORMAT)
+                    }
                     in imageExtensions -> ignore(path, IgnoreReason.UNEXPECTED_PLACE)
                     else -> ignore(path, IgnoreReason.UNSUPPORTED_FORMAT)
                 }
@@ -106,7 +112,7 @@ object FolderConvention {
             }
         }
 
-        private fun looseWork(path: String, name: String, type: WorkType): Work {
+        private fun looseWork(path: String, name: String, type: WorkType, content: UnitContent): Work {
             val stem = stem(name)
             val (title, alternative) = titles(stem)
             val unit = ReadingUnit(
@@ -114,7 +120,7 @@ object FolderConvention {
                 name = stem,
                 kind = UnitKind.VOLUME,
                 number = numbering(stem).second,
-                content = UnitContent.Archive,
+                content = content,
             )
             return Work(path, title, alternative, type, subtype = null, units = listOf(unit))
         }
@@ -126,6 +132,11 @@ object FolderConvention {
                 val path = childPath(folder.path, fileName)
                 when (extension(fileName)) {
                     in archiveExtensions -> units += unit(path, stem(fileName), UnitContent.Archive)
+                    EPUB -> if (readsEpub(type)) {
+                        units += unit(path, stem(fileName), UnitContent.Epub)
+                    } else {
+                        ignore(path, IgnoreReason.UNSUPPORTED_FORMAT)
+                    }
                     in imageExtensions -> ignore(path, IgnoreReason.UNEXPECTED_PLACE)
                     else -> ignore(path, IgnoreReason.UNSUPPORTED_FORMAT)
                 }
@@ -183,6 +194,12 @@ object FolderConvention {
             return ReadingUnit(path, name.replace(mihonHash, ""), kind, number, content)
         }
     }
+
+    /**
+     * Only Books reads an EPUB for now: in Novels a file may be one chapter or a whole compiled
+     * novel, and telling them apart waits for milestone B of step 4 (`docs/research/epub-step-4-design.md`).
+     */
+    private fun readsEpub(type: WorkType) = type == WorkType.BOOKS
 
     /** Rule 4 and E3: a chapter number wins over a volume number; "Vol." alone makes a volume. */
     private fun numbering(name: String): Pair<UnitKind, Double?> {
