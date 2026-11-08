@@ -28,6 +28,7 @@ Sources: dora.dev, "Trunk-based development"; Fabio Akita, public skills in `aki
 - A documentation-only commit may carry `[skip ci]`. The GitHub documentation does not say which commit of a push with several commits is checked: push the code commit separately, before the documentation ones.
 
 ## How to check
+No Java process (Gradle, Kotlin daemon) runs on the maintainer's machine: the commands below run in CI, and the result is read there by the run number. Node tests may run locally.
 - `./gradlew :core:test :data:test`: rules and storage, on the JVM.
 - `./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug`: app (Robolectric), lint and APK.
 - Tests against the real Kavita: the `kavita` CI job.
