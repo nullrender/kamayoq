@@ -3,6 +3,7 @@ package app.kamayoq.android
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
+import android.view.ViewGroup
 import android.webkit.WebView
 import android.widget.Toast
 import androidx.annotation.StringRes
@@ -74,6 +75,9 @@ fun TextReader(archive: EpubArchive, title: String, onBack: () -> Unit, onMessag
                     modifier = Modifier.fillMaxSize(),
                     factory = { viewContext ->
                         WebView(viewContext).apply {
+                            // AndroidView leaves a view in wrap-content height, and a WebView in that
+                            // mode gives the page a viewport of height 0: the book became a white strip.
+                            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
                             val client = ReaderClient(viewContext.assets, ReaderBook(archive, token, position = null)) {
                                 when (crashes.afterCrash()) {
                                     RendererCrashes.Decision.REOPEN -> renderer++
