@@ -861,6 +861,16 @@ class LibraryStoreTest {
     }
 
     @Test
+    fun `dado Books-Dom Casmurro epub na pasta, quando guardado, então o capítulo é EPUB numa obra de Livros`() {
+        val store = open()
+        store.import("Books/Dom Casmurro.epub")
+
+        val work = store.work("Dom Casmurro")
+        assertEquals(WorkType.BOOKS, work.type)
+        assertEquals(listOf(ChapterFormat.EPUB), store.chapters(work.id).map { it.format })
+    }
+
+    @Test
     fun `dado uma obra local, quando exportada, então a cópia não diz qual é a pasta`() {
         val store = open()
         store.import("Comics/Sakamoto Days/Cap. 001.cbz")

@@ -688,6 +688,7 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
 
         private fun formatOf(content: UnitContent): ChapterFormat = when (content) {
             UnitContent.Archive -> ChapterFormat.ARCHIVE
+            UnitContent.Epub -> ChapterFormat.EPUB
             is UnitContent.ImageFolder -> ChapterFormat.IMAGE_FOLDER
         }
 

@@ -18,12 +18,12 @@ object ContentCheck {
     fun stampOf(unit: ReadingUnit, files: Map<String, FileStamp>): String {
         val content = unit.content
         val paths = when (content) {
-            UnitContent.Archive -> listOf(unit.path)
+            UnitContent.Archive, UnitContent.Epub -> listOf(unit.path)
             is UnitContent.ImageFolder -> content.pages
         }
         val stamps = paths.map { requireNotNull(files[it]) { "No stamp for $it" } }
         return when (content) {
-            UnitContent.Archive -> "file:${stamps[0].size}:${stamps[0].modified ?: UNKNOWN}"
+            UnitContent.Archive, UnitContent.Epub -> "file:${stamps[0].size}:${stamps[0].modified ?: UNKNOWN}"
             is UnitContent.ImageFolder -> {
                 val newest = stamps.mapNotNull { it.modified }.maxOrNull() ?: UNKNOWN
                 // The names too: renaming pages keeps size and date but changes their order, and a

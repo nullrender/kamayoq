@@ -9,10 +9,13 @@ enum class ComicsSubtype { MANGA, MANHWA, WEBTOON }
 /** "Vol." or "Volume" in the name makes a unit a volume (rule 4); everything else is a chapter. */
 enum class UnitKind { CHAPTER, VOLUME }
 
-/** Where the images of a reading unit are. */
+/** Where the content of a reading unit is. */
 sealed interface UnitContent {
     /** A CBZ or ZIP file; its pages are listed from inside the file when it opens. */
     data object Archive : UnitContent
+
+    /** An EPUB file; its sections are read from inside the file when it opens. */
+    data object Epub : UnitContent
 
     /** A folder of images, with the pages in reading order. */
     data class ImageFolder(val pages: List<String>) : UnitContent

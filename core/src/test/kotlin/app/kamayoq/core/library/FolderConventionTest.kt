@@ -364,12 +364,70 @@ class FolderConventionTest {
     }
 
     @Test
-    fun `dado um EPUB, por ora, então ele aparece como ignorado e não some calado`() {
-        val library = read("Novels/Release That Witch/Release That Witch.epub")
+    fun `dado um EPUB em Novels, por ora, então ele aparece como ignorado e não some calado`() {
+        val library = read(
+            "Novels/Release That Witch/Release That Witch.epub",
+            "Novels/Cap. 0928.epub",
+        )
 
         assertEquals(emptyList(), library.works)
         assertEquals(
-            listOf(IgnoredFile("Novels/Release That Witch/Release That Witch.epub", IgnoreReason.UNSUPPORTED_FORMAT)),
+            listOf(
+                IgnoredFile("Novels/Cap. 0928.epub", IgnoreReason.UNSUPPORTED_FORMAT),
+                IgnoredFile("Novels/Release That Witch/Release That Witch.epub", IgnoreReason.UNSUPPORTED_FORMAT),
+            ),
+            library.ignored,
+        )
+    }
+
+    @Test
+    fun `dado Books-Dom Casmurro epub, quando a pasta é lida, então há uma obra de Livros com um volume EPUB`() {
+        val library = read("Books/Dom Casmurro.epub")
+
+        val work = library.works.single()
+        assertEquals("Books/Dom Casmurro.epub", work.path)
+        assertEquals("Dom Casmurro", work.title)
+        assertEquals(WorkType.BOOKS, work.type)
+        assertEquals(
+            listOf(ReadingUnit("Books/Dom Casmurro.epub", "Dom Casmurro", UnitKind.VOLUME, null, UnitContent.Epub)),
+            work.units,
+        )
+        assertEquals(emptyList(), library.ignored)
+    }
+
+    @Test
+    fun `dado Books-Os Miseráveis-Vol 1 epub, quando a pasta é lida, então o volume está na obra`() {
+        val library = read(
+            "Books/Os Miseráveis/Vol. 2.epub",
+            "Books/Os Miseráveis/Vol. 1.epub",
+        )
+
+        val work = library.work("Os Miseráveis")
+        assertEquals(WorkType.BOOKS, work.type)
+        assertEquals(
+            listOf(
+                ReadingUnit("Books/Os Miseráveis/Vol. 1.epub", "Vol. 1", UnitKind.VOLUME, 1.0, UnitContent.Epub),
+                ReadingUnit("Books/Os Miseráveis/Vol. 2.epub", "Vol. 2", UnitKind.VOLUME, 2.0, UnitContent.Epub),
+            ),
+            work.units,
+        )
+        assertEquals(emptyList(), library.ignored)
+    }
+
+    @Test
+    fun `dado um EPUB fora de Books, então ele continua ignorado até os romances chegarem`() {
+        val library = read(
+            "Solto.epub",
+            "Comics/X/Extra.epub",
+            "Comics/X/Cap. 1.cbz",
+        )
+
+        assertEquals(listOf("X"), library.works.map { it.title })
+        assertEquals(
+            listOf(
+                IgnoredFile("Solto.epub", IgnoreReason.UNSUPPORTED_FORMAT),
+                IgnoredFile("Comics/X/Extra.epub", IgnoreReason.UNSUPPORTED_FORMAT),
+            ),
             library.ignored,
         )
     }
