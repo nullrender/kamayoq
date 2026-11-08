@@ -5,6 +5,7 @@ import app.kamayoq.core.library.FolderConvention
 import app.kamayoq.core.library.NaturalOrder
 import java.io.Closeable
 import java.io.File
+import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.security.DigestInputStream
@@ -12,6 +13,9 @@ import java.security.MessageDigest
 import java.util.zip.ZipEntry
 import java.util.zip.ZipException
 import java.util.zip.ZipFile
+
+/** A file larger than [maxBytes] stopped being copied there, before filling the phone's storage. */
+class FileTooLargeException(val maxBytes: Long) : IOException("File larger than $maxBytes bytes")
 
 /** The pages of a chapter's archive, read straight from it while it stays open. */
 class ArchiveChapter internal constructor(private val zip: ZipFile, private val entries: Map<String, ZipEntry>) :
@@ -30,8 +34,11 @@ class ArchiveChapter internal constructor(private val zip: ZipFile, private val 
  * images without compression and give each size only after its data (test of 25/10/2026).
  */
 object ArchivePages {
-    /** Copies all of [input] to [output]; returns the same SHA-256 as `ContentCheck.hashOfFile` (rule E1). */
-    fun copyHashing(input: InputStream, output: OutputStream): String {
+    /**
+     * Copies all of [input] to [output]; returns the same SHA-256 as `ContentCheck.hashOfFile` (rule
+     * E1). Past [maxBytes] it stops with [FileTooLargeException].
+     */
+    fun copyHashing(input: InputStream, output: OutputStream, maxBytes: Long = Long.MAX_VALUE): String {
         val digest = MessageDigest.getInstance("SHA-256")
         DigestInputStream(input, digest).copyTo(output, 64 * 1024)
         return ContentCheck.hex(digest.digest())

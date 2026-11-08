@@ -36,6 +36,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.sqldelight.sqlite.driver)
+    testImplementation(project(":epub-fixtures"))
     testImplementation(kotlin("test"))
     testImplementation(platform(libs.junit.bom))
     testRuntimeOnly(libs.junit.launcher)

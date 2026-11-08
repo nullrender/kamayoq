@@ -2,6 +2,8 @@ package app.kamayoq.data
 
 import app.kamayoq.core.reader.ArchiveChapter
 import app.kamayoq.core.reader.ArchivePages
+import app.kamayoq.core.reader.EpubArchive
+import app.kamayoq.core.reader.EpubLimits
 import java.io.File
 import java.io.FilterInputStream
 import java.io.IOException
@@ -67,14 +69,38 @@ class OpenedArchive internal constructor(
 }
 
 /**
+ * A book kept in a copy, ready for the text reader. [chapterId] can differ from the one asked for
+ * (rule E1). The reader's page reads its entries until the reader releases it; a read after that
+ * fails, and the page shows that section as missing.
+ */
+class OpenedBook internal constructor(
+    val chapterId: String,
+    val archive: EpubArchive,
+    internal val copy: File,
+    private val onClosed: (OpenedBook) -> Unit,
+) {
+    private var closed = false
+
+    @Synchronized
+    internal fun release() {
+        if (closed) return
+        closed = true
+        archive.close()
+        copy.delete()
+        onClosed(this)
+    }
+}
+
+/**
  * Opens chapters kept in a CBZ or ZIP: the file is copied once to [cache], hashed on the way, and
  * its pages are read from the copy (rule E1). Only the chapter being read is kept; nothing in
  * [cache] is ever the person's file. The app only hands over the file as the folder gives it.
  */
 class ArchiveOpening(private val store: LibraryStore, private val cache: File) {
 
-    // The chapter in the reader. Only [release] and [open] change it, under this object's lock.
-    private var current: OpenedArchive? = null
+    // The chapter in the reader, an [OpenedArchive] or an [OpenedBook]. Only the release and open
+    // functions change it, under this object's lock.
+    private var current: Any? = null
 
     // How many openings started. The last one asked for is the one the person is on: an older one
     // that finishes after it closes itself.
@@ -94,6 +120,20 @@ class ArchiveOpening(private val store: LibraryStore, private val cache: File) {
         opened.release()
     }
 
+    /** The reader is done with [opened]: its file closes and its copy leaves the cache. */
+    @Synchronized
+    fun release(opened: OpenedBook) {
+        if (current === opened) current = null
+        opened.release()
+    }
+
+    private fun releaseCurrent() {
+        when (val opened = current) {
+            is OpenedArchive -> release(opened)
+            is OpenedBook -> release(opened)
+        }
+    }
+
     /** Removes from the cache what no open chapter uses, such as copies left by a closed app. */
     fun clearLeftovers() {
         cache.listFiles()?.filter { it !in inUse }?.forEach { it.deleteRecursively() }
@@ -111,6 +151,13 @@ class ArchiveOpening(private val store: LibraryStore, private val cache: File) {
         if (requests.get() != request) throw IOException("A later chapter was opened")
         return write()
     }
+
+    /**
+     * The same as [open] for an EPUB: copied once, up to [EpubLimits.maxFileBytes], hashed on the
+     * way, and its entries read from the copy.
+     */
+    fun openBook(request: Long, chapter: StoredChapter, input: InputStream, limits: EpubLimits = EpubLimits()): OpenedBook =
+        throw UnsupportedOperationException("Not yet")
 
     /** Opens a chapter whose file is already at hand, with a number of its own. */
     fun open(chapter: StoredChapter, input: InputStream): OpenedArchive = open(begin(), chapter, input)
@@ -138,7 +185,7 @@ class ArchiveOpening(private val store: LibraryStore, private val cache: File) {
                 // costs nothing more.
                 val chapterId = store.confirmContent(chapter.id, hash)
                 OpenedArchive(chapterId, pages, copy, onClosed = { inUse -= it.copy }).also {
-                    current?.let(::release)
+                    releaseCurrent()
                     current = it
                 }
             }

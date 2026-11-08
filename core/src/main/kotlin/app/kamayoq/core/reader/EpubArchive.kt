@@ -11,6 +11,8 @@ import java.util.zip.ZipFile
 
 /** Provisional until measured with real books on a real phone (step 4, piece 3). */
 class EpubLimits(
+    /** The file as it comes from the folder, before the app copies it to its cache. */
+    val maxFileBytes: Long = 512L * 1024 * 1024,
     val maxEntries: Int = 20_000,
     val maxEntryBytes: Long = 256L * 1024 * 1024,
     val maxTotalBytes: Long = 1024L * 1024 * 1024,
