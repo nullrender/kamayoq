@@ -156,8 +156,28 @@ class ArchiveOpening(private val store: LibraryStore, private val cache: File) {
      * The same as [open] for an EPUB: copied once, up to [EpubLimits.maxFileBytes], hashed on the
      * way, and its entries read from the copy.
      */
-    fun openBook(request: Long, chapter: StoredChapter, input: InputStream, limits: EpubLimits = EpubLimits()): OpenedBook =
-        throw UnsupportedOperationException("Not yet")
+    fun openBook(request: Long, chapter: StoredChapter, input: InputStream, limits: EpubLimits = EpubLimits()): OpenedBook {
+        val copy = File(cache.apply { mkdirs() }, "book-${UUID.randomUUID()}.epub")
+        inUse += copy
+        var archive: EpubArchive? = null
+        try {
+            val hash = input.use { copy.outputStream().use { out -> ArchivePages.copyHashing(it, out, limits.maxFileBytes) } }
+            val book = EpubArchive.open(copy, limits)
+            archive = book
+            return whileLatest(request) {
+                val chapterId = store.confirmContent(chapter.id, hash)
+                OpenedBook(chapterId, book, copy, onClosed = { inUse -= it.copy }).also {
+                    releaseCurrent()
+                    current = it
+                }
+            }
+        } catch (e: Exception) {
+            archive?.close()
+            copy.delete()
+            inUse -= copy
+            throw e
+        }
+    }
 
     /** Opens a chapter whose file is already at hand, with a number of its own. */
     fun open(chapter: StoredChapter, input: InputStream): OpenedArchive = open(begin(), chapter, input)

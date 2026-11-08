@@ -40,7 +40,16 @@ object ArchivePages {
      */
     fun copyHashing(input: InputStream, output: OutputStream, maxBytes: Long = Long.MAX_VALUE): String {
         val digest = MessageDigest.getInstance("SHA-256")
-        DigestInputStream(input, digest).copyTo(output, 64 * 1024)
+        val hashing = DigestInputStream(input, digest)
+        val buffer = ByteArray(64 * 1024)
+        var copied = 0L
+        while (true) {
+            val read = hashing.read(buffer)
+            if (read < 0) break
+            copied += read
+            if (copied > maxBytes) throw FileTooLargeException(maxBytes)
+            output.write(buffer, 0, read)
+        }
         return ContentCheck.hex(digest.digest())
     }
 
