@@ -16,6 +16,7 @@ on:
       - app/src/androidTest/**
       - app/src/main/assets/reader/**
       - app/src/main/java/app/kamayoq/android/Reader*.kt
+      - app/src/main/java/app/kamayoq/android/TextReader.kt
       - core/src/main/kotlin/app/kamayoq/core/reader/**
       - epub-fixtures/**
       - third_party/foliate-js/**
