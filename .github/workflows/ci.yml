@@ -36,7 +36,7 @@ jobs:
 
       - name: Reader script tests (Node)
         if: ${{ !cancelled() }}
-        run: node --test app/src/jsTest/sections.test.mjs app/src/jsTest/messages.test.mjs
+        run: node --test app/src/jsTest/sections.test.mjs app/src/jsTest/messages.test.mjs app/src/jsTest/errors.test.mjs
 
       - name: Core tests (JVM)
         if: ${{ !cancelled() }}
