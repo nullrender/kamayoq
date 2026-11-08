@@ -71,7 +71,15 @@
     <string name="kavita_libraries_failed">Não foi possível ler as bibliotecas do Kavita. Confira a conexão e tente de novo.</string>
     <string name="kavita_read_failed">Não foi possível acessar o Kavita. As obras abaixo são da última leitura que deu certo.</string>
     <string name="reader_download_failed">Não foi possível baixar este capítulo do Kavita. Confira a conexão e tente de novo.</string>
-    <string name="reader_epub_not_yet">O Kamayoq ainda não abre livros EPUB.</string>
+    <string name="reader_epub_not_yet">O Kamayoq ainda não abre livros EPUB do Kavita.</string>
+    <string name="reader_too_large">Este livro é maior do que o Kamayoq abre: até %1$d MB.</string>
+    <string name="reader_webview_old">O WebView deste aparelho é antigo demais para mostrar livros. Atualize o Android System WebView para a versão 117 ou mais nova.</string>
+    <string name="reader_fixed_layout">O Kamayoq ainda não abre livros de layout fixo.</string>
+    <string name="reader_renderer_gone">A página do livro parou duas vezes. Volte e abra o livro de novo.</string>
+    <string name="reader_link_title">Sair do Kamayoq para este endereço?</string>
+    <string name="reader_link_open">Abrir no navegador</string>
+    <string name="reader_link_stay">Ficar no livro</string>
+    <string name="reader_link_no_browser">Nenhum app deste aparelho abre endereços da web.</string>
     <string name="reader_format_not_yet">O Kamayoq ainda não abre este formato.</string>
     <string name="position_page">página %1$d de %2$d</string>
     <string name="position_end">fim do capítulo</string>

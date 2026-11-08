@@ -12,6 +12,7 @@ import app.kamayoq.core.library.FolderEntry
 import app.kamayoq.core.library.FolderWalk
 import app.kamayoq.core.library.UnitContent
 import app.kamayoq.core.progress.ChapterProgress
+import app.kamayoq.core.reader.EpubArchive
 import app.kamayoq.data.ArchiveOpening
 import app.kamayoq.data.LibraryStore
 import app.kamayoq.data.StoredChapter
@@ -33,6 +34,9 @@ class OpenedChapter(
     val progress: ChapterProgress,
     val release: () -> Unit,
 )
+
+/** A book ready for the text reader. The reader calls [release] when it leaves the book. */
+class OpenedText(val chapterId: String, val archive: EpubArchive, val release: () -> Unit)
 
 class ChapterMissingException : Exception("The chapter's file is no longer in the folder")
 
@@ -74,10 +78,22 @@ class ChapterOpening(
         return when (chapter.format) {
             ChapterFormat.ARCHIVE -> openArchive(request, tree, chapter, entry)
             ChapterFormat.IMAGE_FOLDER -> openFolder(request, tree, chapter, entry)
-            // Only Kavita brings these, and its chapters never come here.
+            // An EPUB goes to openText; only Kavita brings the others, and its chapters never come here.
             ChapterFormat.EPUB, ChapterFormat.PDF, ChapterFormat.OTHER_ARCHIVE ->
                 error("A local chapter of format ${chapter.format}")
         }
+    }
+
+    /** A local EPUB: copied to the app's cache, with a ceiling, and read from the copy (rule E1). */
+    fun openText(tree: Uri?, chapter: StoredChapter): OpenedText {
+        val request = archives.begin()
+        val library = tree?.let(folder::libraryId) ?: throw ChapterMissingException()
+        val entry = FolderWalk.find(library, chapter.path) { folder.children(tree, it) }
+            ?: throw ChapterMissingException()
+        val uri = DocumentsContract.buildDocumentUriUsingTree(tree, entry.id)
+        val input = checkNotNull(resolver.openInputStream(uri)) { "The folder provider gave no stream" }
+        val opened = archives.openBook(request, chapter, input)
+        return OpenedText(opened.chapterId, opened.archive) { archives.release(opened) }
     }
 
     private fun openArchive(request: Long, tree: Uri, chapter: StoredChapter, entry: FolderEntry): OpenedChapter {

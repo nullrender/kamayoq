@@ -31,6 +31,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.kamayoq.core.kavita.KavitaProgress
 import app.kamayoq.core.library.ChapterFormat
+import app.kamayoq.core.reader.EpubLimits
+import app.kamayoq.core.reader.FileTooLargeException
 import app.kamayoq.data.LibraryStore
 import app.kamayoq.data.StoredAlternative
 import app.kamayoq.data.StoredChapter
@@ -55,6 +57,8 @@ private sealed interface Opening {
     data object DownloadFailed : Opening
     data object EpubNotYet : Opening
     data object FormatNotYet : Opening
+    data object TooLarge : Opening
+    class ReadyText(val text: OpenedText, val title: String) : Opening
     class Conflict(val chapterId: String, val localPage: Int, val conflict: KavitaSyncOutcome.Conflict, val turn: Long) : Opening
     class Ready(
         val chapter: OpenedChapter,
@@ -180,6 +184,7 @@ fun ReaderHost(
                     kavita.finishReading(left.chapter.chapterId, left.turn, opening.turns)
                 }
                 is Opening.Conflict -> kavita.finishReading(left.chapterId, left.turn, opening.turns)
+                is Opening.ReadyText -> left.text.release()
                 else -> Unit
             }
         }
@@ -200,6 +205,8 @@ fun ReaderHost(
             throw e
         } catch (e: ChapterMissingException) {
             Opening.Missing
+        } catch (e: FileTooLargeException) {
+            Opening.TooLarge
         } catch (e: ChapterDownloadException) {
             Log.e("Kamayoq", "Downloading a chapter failed", e)
             Opening.DownloadFailed
@@ -216,6 +223,8 @@ fun ReaderHost(
         Opening.DownloadFailed -> ReaderMessage(stringResource(R.string.reader_download_failed), onBack)
         Opening.EpubNotYet -> ReaderMessage(stringResource(R.string.reader_epub_not_yet), onBack)
         Opening.FormatNotYet -> ReaderMessage(stringResource(R.string.reader_format_not_yet), onBack)
+        Opening.TooLarge -> ReaderMessage(stringResource(R.string.reader_too_large, EpubLimits().maxFileBytes / (1024 * 1024)), onBack)
+        is Opening.ReadyText -> TextReader(current.text.archive, current.title, onBack)
         is Opening.Conflict -> {
             ConflictScreen(
             localPage = current.localPage,
@@ -315,7 +324,12 @@ private fun openChapter(
     val (current, chapters) = store.openingOf(workId, chapterId)
     val chapter = chapters.firstOrNull { it.id == current } ?: return Opening.Missing
     when (chapter.format) {
-        ChapterFormat.EPUB -> return Opening.EpubNotYet
+        // Kavita's books wait for milestone C of step 4: their position does not travel yet.
+        ChapterFormat.EPUB -> return if (chapter.origin == LibraryStore.KAVITA) {
+            Opening.EpubNotYet
+        } else {
+            openText(store, opening, tree, workId, chapter)
+        }
         ChapterFormat.PDF, ChapterFormat.OTHER_ARCHIVE -> return Opening.FormatNotYet
         ChapterFormat.ARCHIVE, ChapterFormat.IMAGE_FOLDER -> Unit
     }
@@ -344,6 +358,19 @@ private fun openChapter(
     } catch (e: Exception) {
         opened.release()
         kavita.finishReading(opened.chapterId, turn.token, opening.turns)
+        throw e
+    }
+}
+
+private fun openText(store: LibraryStore, opening: ChapterOpening, tree: Uri?, workId: String, chapter: StoredChapter): Opening {
+    val text = opening.openText(tree, chapter)
+    try {
+        val work = store.works().firstOrNull { it.id == workId }?.title
+        // A loose book is a work of one volume with the same name: the name once is enough.
+        val title = listOfNotNull(work, chapter.name.takeIf { it != work }).joinToString(" · ")
+        return Opening.ReadyText(text, title)
+    } catch (e: Exception) {
+        text.release()
         throw e
     }
 }
