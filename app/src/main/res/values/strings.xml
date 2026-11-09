@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="reader_previous_page">Previous page</string>
+    <string name="reader_contents">Contents</string>
+    <string name="reader_next_page">Next page</string>
     <!-- The app's name. A proper noun: never translated. -->
     <string name="app_name" translatable="false">Kamayoq</string>
     <!-- Title of the main screen: the app's own library (from the product vocabulary). -->

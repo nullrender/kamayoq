@@ -7,5 +7,9 @@ package app.kamayoq.core.reader
  */
 enum class ReaderFlow(val wire: String) {
     PAGES("paginated"),
-    SCROLL("scrolled"),
+    SCROLL("scrolled");
+
+    companion object {
+        fun forAccessibility(touchExploration: Boolean): ReaderFlow = PAGES
+    }
 }
