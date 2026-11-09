@@ -80,9 +80,23 @@ class ReaderBookTest {
 
     private fun firstRelocated() = nextRelocated() ?: throw AssertionError("No position arrived; console: $console")
 
+    private fun restored() {
+        // An initial relocate may precede the final document after the default styles re-layout it.
+        // The bridge confirms init has finished separately; inspect computed styles only then.
+        val deadline = SystemClock.uptimeMillis() + 60_000
+        while (SystemClock.uptimeMillis() < deadline) {
+            when (val message = messages.poll(1, TimeUnit.SECONDS)) {
+                ReaderMessage.Restored -> return
+                is ReaderMessage.Failed, is ReaderMessage.Refused -> throw AssertionError("Reader said: $message; console: $console")
+                else -> Unit
+            }
+        }
+        throw AssertionError("No restore arrived; console: $console")
+    }
+
     @Test
     fun `dado um livro quando abre então o texto usa tamanho dezoito entrelinha um e meio e recuo de parágrafo`() {
-        firstRelocated()
+        restored()
         val styles = evaluate("""
             (() => {
                 const doc = document.querySelector('foliate-view').renderer.getContents()[0].doc
@@ -95,7 +109,7 @@ class ReaderBookTest {
 
     @Test
     fun `dado um livro quando abre então as margens do leitor são vinte e quatro pixels`() {
-        firstRelocated()
+        restored()
         assertEquals("\"24px|24px|24px|24px\"", evaluate("""
             ['top', 'bottom', 'left', 'right'].map(side =>
                 document.querySelector('foliate-view').renderer.getAttribute('margin-' + side)).join('|')
@@ -104,7 +118,7 @@ class ReaderBookTest {
 
     @Test
     fun `dado a cor própria do livro quando o leitor aplica os padrões então a cor permanece`() {
-        firstRelocated()
+        restored()
         assertEquals("\"rgb(23, 67, 89)\"", evaluate("""
             (() => {
                 const doc = document.querySelector('foliate-view').renderer.getContents()[0].doc
