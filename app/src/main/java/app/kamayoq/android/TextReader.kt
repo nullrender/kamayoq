@@ -4,6 +4,7 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.view.ViewGroup
+import android.view.accessibility.AccessibilityManager
 import android.webkit.WebView
 import android.widget.Toast
 import androidx.annotation.StringRes
@@ -18,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -35,6 +37,8 @@ import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import app.kamayoq.core.reader.EpubArchive
 import app.kamayoq.core.reader.ReaderEngine
+import app.kamayoq.core.reader.ReaderContentsItem
+import app.kamayoq.core.reader.ReaderFlow
 import app.kamayoq.core.reader.ReaderLink
 import app.kamayoq.core.reader.RendererCrashes
 import java.util.UUID
@@ -54,6 +58,15 @@ fun TextReader(archive: EpubArchive, title: String, onBack: () -> Unit, onMessag
     val crashes = remember(archive) { RendererCrashes() }
     // A dead renderer leaves a WebView that cannot be used again: a new number makes a new one.
     var renderer by remember(archive) { mutableIntStateOf(0) }
+    val touchExploration = touchExplorationEnabled()
+    val flow = ReaderFlow.forAccessibility(touchExploration)
+    var webView by remember(archive) { mutableStateOf<WebView?>(null) }
+    var ready by remember(archive) { mutableStateOf(false) }
+    var contents by remember(archive) { mutableStateOf<List<ReaderContentsItem>?>(null) }
+    var contentsOpen by remember(archive) { mutableStateOf(false) }
+    // Kept only during this screen: changing accessibility mode must not jump to the start.
+    // Persisting it across closing the book belongs to the storage migration.
+    var cfi by remember(archive) { mutableStateOf<String?>(null) }
 
     Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -68,17 +81,19 @@ fun TextReader(archive: EpubArchive, title: String, onBack: () -> Unit, onMessag
                 style = MaterialTheme.typography.bodyLarge,
             )
         } else {
-            key(renderer) {
+            key(renderer, flow) {
                 // New at each page, so an address from an earlier page stops answering.
                 val token = remember { UUID.randomUUID().toString().replace("-", "") }
                 AndroidView(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
                     factory = { viewContext ->
                         WebView(viewContext).apply {
+                            webView = this
+                            ready = false
                             // AndroidView leaves a view in wrap-content height, and a WebView in that
                             // mode gives the page a viewport of height 0: the book became a white strip.
                             layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-                            val client = ReaderClient(viewContext.assets, ReaderBook(archive, token, position = null)) {
+                            val client = ReaderClient(viewContext.assets, ReaderBook(archive, token, position = cfi, flow = flow)) {
                                 when (crashes.afterCrash()) {
                                     RendererCrashes.Decision.REOPEN -> renderer++
                                     RendererCrashes.Decision.STOP -> problem = R.string.reader_renderer_gone
@@ -87,6 +102,11 @@ fun TextReader(archive: EpubArchive, title: String, onBack: () -> Unit, onMessag
                             loadReaderPage(client) { message ->
                                 onMessage(message)
                                 when (message) {
+                                    PageMessage.Restored -> {
+                                        ready = true
+                                        readContents { items -> if (webView === this) contents = items }
+                                    }
+                                    is PageMessage.Relocated -> if (ready && message.reason.byPerson) cfi = message.cfi
                                     is PageMessage.Failed -> problem = failureText(message.code)
                                     is PageMessage.Link ->
                                         (ReaderLink.classify(message.href) as? ReaderLink.AskFirst)?.let { leaving = it.url }
@@ -95,10 +115,33 @@ fun TextReader(archive: EpubArchive, title: String, onBack: () -> Unit, onMessag
                             }
                         }
                     },
-                    onRelease = { it.destroy() },
+                    onRelease = {
+                        if (webView === it) {
+                            webView = null
+                            ready = false
+                        }
+                        it.destroy()
+                    },
                 )
             }
+            TextReaderControls(
+                enabled = ready,
+                onPrevious = { webView?.goToPreviousPage() },
+                onContents = { contentsOpen = true },
+                onNext = { webView?.goToNextPage() },
+            )
         }
+    }
+
+    if (contentsOpen) {
+        ReaderContentsSheet(
+            contents = contents,
+            onSelect = { index ->
+                contentsOpen = false
+                webView?.goToContents(index)
+            },
+            onDismiss = { contentsOpen = false },
+        )
     }
 
     leaving?.let { url ->
@@ -123,6 +166,20 @@ fun TextReader(archive: EpubArchive, title: String, onBack: () -> Unit, onMessag
             },
         )
     }
+}
+
+@Composable
+private fun touchExplorationEnabled(): Boolean {
+    val context = LocalContext.current
+    val manager = remember(context) { context.getSystemService(AccessibilityManager::class.java) }
+    var enabled by remember(manager) { mutableStateOf(manager.isTouchExplorationEnabled) }
+    DisposableEffect(manager) {
+        val listener = AccessibilityManager.TouchExplorationStateChangeListener { enabled = it }
+        manager.addTouchExplorationStateChangeListener(listener)
+        enabled = manager.isTouchExplorationEnabled
+        onDispose { manager.removeTouchExplorationStateChangeListener(listener) }
+    }
+    return enabled
 }
 
 @StringRes

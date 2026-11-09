@@ -1,18 +1,22 @@
 package app.kamayoq.android
 
 import android.annotation.SuppressLint
+import android.net.Uri
 import android.content.res.AssetManager
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.webkit.WebMessage
 import androidx.webkit.WebMessageCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import app.kamayoq.core.reader.EpubArchive
 import app.kamayoq.core.reader.OpenBook
 import app.kamayoq.core.reader.ReaderBookIndex
+import app.kamayoq.core.reader.ReaderContents
+import app.kamayoq.core.reader.ReaderContentsItem
 import app.kamayoq.core.reader.ReaderFlow
 import app.kamayoq.core.reader.ReaderMessage
 import app.kamayoq.core.reader.ReaderNavigation
@@ -171,3 +175,12 @@ fun WebView.applyReaderSettings() {
 fun WebView.goToNextPage() = evaluateJavascript("kamayoqReader.next()", null)
 
 fun WebView.goToPreviousPage() = evaluateJavascript("kamayoqReader.previous()", null)
+
+/** Data returned by a fixed query, not code assembled from the book's titles or destinations. */
+fun WebView.readContents(answer: (List<ReaderContentsItem>?) -> Unit) =
+    evaluateJavascript("kamayoqReader.contents()") { answer(ReaderContents.parse(it)) }
+
+fun WebView.goToContents(index: Int) {
+    require(index in 0 until ReaderContents.MAX_ITEMS)
+    postWebMessage(WebMessage("""{"type":"contents","index":$index}"""), Uri.parse(ReaderPolicy.ORIGIN))
+}

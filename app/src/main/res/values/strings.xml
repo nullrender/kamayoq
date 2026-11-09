@@ -3,6 +3,9 @@
     <string name="reader_previous_page">Previous page</string>
     <string name="reader_contents">Contents</string>
     <string name="reader_next_page">Next page</string>
+    <string name="reader_contents_empty">This book has no table of contents.</string>
+    <string name="reader_contents_failed">Couldn\'t read this book\'s table of contents. You can keep reading.</string>
+    <string name="reader_contents_untitled">Untitled section</string>
     <!-- The app's name. A proper noun: never translated. -->
     <string name="app_name" translatable="false">Kamayoq</string>
     <!-- Title of the main screen: the app's own library (from the product vocabulary). -->

@@ -3,6 +3,9 @@
     <string name="reader_previous_page">Página anterior</string>
     <string name="reader_contents">Sumário</string>
     <string name="reader_next_page">Próxima página</string>
+    <string name="reader_contents_empty">Este livro não tem sumário.</string>
+    <string name="reader_contents_failed">Não foi possível ler o sumário deste livro. Você pode continuar lendo.</string>
+    <string name="reader_contents_untitled">Seção sem título</string>
     <string name="library_title">Biblioteca</string>
     <string name="no_folder">Escolha uma pasta para o Kamayoq. Suas obras ficam na pasta Library dentro dela, que o Kamayoq cria se faltar. O Kamayoq nunca altera seus arquivos.</string>
     <string name="choose_folder">Escolher pasta</string>

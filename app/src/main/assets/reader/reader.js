@@ -1,12 +1,13 @@
 import './foliate-js/view.js'
 import { EPUB } from './foliate-js/epub.js'
 import { neutralizeRefresh } from './sections.js'
-import { relocatedMessage } from './messages.js'
+import { relocatedMessage, contentsOf } from './messages.js'
 
 const send = message => kamayoqBridge.postMessage(JSON.stringify(message))
 
 const view = document.createElement('foliate-view')
 document.body.append(view)
+let contents = []
 
 // One entry at a time, on demand: the Kotlin side reads the ZIP, so no ZIP library runs here.
 const open = async token => {
@@ -25,6 +26,7 @@ const open = async token => {
         loadBlob: async name => (await load(name))?.blob() ?? null,
         getSize: name => sizes.get(name) ?? 0,
     }).init()
+    contents = contentsOf(book.toc)
     // The module for fixed layout was left out of the copy: say so instead of failing on its import.
     if (book.rendition?.layout === 'pre-paginated') return send({ type: 'failed', code: 'fixed-layout' })
     book.transformTarget.addEventListener('data', event => {
@@ -60,7 +62,18 @@ const open = async token => {
 globalThis.kamayoqReader = {
     next: () => view.next(),
     previous: () => view.prev(),
+    contents: () => contents.map(({ index, title, depth }) => ({ index, title, depth })),
 }
+
+// Native messages have no source window. Book frames cannot issue commands through this channel.
+addEventListener('message', event => {
+    if (event.source !== null || typeof event.data !== 'string') return
+    let command
+    try { command = JSON.parse(event.data) } catch { return }
+    if (!command || command.type !== 'contents' || !Number.isInteger(command.index)) return
+    const item = contents[command.index]
+    if (item) view.goTo(item.href)
+})
 
 kamayoqBridge.onmessage = ({ data }) => open(data)
 
