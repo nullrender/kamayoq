@@ -39,6 +39,15 @@ const open = async token => {
         send({ type: 'link', href: event.detail.href })
     })
     await view.open(book)
+    // Before the book's own styles, without !important: these are defaults, not a replacement for
+    // the edition's typography or colors. Applying them before init avoids moving a restored CFI.
+    view.renderer.setStyles([`
+        :where(html) { font-size: 18px; }
+        :where(body) { line-height: 1.5; text-align: left; hyphens: none; }
+        :where(p) { text-indent: 1.5em; }
+    `, ''])
+    for (const side of ['top', 'bottom', 'left', 'right'])
+        view.renderer.setAttribute(`margin-${side}`, '24px')
     // The view handles the paginator's event first and keeps the result in lastLocation; the
     // paginator's event is the one that says why it moved.
     view.renderer.addEventListener('relocate', ({ detail }) => send(relocatedMessage(view.lastLocation, detail.reason)))

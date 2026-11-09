@@ -96,7 +96,7 @@ class ReaderBookTest {
     @Test
     fun `dado um livro quando abre então as margens do leitor são vinte e quatro pixels`() {
         firstRelocated()
-        assertEquals("\"24|24|24|24\"", evaluate("""
+        assertEquals("\"24px|24px|24px|24px\"", evaluate("""
             ['top', 'bottom', 'left', 'right'].map(side =>
                 document.querySelector('foliate-view').renderer.getAttribute('margin-' + side)).join('|')
         """.trimIndent()))
