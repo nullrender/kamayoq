@@ -17,4 +17,26 @@ export const relocatedMessage = (detail, reason) => ({
 })
 
 // Keep hrefs inside the shell: native controls select only an item's numeric index.
-export const contentsOf = toc => []
+export const contentsOf = toc => {
+    const result = []
+    let visited = 0
+    const visit = (items, depth) => {
+        if (!Array.isArray(items) || depth > 16) return
+        for (const item of items) {
+            // Count even destination-less headings: otherwise a huge empty tree bypasses the cap.
+            if (++visited > 5000) return
+            if (!item || typeof item !== 'object') continue
+            if (typeof item.href === 'string' && item.href.length && item.href.length <= 2048) {
+                result.push({
+                    index: result.length,
+                    title: String(item.label ?? '').slice(0, 512),
+                    depth,
+                    href: item.href,
+                })
+            }
+            visit(item.subitems, depth + 1)
+        }
+    }
+    visit(toc, 0)
+    return result
+}
