@@ -10,6 +10,7 @@ enum class ReaderFlow(val wire: String) {
     SCROLL("scrolled");
 
     companion object {
-        fun forAccessibility(touchExploration: Boolean): ReaderFlow = PAGES
+        // Paginated columns expose off-screen text to screen readers; scrolling keeps reading order.
+        fun forAccessibility(touchExploration: Boolean): ReaderFlow = if (touchExploration) SCROLL else PAGES
     }
 }
