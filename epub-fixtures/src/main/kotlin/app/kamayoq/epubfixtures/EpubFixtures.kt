@@ -18,7 +18,10 @@ object EpubFixtures {
 
     /** EPUB 3 with three sections, each one in the spine and in the table of contents. */
     fun short(): ByteArray {
-        val sections = (1..3).map { number -> Section("s$number.xhtml", "Seção $number", paragraphs(number, 12)) }
+        val sections = (1..3).map { number ->
+            Section("s$number.xhtml", "Seção $number", paragraphs(number, 12) +
+                """<p id="book-color" style="color: rgb(23, 67, 89)">Cor do livro.</p>""")
+        }
         return epub3("Livro curto", sections, sections.map { TocItem(it.title, it.file) })
     }
 

@@ -80,6 +80,40 @@ class ReaderBookTest {
 
     private fun firstRelocated() = nextRelocated() ?: throw AssertionError("No position arrived; console: $console")
 
+    @Test
+    fun `dado um livro quando abre então o texto usa tamanho dezoito entrelinha um e meio e recuo de parágrafo`() {
+        firstRelocated()
+        val styles = evaluate("""
+            (() => {
+                const doc = document.querySelector('foliate-view').renderer.getContents()[0].doc
+                const style = doc.defaultView.getComputedStyle(doc.querySelector('p'))
+                return [style.fontSize, style.lineHeight, style.textIndent, style.textAlign, style.hyphens].join('|')
+            })()
+        """.trimIndent())
+        assertEquals("\"18px|27px|27px|left|none\"", styles)
+    }
+
+    @Test
+    fun `dado um livro quando abre então as margens do leitor são vinte e quatro pixels`() {
+        firstRelocated()
+        assertEquals("\"24|24|24|24\"", evaluate("""
+            ['top', 'bottom', 'left', 'right'].map(side =>
+                document.querySelector('foliate-view').renderer.getAttribute('margin-' + side)).join('|')
+        """.trimIndent()))
+    }
+
+    @Test
+    fun `dado a cor própria do livro quando o leitor aplica os padrões então a cor permanece`() {
+        firstRelocated()
+        assertEquals("\"rgb(23, 67, 89)\"", evaluate("""
+            (() => {
+                const doc = document.querySelector('foliate-view').renderer.getContents()[0].doc
+                const p = doc.querySelector('#book-color')
+                return doc.defaultView.getComputedStyle(p).color
+            })()
+        """.trimIndent()))
+    }
+
     private fun visibleText() = evaluate(
         "document.querySelector('foliate-view').renderer.getContents().map(c => c.doc.body.textContent).join(' ')",
     )
