@@ -15,3 +15,6 @@ export const relocatedMessage = (detail, reason) => ({
     fraction: bounded(detail.fraction),
     reason: reason ?? 'page',
 })
+
+// Keep hrefs inside the shell: native controls select only an item's numeric index.
+export const contentsOf = toc => []

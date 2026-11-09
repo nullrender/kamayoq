@@ -36,3 +36,28 @@ test('dado uma fração que não é número, então ela vai como veio e o Kotlin
     assert.equal(relocatedMessage(detail(undefined)).fraction, undefined)
     assert.ok(Number.isNaN(relocatedMessage(detail(NaN)).fraction))
 })
+import { contentsOf } from '../main/assets/reader/messages.js'
+
+test('dado um sumário com capítulos aninhados então a lista mantém ordem níveis e destinos', () => {
+    assert.deepEqual(contentsOf([
+        { label: 'Volume 1', href: 'v.xhtml', subitems: [{ label: 'Capítulo 1', href: 'v.xhtml#c1' }] },
+        { label: 'Volume 2', href: 'v2.xhtml' },
+    ]), [
+        { index: 0, title: 'Volume 1', depth: 0, href: 'v.xhtml' },
+        { index: 1, title: 'Capítulo 1', depth: 1, href: 'v.xhtml#c1' },
+        { index: 2, title: 'Volume 2', depth: 0, href: 'v2.xhtml' },
+    ])
+})
+
+test('dado um título sem destino então seus capítulos continuam navegáveis', () => {
+    assert.deepEqual(contentsOf([{ label: 'Parte', subitems: [{ label: 'Capítulo', href: 'a.xhtml' }] }]),
+        [{ index: 0, title: 'Capítulo', depth: 1, href: 'a.xhtml' }])
+    assert.deepEqual(contentsOf(null), [])
+})
+
+test('dado um sumário enorme ou profundo então o trabalho fica limitado', () => {
+    assert.equal(contentsOf(Array.from({ length: 5001 }, () => ({ label: 'x', href: 'a.xhtml' }))).length, 5000)
+    let toc = [{ label: 'x', href: 'a.xhtml' }]
+    for (let i = 0; i < 40; i++) toc = [{ label: 'x', href: 'a.xhtml', subitems: toc }]
+    assert.equal(contentsOf(toc).length, 17)
+})
