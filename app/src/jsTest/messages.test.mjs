@@ -37,6 +37,27 @@ test('dado uma fração que não é número, então ela vai como veio e o Kotlin
     assert.ok(Number.isNaN(relocatedMessage(detail(NaN)).fraction))
 })
 import { contentsOf } from '../main/assets/reader/messages.js'
+import { navigationQueue } from '../main/assets/reader/messages.js'
+
+test('dado dois comandos rápidos então o segundo espera a virada anterior terminar', async () => {
+    const navigate = navigationQueue()
+    const events = []
+    let finish
+    const gate = new Promise(resolve => { finish = resolve })
+    const first = navigate(async () => { events.push('next'); await gate; events.push('done') })
+    const second = navigate(() => { events.push('previous') })
+    await Promise.resolve()
+    assert.deepEqual(events, ['next'])
+    finish()
+    await Promise.all([first, second])
+    assert.deepEqual(events, ['next', 'done', 'previous'])
+})
+
+test('dado uma navegação que falhou então a falha chega ao chamador e a próxima ainda executa', async () => {
+    const navigate = navigationQueue()
+    await assert.rejects(async () => navigate(async () => { throw new Error('Failed turn') }), /Failed turn/)
+    assert.equal(await navigate(() => 'next'), 'next')
+})
 
 test('dado um sumário com capítulos aninhados então a lista mantém ordem níveis e destinos', () => {
     assert.deepEqual(contentsOf([

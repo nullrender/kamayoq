@@ -40,3 +40,5 @@ export const contentsOf = toc => {
     visit(toc, 0)
     return result
 }
+
+export const navigationQueue = () => move => move()
