@@ -1,7 +1,7 @@
 // What the page tells the app about where the reader is, run by Node in the CI.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { relocatedMessage } from '../main/assets/reader/messages.js'
+import { contentsOf, navigationQueue, relocatedMessage } from '../main/assets/reader/messages.js'
 
 const detail = fraction => ({ section: { current: 2, total: 3 }, cfi: 'epubcfi(/6/6!/4/2)', fraction })
 
@@ -36,8 +36,6 @@ test('dado uma fração que não é número, então ela vai como veio e o Kotlin
     assert.equal(relocatedMessage(detail(undefined)).fraction, undefined)
     assert.ok(Number.isNaN(relocatedMessage(detail(NaN)).fraction))
 })
-import { contentsOf } from '../main/assets/reader/messages.js'
-import { navigationQueue } from '../main/assets/reader/messages.js'
 
 test('dado dois comandos rápidos então o segundo espera a virada anterior terminar', async () => {
     const navigate = navigationQueue()
