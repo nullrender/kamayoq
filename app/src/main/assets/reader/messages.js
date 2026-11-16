@@ -41,4 +41,14 @@ export const contentsOf = toc => {
     return result
 }
 
-export const navigationQueue = () => move => move()
+// A relocate arrives before the paginator releases its lock. Await its navigation promise instead
+// of using the position event as a signal that another turn is safe.
+export const navigationQueue = () => {
+    let pending = Promise.resolve()
+    return move => {
+        const task = pending.then(move)
+        // Preserve the caller's rejection, but do not leave every subsequent command blocked by it.
+        pending = task.catch(() => {})
+        return task
+    }
+}

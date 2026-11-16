@@ -1,13 +1,14 @@
 import './foliate-js/view.js'
 import { EPUB } from './foliate-js/epub.js'
 import { neutralizeRefresh } from './sections.js'
-import { relocatedMessage, contentsOf } from './messages.js'
+import { relocatedMessage, contentsOf, navigationQueue } from './messages.js'
 
 const send = message => kamayoqBridge.postMessage(JSON.stringify(message))
 
 const view = document.createElement('foliate-view')
 document.body.append(view)
 let contents = []
+const navigate = navigationQueue()
 
 // One entry at a time, on demand: the Kotlin side reads the ZIP, so no ZIP library runs here.
 const open = async token => {
@@ -60,8 +61,8 @@ const open = async token => {
 }
 
 globalThis.kamayoqReader = {
-    next: () => view.next(),
-    previous: () => view.prev(),
+    next: () => navigate(() => view.next()),
+    previous: () => navigate(() => view.prev()),
     contents: () => contents.map(({ index, title, depth }) => ({ index, title, depth })),
 }
 
@@ -72,7 +73,7 @@ addEventListener('message', event => {
     try { command = JSON.parse(event.data) } catch { return }
     if (!command || command.type !== 'contents' || !Number.isInteger(command.index)) return
     const item = contents[command.index]
-    if (item) view.goTo(item.href)
+    if (item) navigate(() => view.goTo(item.href))
 })
 
 kamayoqBridge.onmessage = ({ data }) => open(data)
