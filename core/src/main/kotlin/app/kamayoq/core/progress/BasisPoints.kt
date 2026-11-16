@@ -22,5 +22,11 @@ value class BasisPoints private constructor(val value: Int) {
             if (fraction == null || !(fraction >= 0.0 && fraction <= 1.0)) return null
             return BasisPoints((fraction * END).roundToInt())
         }
+
+        /** A value read back from storage, which only ever holds what [fromFraction] made. */
+        fun fromStored(value: Int): BasisPoints {
+            require(value in START..END) { "Basis points outside $START..$END: $value" }
+            return BasisPoints(value)
+        }
     }
 }

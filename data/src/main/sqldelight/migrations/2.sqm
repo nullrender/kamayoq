@@ -1,5 +1,7 @@
 -- From version 2 to 3: only adds, so every work, chapter and position stays as it was. A book read as
 -- text keeps its section in position_page and the number of sections in position_total (step 4,
 -- piece 20); these two hold the rest of its place.
-ALTER TABLE chapter_progress ADD COLUMN position_fraction INTEGER;
-ALTER TABLE chapter_progress ADD COLUMN position_cfi TEXT;
+ALTER TABLE chapter_progress ADD COLUMN position_fraction INTEGER CHECK (position_fraction BETWEEN 0 AND 10000);
+-- Both or neither, and only with a position: half a book's place would read back as a page.
+ALTER TABLE chapter_progress ADD COLUMN position_cfi TEXT
+    CHECK ((position_cfi IS NULL) = (position_fraction IS NULL) AND (position_cfi IS NULL OR position_page IS NOT NULL));

@@ -24,11 +24,13 @@ import app.kamayoq.core.library.UnitContent
 import app.kamayoq.core.library.UnitKind
 import app.kamayoq.core.library.Work
 import app.kamayoq.core.library.WorkType
+import app.kamayoq.core.progress.BasisPoints
 import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.ReadingPosition
 import app.kamayoq.core.progress.ReadMark
 import app.kamayoq.core.progress.ReadMarkSource
 import app.kamayoq.core.progress.StripPosition
+import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.progress.strip
 import app.kamayoq.data.db.CurrentOfVersion
 import app.kamayoq.data.db.KamayoqDatabase
@@ -496,18 +498,30 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         database.chapterQueries.presentOfWork(workId, ::storedChapter).executeAsList()
 
     fun progress(chapterId: String): ChapterProgress =
-        database.chapterProgressQueries.progressOf(chapterId) { readAt, readSource, page, total, at, device, reads, _, _ ->
+        database.chapterProgressQueries.progressOf(chapterId) { readAt, readSource, page, total, at, device, reads, fraction, cfi ->
             ChapterProgress(
                 readMark = readAt?.let {
                     ReadMark(Instant.ofEpochMilli(it), ReadMarkSource.valueOf(checkNotNull(readSource)))
                 },
                 position = page?.let {
-                    StripPosition(
-                        page = it.toInt(),
-                        totalPages = checkNotNull(total).toInt(),
-                        at = Instant.ofEpochMilli(checkNotNull(at)),
-                        device = checkNotNull(device),
-                    )
+                    // The database keeps both of a book's columns or neither, so the CFI tells them apart.
+                    if (cfi != null) {
+                        TextPosition(
+                            section = it.toInt(),
+                            sections = checkNotNull(total).toInt(),
+                            cfi = cfi,
+                            fraction = BasisPoints.fromStored(checkNotNull(fraction).toInt()),
+                            at = Instant.ofEpochMilli(checkNotNull(at)),
+                            device = checkNotNull(device),
+                        )
+                    } else {
+                        StripPosition(
+                            page = it.toInt(),
+                            totalPages = checkNotNull(total).toInt(),
+                            at = Instant.ofEpochMilli(checkNotNull(at)),
+                            device = checkNotNull(device),
+                        )
+                    }
                 },
                 completeReads = reads.toInt(),
             )
@@ -523,20 +537,25 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
     }
 
     private fun writeProgress(chapterId: String, progress: ChapterProgress) {
-        // Schema version 2 has no room for a book's CFI and fraction; version 3 (step 4, piece 20)
-        // brings it, and no book's place is saved before then.
-        val position = progress.position?.let { it as? StripPosition ?: error("Schema version 2 cannot store a book's position") }
+        val position = progress.position
+        // A book keeps its section and sections where a chapter keeps its page and total.
+        val (page, total) = when (position) {
+            null -> null to null
+            is StripPosition -> position.page to position.totalPages
+            is TextPosition -> position.section to position.sections
+        }
+        val book = position as? TextPosition
         database.chapterProgressQueries.save(
             chapterId,
             progress.readMark?.at?.toEpochMilli(),
             progress.readMark?.source?.name,
-            position?.page?.toLong(),
-            position?.totalPages?.toLong(),
+            page?.toLong(),
+            total?.toLong(),
             position?.at?.toEpochMilli(),
             position?.device,
             progress.completeReads.toLong(),
-            null,
-            null,
+            book?.fraction?.value?.toLong(),
+            book?.cfi,
         )
     }
 
