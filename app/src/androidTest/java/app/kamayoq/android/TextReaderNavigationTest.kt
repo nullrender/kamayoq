@@ -17,6 +17,7 @@ import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -103,7 +104,11 @@ class TextReaderNavigationTest {
         evaluate("globalThis.screenIdentity = 'same-page'")
         button(R.string.reader_contents).performClick()
         compose.onNodeWithText("Seção 2").assertExists()
+        val reader = compose.activity
         compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
+        // Back must reach the sheet's own window; reaching the screen below closes the whole reader,
+        // and then the sheet is gone for the wrong reason.
+        assertFalse("Back closed the reader", reader.isFinishing)
         compose.onNodeWithText("Seção 2").assertDoesNotExist()
         assertEquals(start, evaluate("document.querySelector('foliate-view').lastLocation.cfi"))
         assertEquals("\"same-page\"", evaluate("globalThis.screenIdentity"))
