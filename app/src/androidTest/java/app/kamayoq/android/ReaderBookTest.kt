@@ -128,6 +128,20 @@ class ReaderBookTest {
         """.trimIndent()))
     }
 
+    // The color above comes in a style attribute and the defaults never set a color, so it would stay
+    // even if the defaults were !important. Here the book's stylesheet sets what the defaults set too.
+    @Test
+    fun `dado a folha de estilo do próprio livro quando o leitor aplica os padrões então o tamanho a entrelinha e o recuo do livro permanecem`() {
+        restored()
+        assertEquals("\"20px|40px|0px\"", evaluate("""
+            (() => {
+                const doc = document.querySelector('foliate-view').renderer.getContents()[0].doc
+                const style = doc.defaultView.getComputedStyle(doc.querySelector('.book-type'))
+                return [style.fontSize, style.lineHeight, style.textIndent].join('|')
+            })()
+        """.trimIndent()))
+    }
+
     private fun visibleText() = evaluate(
         "document.querySelector('foliate-view').renderer.getContents().map(c => c.doc.body.textContent).join(' ')",
     )

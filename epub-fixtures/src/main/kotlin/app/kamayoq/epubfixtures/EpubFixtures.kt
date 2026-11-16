@@ -16,11 +16,20 @@ object EpubFixtures {
     // A fixed date so the same book always gives the same bytes.
     private const val ENTRY_TIME = 1_767_225_600_000L
 
-    /** EPUB 3 with three sections, each one in the spine and in the table of contents. */
+    /**
+     * EPUB 3 with three sections, each one in the spine and in the table of contents. The last
+     * paragraphs carry the book's own color and the book's own typography from its stylesheet.
+     */
     fun short(): ByteArray {
         val sections = (1..3).map { number ->
-            Section("s$number.xhtml", "Seção $number", paragraphs(number, 12) +
-                """<p id="book-color" style="color: rgb(23, 67, 89)">Cor do livro.</p>""")
+            Section(
+                "s$number.xhtml",
+                "Seção $number",
+                paragraphs(number, 12) +
+                    """<p id="book-color" style="color: rgb(23, 67, 89)">Cor do livro.</p>""" + "\n" +
+                    """<p class="book-type">Tipo do livro.</p>""",
+                head = """<style>.book-type { font-size: 20px; line-height: 2; text-indent: 0; }</style>""",
+            )
         }
         return epub3("Livro curto", sections, sections.map { TocItem(it.title, it.file) })
     }
