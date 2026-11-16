@@ -1,6 +1,7 @@
 package app.kamayoq.android
 
 import android.os.SystemClock
+import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebView
@@ -10,6 +11,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.lifecycle.Lifecycle
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import app.kamayoq.core.reader.EpubArchive
 import app.kamayoq.core.reader.ReaderMessage
 import app.kamayoq.epubfixtures.EpubFixtures
@@ -107,7 +109,8 @@ class TextReaderNavigationTest {
         button(R.string.reader_contents).performClick()
         compose.onNodeWithText("Seção 2").assertExists()
         val reader = compose.activity
-        compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
+        // A real key goes to the window in front, as the phone's Back does.
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         // Back must reach the sheet's own window; reaching the screen below closes the whole reader,
         // and then the sheet is gone for the wrong reason. The system closes the reader, or sends it
         // back, after the call returns, so the reader is watched for a while instead of checked once.
