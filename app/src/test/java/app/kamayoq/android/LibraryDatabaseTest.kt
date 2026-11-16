@@ -52,7 +52,7 @@ class LibraryDatabaseTest {
         val library = LibraryDatabase.open(app, NAME)
 
         assertTrue(library is LibraryOpening.Opened)
-        assertEquals(2, read(database) { version })
+        assertEquals(3, read(database) { version })
         assertFalse(copy.exists())
     }
 
@@ -76,7 +76,7 @@ class LibraryDatabaseTest {
             listOf("Dom Casmurro"),
             (library as LibraryOpening.Opened).store.works().map { it.title },
         )
-        assertEquals(2, read(database) { version })
+        assertEquals(3, read(database) { version })
         assertEquals(1, read(copy) { version })
         assertEquals("Dom Casmurro", title(copy))
         assertFalse(hasColumn(copy, "chapter", "page_count"))
@@ -174,7 +174,8 @@ class LibraryDatabaseTest {
     @Test
     fun `dado um banco com uma tabela danificada, quando abro, então a tela aparece em vez de cair depois`() {
         version1()
-        edit { version = 2 }
+        // Labeled as the current version, so the opening goes straight to the check.
+        edit { version = 3 }
         val (page, size) = read(database) {
             val root = rawQuery("SELECT rootpage FROM sqlite_master WHERE name = 'work'", null).use { row ->
                 row.moveToFirst()

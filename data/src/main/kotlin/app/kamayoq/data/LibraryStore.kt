@@ -496,7 +496,7 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         database.chapterQueries.presentOfWork(workId, ::storedChapter).executeAsList()
 
     fun progress(chapterId: String): ChapterProgress =
-        database.chapterProgressQueries.progressOf(chapterId) { readAt, readSource, page, total, at, device, reads ->
+        database.chapterProgressQueries.progressOf(chapterId) { readAt, readSource, page, total, at, device, reads, _, _ ->
             ChapterProgress(
                 readMark = readAt?.let {
                     ReadMark(Instant.ofEpochMilli(it), ReadMarkSource.valueOf(checkNotNull(readSource)))
@@ -535,6 +535,8 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
             position?.at?.toEpochMilli(),
             position?.device,
             progress.completeReads.toLong(),
+            null,
+            null,
         )
     }
 

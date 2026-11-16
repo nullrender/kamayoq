@@ -1,0 +1,5 @@
+-- From version 2 to 3: only adds, so every work, chapter and position stays as it was. A book read as
+-- text keeps its section in position_page and the number of sections in position_total (step 4,
+-- piece 20); these two hold the rest of its place.
+ALTER TABLE chapter_progress ADD COLUMN position_fraction INTEGER;
+ALTER TABLE chapter_progress ADD COLUMN position_cfi TEXT;

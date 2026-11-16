@@ -11,6 +11,10 @@ CREATE TABLE chapter_progress (
     position_at INTEGER,
     position_device TEXT,
     complete_reads INTEGER NOT NULL CHECK (complete_reads >= 0),
+    -- A book read as text: page and total are its section and sections, and these the rest of its
+    -- place, in basis points and as the fork's EPUB CFI. Both null is a position in the Strip.
+    position_fraction INTEGER,
+    position_cfi TEXT,
     -- A read mark has both its time and its source, or neither.
     CHECK ((read_at IS NULL AND read_source IS NULL) OR (read_at IS NOT NULL AND read_source IS NOT NULL)),
     -- A position has all four parts, or none.
@@ -24,11 +28,13 @@ CREATE TABLE chapter_progress (
 );
 
 progressOf:
-SELECT read_at, read_source, position_page, position_total, position_at, position_device, complete_reads
+SELECT read_at, read_source, position_page, position_total, position_at, position_device, complete_reads,
+    position_fraction, position_cfi
 FROM chapter_progress
 WHERE chapter_id = ?;
 
 save:
 INSERT OR REPLACE INTO chapter_progress
-    (chapter_id, read_at, read_source, position_page, position_total, position_at, position_device, complete_reads)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+    (chapter_id, read_at, read_source, position_page, position_total, position_at, position_device, complete_reads,
+     position_fraction, position_cfi)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);

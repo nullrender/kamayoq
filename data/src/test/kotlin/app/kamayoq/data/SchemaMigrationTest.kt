@@ -70,10 +70,62 @@ class SchemaMigrationTest {
         val before = everyRowOfVersion1()
         assertEquals(listOf(2, 2, 6, 4, 2), before.values.map { it.size })
 
-        LibraryStore.schema.migrate(driver, 1, LibraryStore.schema.version)
+        LibraryStore.schema.migrate(driver, 1, 2)
 
-        assertEquals(2, LibraryStore.schema.version)
         assertEquals(before, everyRowOfVersion1())
+    }
+
+    /** Every column of every table as it is now, to read the same columns again after a migration. */
+    private fun columnsNow(): Map<String, List<String>> =
+        rows("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+            .map { it.single().orEmpty() }
+            .associateWith { table -> rows("SELECT name FROM pragma_table_info('$table')").map { it.single().orEmpty() } }
+
+    private fun everyRow(columns: Map<String, List<String>>): Map<String, List<List<String?>>> =
+        columns.mapValues { (table, names) -> rows("SELECT ${names.joinToString()} FROM $table ORDER BY rowid", names.size) }
+
+    @Test
+    fun `dado um banco da versão 2 com obras e progresso, quando migro para a 3, então cada linha continua igual e as colunas novas ficam vazias`() {
+        version1()
+        LibraryStore.schema.migrate(driver, 1, 2)
+        // What only version 2 holds: a server, a chapter from it, an agreement and a position aside.
+        execute("INSERT INTO kavita_server (id, address) VALUES ('server-1', 'https://kavita.example')")
+        execute("INSERT INTO kavita_library (server_id, library_id) VALUES ('server-1', 4)")
+        execute("UPDATE chapter SET page_count = 20, remote_file = 'a.cbz', remote_volume_id = 8 WHERE id = 'chapter-3'")
+        execute("INSERT INTO progress_agreement (chapter_id, page, own_reread) VALUES ('chapter-1', 3, 0)")
+        execute("INSERT INTO progress_outbox (chapter_id, page, state, queued_at) VALUES ('chapter-2', 12, 'TO_SEND', 1761486600000)")
+        execute(
+            "INSERT INTO alternative_position (version_id, reason, chapter_id, page, total, at, device) " +
+                "VALUES ('version-dom', 'CONFLICT', 'chapter-1', 3, 40, 1761400200000, 'kavita')",
+        )
+        val columns = columnsNow()
+        val before = everyRow(columns)
+        assertEquals(listOf(4, 1, 1, 1, 1, 1), listOf("chapter_progress", "kavita_server", "kavita_library",
+            "progress_agreement", "progress_outbox", "alternative_position").map { before.getValue(it).size })
+
+        LibraryStore.schema.migrate(driver, 2, 3)
+
+        assertEquals(3, LibraryStore.schema.version)
+        assertEquals(before, everyRow(columns))
+        assertEquals(
+            "0",
+            rows("SELECT count(*) FROM chapter_progress WHERE position_fraction IS NOT NULL OR position_cfi IS NOT NULL")
+                .single().single(),
+        )
+    }
+
+    @Test
+    fun `dado um banco migrado para a 3, quando a fração passa de dez mil ou o CFI vem sem fração, então o banco recusa`() {
+        migrated()
+        val update = "UPDATE chapter_progress SET position_fraction = %s, position_cfi = %s WHERE chapter_id = 'chapter-2'"
+
+        execute(update.format("137", "'epubcfi(/6/6!)'"))
+
+        assertFails { execute(update.format("10001", "'epubcfi(/6/6!)'")) }
+        assertFails { execute(update.format("NULL", "'epubcfi(/6/6!)'")) }
+        assertFails { execute(update.format("137", "NULL")) }
+        // A chapter never opened has no place, so it has no CFI either.
+        assertFails { execute("UPDATE chapter_progress SET position_fraction = 137, position_cfi = 'epubcfi(/6/6!)' WHERE chapter_id = 'chapter-gone'") }
     }
 
     @Test
