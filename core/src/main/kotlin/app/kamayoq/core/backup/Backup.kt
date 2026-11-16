@@ -311,7 +311,10 @@ private class ChapterEntry(
             resume = chapter.resume,
             readMark = chapter.progress.readMark?.let { ReadMarkEntry(it.at.toString(), it.source.name) },
             position = chapter.progress.position?.let {
-                PositionEntry(it.page, it.totalPages, it.at.toString(), it.device)
+                // A book's place needs its CFI and fraction, which format 2 has no room for: format 3
+                // (step 4, piece 22) carries them, and no book's place is saved before it.
+                val strip = it as? StripPosition ?: error("Backup format ${BackupFormat.VERSION} cannot carry a book's position")
+                PositionEntry(strip.page, strip.totalPages, strip.at.toString(), strip.device)
             },
             completeReads = chapter.progress.completeReads,
             pageCount = chapter.pageCount,

@@ -31,6 +31,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.kamayoq.core.kavita.KavitaProgress
 import app.kamayoq.core.library.ChapterFormat
+import app.kamayoq.core.progress.strip
 import app.kamayoq.core.reader.FileTooLargeException
 import app.kamayoq.data.LibraryStore
 import app.kamayoq.data.StoredAlternative
@@ -334,7 +335,7 @@ private fun openChapter(
     }
     val turn = kavita.beforeOpening(chapter.id)
     turn.conflict?.let { conflict ->
-        val position = store.progress(chapter.id).position
+        val position = store.progress(chapter.id).position?.strip()
         return Opening.Conflict(chapter.id, KavitaProgress.toRemote(position, conflict.pageCount) ?: 0, conflict, turn.token)
     }
     val opened = try {

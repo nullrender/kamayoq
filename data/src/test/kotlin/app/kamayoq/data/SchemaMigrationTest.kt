@@ -3,6 +3,7 @@ package app.kamayoq.data
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import app.kamayoq.core.progress.strip
 import app.kamayoq.data.db.KamayoqDatabase
 import java.io.File
 import java.util.Properties
@@ -83,7 +84,7 @@ class SchemaMigrationTest {
 
         assertEquals("Dom Casmurro", work.title)
         assertEquals(listOf("Capítulo 1", "Capítulo 2", "Volume 1"), store.chapters(work.id).map { it.name })
-        assertEquals(12, store.progress("chapter-2").position?.page)
+        assertEquals(12, store.progress("chapter-2").position?.strip()?.page)
     }
 
     @Test

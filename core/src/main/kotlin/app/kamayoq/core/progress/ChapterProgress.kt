@@ -12,7 +12,7 @@ data class ChapterProgress(
     /** Null means not read. The position never removes it (C1). */
     val readMark: ReadMark?,
     /** The last place shown, also after the end and in a reread. Null means never opened. */
-    val position: StripPosition?,
+    val position: ReadingPosition?,
     /** Readings that reached the end on this device; marking read by hand does not count. */
     val completeReads: Int,
 ) {

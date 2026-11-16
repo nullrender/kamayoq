@@ -25,6 +25,7 @@ import app.kamayoq.core.library.UnitKind
 import app.kamayoq.core.library.WorkType
 import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.StripPosition
+import app.kamayoq.core.progress.strip
 import app.kamayoq.core.reader.EpubLimits
 import app.kamayoq.data.BackupResult
 import app.kamayoq.data.kavita.KavitaClient
@@ -164,7 +165,7 @@ class LibraryAppTest {
         waitFor(app.getString(R.string.other_position_use))
         compose.onNodeWithText(app.getString(R.string.other_position_use)).performClick()
 
-        compose.waitUntil(10_000) { app.store.progress(chapter.id).position?.page == 2 }
+        compose.waitUntil(10_000) { app.store.progress(chapter.id).position?.strip()?.page == 2 }
         compose.waitUntil(10_000) {
             compose.onAllNodes(hasText(app.getString(R.string.other_position_use))).fetchSemanticsNodes().isEmpty()
         }
@@ -219,7 +220,7 @@ class LibraryAppTest {
         waitFor(app.getString(R.string.conflict_title))
         compose.onNodeWithText(app.getString(R.string.conflict_kavita, app.getString(R.string.position_page, 3, 3))).performClick()
 
-        compose.waitUntil(10_000) { app.store.progress(stored.id).position?.page == 2 }
+        compose.waitUntil(10_000) { app.store.progress(stored.id).position?.strip()?.page == 2 }
         waitFor(app.getString(R.string.reader_download_failed))
     }
 

@@ -25,9 +25,11 @@ import app.kamayoq.core.library.UnitKind
 import app.kamayoq.core.library.Work
 import app.kamayoq.core.library.WorkType
 import app.kamayoq.core.progress.ChapterProgress
+import app.kamayoq.core.progress.ReadingPosition
 import app.kamayoq.core.progress.ReadMark
 import app.kamayoq.core.progress.ReadMarkSource
 import app.kamayoq.core.progress.StripPosition
+import app.kamayoq.core.progress.strip
 import app.kamayoq.data.db.CurrentOfVersion
 import app.kamayoq.data.db.KamayoqDatabase
 import app.kamayoq.data.db.RemoteOfVersion
@@ -110,7 +112,7 @@ data class StoredAlternative(
 )
 
 /** Where a work reopens and the position there. */
-data class StoredResume(val chapterId: String, val position: StripPosition?)
+data class StoredResume(val chapterId: String, val position: ReadingPosition?)
 
 /** The Kavita server of this app (one address only, by design), with the [marked] libraries. */
 data class StoredServer(val id: String, val address: String, val marked: List<Int>)
@@ -174,7 +176,7 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
             val before = progress(chapterId)
             val versionId = database.chapterQueries.versionOfChapter(chapterId).executeAsOne()
             // The first image is where any opening starts: nothing to go back to.
-            before.position?.takeIf { it.page > 0 }?.let { keepAside(versionId, reason, chapterId, it) }
+            before.position?.strip()?.takeIf { it.page > 0 }?.let { keepAside(versionId, reason, chapterId, it) }
             val position = KavitaProgress.fromRemote(page, pageCount, at)
             val mark = before.readMark ?: ReadMark(at, ReadMarkSource.KAVITA).takeIf { KavitaProgress.isRead(page, pageCount) }
             writeProgress(chapterId, before.copy(readMark = mark, position = position))
@@ -201,9 +203,9 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         // Reopening where it already did is no news, unless a reading here elsewhere makes it a choice.
         if (!localMoved && before?.chapterId == chapterId) return@transaction
         if (localMoved) {
-            progress(chapterId).position?.let { keepAside(versionId, CONFLICT, chapterId, it) }
+            progress(chapterId).position?.strip()?.let { keepAside(versionId, CONFLICT, chapterId, it) }
         } else {
-            before?.position?.takeIf { it.page > 0 }?.let { keepAside(versionId, PREVIOUS, before.chapterId, it) }
+            before?.position?.strip()?.takeIf { it.page > 0 }?.let { keepAside(versionId, PREVIOUS, before.chapterId, it) }
             database.workResumeQueries.save(versionId, chapterId)
         }
     }
@@ -521,7 +523,9 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
     }
 
     private fun writeProgress(chapterId: String, progress: ChapterProgress) {
-        val position = progress.position
+        // Schema version 2 has no room for a book's CFI and fraction; version 3 (step 4, piece 20)
+        // brings it, and no book's place is saved before then.
+        val position = progress.position?.let { it as? StripPosition ?: error("Schema version 2 cannot store a book's position") }
         database.chapterProgressQueries.save(
             chapterId,
             progress.readMark?.at?.toEpochMilli(),

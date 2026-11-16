@@ -100,7 +100,7 @@ class StripReadingTest {
 
         assertNull(progress.readMark)
         assertEquals(0, progress.completeReads)
-        assertEquals(TOTAL - 1, progress.position?.page)
+        assertEquals(TOTAL - 1, progress.position?.strip()?.page)
     }
 
     @Test
@@ -158,7 +158,7 @@ class StripReadingTest {
 
         assertEquals(mark, progress.readMark)
         assertEquals(0, progress.completeReads)
-        assertEquals(2, progress.position?.page)
+        assertEquals(2, progress.position?.strip()?.page)
     }
 
     @Test

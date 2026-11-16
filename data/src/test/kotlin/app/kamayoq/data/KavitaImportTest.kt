@@ -12,6 +12,7 @@ import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.ReadMark
 import app.kamayoq.core.progress.ReadMarkSource
 import app.kamayoq.core.progress.StripPosition
+import app.kamayoq.core.progress.strip
 import java.time.Instant
 import java.util.Properties
 import kotlin.test.AfterTest
@@ -240,7 +241,7 @@ class KavitaImportTest {
         store.adoptRemote(chapterId, page = 10, pageCount = 20, serverAt = "x", at = at, reason = LibraryStore.PREVIOUS)
 
         val saved = store.progress(chapterId)
-        assertEquals(10 to "kavita", saved.position?.page to saved.position?.device)
+        assertEquals(10 to "kavita", saved.position?.strip()?.page to saved.position?.device)
         assertNull(saved.readMark)
         assertEquals(listOf(7), store.alternatives(work("Sakamoto Days").id).map { it.page })
         assertEquals(10, store.syncItem(chapterId)?.agreedPage)
@@ -293,7 +294,7 @@ class KavitaImportTest {
 
         store.useAlternative(workId, store.alternatives(workId).single())
 
-        assertEquals(7, store.progress(chapterId).position?.page)
+        assertEquals(7, store.progress(chapterId).position?.strip()?.page)
         assertEquals(emptyList(), store.alternatives(workId))
     }
 

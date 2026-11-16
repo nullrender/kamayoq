@@ -1,6 +1,7 @@
 package app.kamayoq.data.kavita
 
 import app.kamayoq.core.kavita.KavitaProgress
+import app.kamayoq.core.progress.strip
 import app.kamayoq.data.LibraryStore
 import app.kamayoq.data.StoredResume
 import app.kamayoq.data.SyncItem
@@ -44,7 +45,7 @@ class KavitaProgressSync(
     fun chapter(address: String, key: String, known: SyncItem, moveResume: Boolean = true): KavitaSyncOutcome {
         val item = store.syncItem(known.chapterId) ?: return KavitaSyncOutcome.Settled
         val progress = store.progress(item.chapterId)
-        val local = KavitaProgress.toRemote(progress.position, item.pageCount)
+        val local = KavitaProgress.toRemote(progress.position?.strip(), item.pageCount)
         val remote = client.progress(address, key, item.remoteId)
         // New content starts from zero here (rule E1), and the server's record is the old content's:
         // the first look only takes it as the base, however far it went.
@@ -77,7 +78,7 @@ class KavitaProgressSync(
         try {
             ifClosed(address, key, item)
         } catch (_: IOException) {
-            val page = KavitaProgress.toRemote(store.progress(chapterId).position, item.pageCount) ?: return
+            val page = KavitaProgress.toRemote(store.progress(chapterId).position?.strip(), item.pageCount) ?: return
             store.queueProgress(chapterId, page, now())
         }
     }
@@ -176,7 +177,7 @@ class KavitaProgressSync(
     private fun readingNow(): String? = reading?.let(store::currentEdition)
 
     private fun changedHere(item: SyncItem): Boolean {
-        val local = KavitaProgress.toRemote(store.progress(item.chapterId).position, item.pageCount)
+        val local = KavitaProgress.toRemote(store.progress(item.chapterId).position?.strip(), item.pageCount)
         return local != null && local != (item.agreedPage ?: 0)
     }
 

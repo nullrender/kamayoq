@@ -6,7 +6,12 @@ import java.time.Instant
  * Where the person is in a chapter read in the Strip (progress contract, section 9). [page] counts
  * images from 0; [page] equal to [totalPages] is the end-of-chapter block after the last image.
  */
-data class StripPosition(val page: Int, val totalPages: Int, val at: Instant, val device: String) {
+data class StripPosition(
+    val page: Int,
+    val totalPages: Int,
+    override val at: Instant,
+    override val device: String,
+) : ReadingPosition {
     init {
         require(totalPages >= 1) { "A chapter in the Strip has at least one image: $totalPages" }
         require(page in 0..totalPages) { "Page $page is outside 0..$totalPages" }
@@ -27,7 +32,7 @@ class StripReading private constructor(saved: ChapterProgress, val totalPages: I
      * Where the chapter opens (section 9): where it stopped, unless the last reading reached the
      * end, or the file now has another number of images.
      */
-    val startPage: Int = saved.position
+    val startPage: Int = saved.position?.strip()
         ?.takeIf { (it.totalPages == totalPages || it.device == KavitaDevice.NAME) && !it.isAtEnd }
         // Kavita may count pages differently (hidden folders, for one): its page still says where.
         ?.page
@@ -46,7 +51,7 @@ class StripReading private constructor(saved: ChapterProgress, val totalPages: I
      */
     fun show(page: Int, at: Instant): ChapterProgress? {
         if (page < 0 || page > totalPages) return null
-        val current = progress.position
+        val current = progress.position?.strip()
         val samePlace = current != null && current.page == page && current.totalPages == totalPages
         // The end block stays news until this opening counts it, even if the last opening stopped there.
         if (samePlace && (page != totalPages || endCounted)) return progress

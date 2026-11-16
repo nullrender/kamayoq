@@ -5,6 +5,7 @@ import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.ReadMark
 import app.kamayoq.core.progress.ReadMarkSource
 import app.kamayoq.core.progress.StripPosition
+import app.kamayoq.core.progress.strip
 import app.kamayoq.data.LibraryStore
 import app.kamayoq.core.kavita.RemoteProgress
 import app.kamayoq.data.StoredChapter
@@ -72,7 +73,7 @@ class KavitaProgressSyncTest {
 
         sync.chapter(address, key, item(chapter))
 
-        assertEquals(5, store.progress(chapter.id).position?.page)
+        assertEquals(5, store.progress(chapter.id).position?.strip()?.page)
     }
 
     @Test
@@ -219,7 +220,7 @@ class KavitaProgressSyncTest {
 
         sync.all(address, key, KavitaImport(client, store).run(key))
 
-        assertEquals(3, store.progress(chapter.id).position?.page)
+        assertEquals(3, store.progress(chapter.id).position?.strip()?.page)
         assertEquals(9, remotePage(chapter))
     }
 
@@ -235,7 +236,7 @@ class KavitaProgressSyncTest {
 
         KavitaServer.saveProgress(remoteWork, remote(chapter), page = 8)
         sync.chapter(address, key, item(chapter))
-        assertEquals(8, store.progress(chapter.id).position?.page)
+        assertEquals(8, store.progress(chapter.id).position?.strip()?.page)
     }
 
     @Test
@@ -286,8 +287,8 @@ class KavitaProgressSyncTest {
 
         racing().all(address, key, KavitaImport(client, store).run(key))
 
-        assertEquals(3, store.progress(first.id).position?.page)
-        assertEquals(8, store.progress(second.id).position?.page)
+        assertEquals(3, store.progress(first.id).position?.strip()?.page)
+        assertEquals(8, store.progress(second.id).position?.strip()?.page)
         assertEquals(6, KavitaServer.progress(remoteChapters.single { it.id.toString() == second.path }).getValue("pageNum").jsonPrimitive.int)
     }
 
@@ -419,7 +420,7 @@ class KavitaProgressSyncTest {
 
         sync.all(address, key, KavitaImport(client, store).run(key))
 
-        assertEquals(8, store.progress(chapter.id).position?.page)
+        assertEquals(8, store.progress(chapter.id).position?.strip()?.page)
     }
 
     @Test
