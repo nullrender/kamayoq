@@ -31,7 +31,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.kamayoq.core.kavita.KavitaProgress
 import app.kamayoq.core.library.ChapterFormat
-import app.kamayoq.core.reader.EpubLimits
 import app.kamayoq.core.reader.FileTooLargeException
 import app.kamayoq.data.LibraryStore
 import app.kamayoq.data.StoredAlternative
@@ -57,7 +56,7 @@ private sealed interface Opening {
     data object DownloadFailed : Opening
     data object EpubNotYet : Opening
     data object FormatNotYet : Opening
-    data object TooLarge : Opening
+    class TooLarge(val maxBytes: Long) : Opening
     class ReadyText(val text: OpenedText, val title: String) : Opening
     class Conflict(val chapterId: String, val localPage: Int, val conflict: KavitaSyncOutcome.Conflict, val turn: Long) : Opening
     class Ready(
@@ -206,7 +205,7 @@ fun ReaderHost(
         } catch (e: ChapterMissingException) {
             Opening.Missing
         } catch (e: FileTooLargeException) {
-            Opening.TooLarge
+            Opening.TooLarge(e.maxBytes)
         } catch (e: ChapterDownloadException) {
             Log.e("Kamayoq", "Downloading a chapter failed", e)
             Opening.DownloadFailed
@@ -223,7 +222,7 @@ fun ReaderHost(
         Opening.DownloadFailed -> ReaderMessage(stringResource(R.string.reader_download_failed), onBack)
         Opening.EpubNotYet -> ReaderMessage(stringResource(R.string.reader_epub_not_yet), onBack)
         Opening.FormatNotYet -> ReaderMessage(stringResource(R.string.reader_format_not_yet), onBack)
-        Opening.TooLarge -> ReaderMessage(stringResource(R.string.reader_too_large, EpubLimits().maxFileBytes / (1024 * 1024)), onBack)
+        is Opening.TooLarge -> ReaderMessage(stringResource(R.string.reader_too_large, current.maxBytes / (1024 * 1024)), onBack)
         is Opening.ReadyText -> TextReader(current.text.archive, current.title, onBack)
         is Opening.Conflict -> {
             ConflictScreen(

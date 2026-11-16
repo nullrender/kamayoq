@@ -95,7 +95,7 @@ class ChapterOpening(
             ?: throw ChapterMissingException()
         val uri = DocumentsContract.buildDocumentUriUsingTree(tree, entry.id)
         val input = checkNotNull(resolver.openInputStream(uri)) { "The folder provider gave no stream" }
-        val opened = archives.openBook(request, chapter, input)
+        val opened = archives.openBook(request, chapter, input, bookLimits)
         return OpenedText(opened.chapterId, opened.archive) { archives.release(opened) }
     }
 
