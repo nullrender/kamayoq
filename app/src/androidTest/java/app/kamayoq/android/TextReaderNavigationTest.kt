@@ -6,11 +6,13 @@ import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.junit4.accessibility.enableAccessibilityChecks
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.lifecycle.Lifecycle
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import app.kamayoq.core.reader.EpubArchive
 import app.kamayoq.core.reader.ReaderMessage
@@ -134,5 +136,17 @@ class TextReaderNavigationTest {
         assertEquals(1, navigation().section)
         assertEquals("\"same-page\"", evaluate("globalThis.screenIdentity"))
         assertTrue(evaluate("document.querySelector('foliate-view').renderer.getContents().some(c => c.index === 1)").toBoolean())
+    }
+
+    // The checks run before each action, on the whole window: the reader with its controls, then
+    // the contents sheet. A failure names the view and the rule it breaks.
+    @Test
+    @SdkSuppress(minSdkVersion = 34)
+    fun `dado o leitor aberto quando rodo as verificações de acessibilidade do Compose então nenhum controle falha`() {
+        compose.enableAccessibilityChecks()
+        messages.clear()
+        button(R.string.reader_contents).performClick()
+        compose.onNodeWithText("Seção 2").performClick()
+        assertEquals(1, navigation().section)
     }
 }

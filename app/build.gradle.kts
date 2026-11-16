@@ -149,6 +149,9 @@ dependencies {
     androidTestImplementation(project(":epub-fixtures"))
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.compose.ui.test.junit4)
+    // Google's accessibility checks (contrast, targets, labels) on Compose screens. They need
+    // Android 14 and do not run under Robolectric, so they live here and not in the JVM tests.
+    androidTestImplementation(libs.compose.ui.test.junit4.accessibility)
 }
 
 // Test builds: versionCode is the commit count and the name says which release they lead to,
