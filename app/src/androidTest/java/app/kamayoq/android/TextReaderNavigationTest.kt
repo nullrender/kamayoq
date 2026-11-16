@@ -1,5 +1,6 @@
 package app.kamayoq.android
 
+import android.os.SystemClock
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebView
@@ -7,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.lifecycle.Lifecycle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.kamayoq.core.reader.EpubArchive
 import app.kamayoq.core.reader.ReaderMessage
@@ -107,8 +109,14 @@ class TextReaderNavigationTest {
         val reader = compose.activity
         compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
         // Back must reach the sheet's own window; reaching the screen below closes the whole reader,
-        // and then the sheet is gone for the wrong reason.
-        assertFalse("Back closed the reader", reader.isFinishing)
+        // and then the sheet is gone for the wrong reason. The system closes the reader, or sends it
+        // back, after the call returns, so the reader is watched for a while instead of checked once.
+        val watchUntil = SystemClock.uptimeMillis() + 3_000
+        while (SystemClock.uptimeMillis() < watchUntil) {
+            val inFront = reader.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+            assertFalse("Back closed or hid the reader", reader.isFinishing || reader.isDestroyed || !inFront)
+            Thread.sleep(100)
+        }
         compose.onNodeWithText("Seção 2").assertDoesNotExist()
         assertEquals(start, evaluate("document.querySelector('foliate-view').lastLocation.cfi"))
         assertEquals("\"same-page\"", evaluate("globalThis.screenIdentity"))
