@@ -18,6 +18,9 @@ class FolderInMemory(context: Context, var titles: List<String>) : ChosenFolder(
     /** A folder the app can only read, with no `Library` in it: creating one fails. */
     var readOnlyWithoutLibrary = false
 
+    /** Works in `Books`, each a folder with one `Vol. 1.epub`; none unless a test adds them. */
+    var books: List<String> = emptyList()
+
     /** False when no folder was chosen yet. */
     var chosen = true
 
@@ -36,10 +39,16 @@ class FolderInMemory(context: Context, var titles: List<String>) : ChosenFolder(
         check(!failing) { "The folder stopped answering" }
         return when (folderId) {
             rootId(tree) -> emptyList()
-            "library" -> listOf(FolderEntry("comics", "Comics", isFolder = true, size = 0, modified = 1))
+            "library" -> listOf(FolderEntry("comics", "Comics", isFolder = true, size = 0, modified = 1)) +
+                listOfNotNull(FolderEntry("books", "Books", isFolder = true, size = 0, modified = 1).takeIf { books.isNotEmpty() })
+            "books" -> books.map { FolderEntry("book:$it", it, isFolder = true, size = 0, modified = 1) }
             "comics" -> titles.map { FolderEntry(it, it, isFolder = true, size = 0, modified = 1) } +
                 looseFiles.map { FolderEntry(it, it, isFolder = false, size = 10, modified = 1) }
+            in books.map { "book:$it" } -> listOf(FolderEntry(bookFileId(folderId.removePrefix("book:")), "Vol. 1.epub", isFolder = false, size = 10, modified = 1))
             else -> listOf(FolderEntry("$folderId/cap", "Cap. 1.cbz", isFolder = false, size = 10, modified = 1))
         }
     }
+
+    /** The document id of the book file of the work [title] in `Books`. */
+    fun bookFileId(title: String) = "book:$title/vol1"
 }

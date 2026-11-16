@@ -1,5 +1,6 @@
 package app.kamayoq.android
 
+import android.provider.DocumentsContract
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -24,8 +25,10 @@ import app.kamayoq.core.library.UnitKind
 import app.kamayoq.core.library.WorkType
 import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.StripPosition
+import app.kamayoq.core.reader.EpubLimits
 import app.kamayoq.data.BackupResult
 import app.kamayoq.data.kavita.KavitaClient
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.IOException
 import java.time.Instant
@@ -34,6 +37,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 
 @RunWith(RobolectricTestRunner::class)
 class LibraryAppTest {
@@ -99,6 +103,26 @@ class LibraryAppTest {
         compose.onNodeWithText("Cap. 1").performClick()
 
         waitFor(app.getString(R.string.reader_epub_not_yet))
+    }
+
+    // The ceiling comes from the opening, so the message says the ceiling that stopped the copy.
+    @Test
+    fun `dado um livro EPUB maior que o teto, quando toco no volume, então a cópia para e o app diz o teto`() {
+        val folder = FolderInMemory(app, emptyList()).apply { books = listOf("Os Miseráveis") }
+        val twoMegabytes = ByteArrayInputStream(ByteArray(2 * 1024 * 1024))
+        shadowOf(app.contentResolver).registerInputStream(
+            DocumentsContract.buildDocumentUriUsingTree(folder.tree, folder.bookFileId("Os Miseráveis")),
+            twoMegabytes,
+        )
+        val opening = ChapterOpening(app, folder, app.store, app.kavitaSync::chapterFile, EpubLimits(maxFileBytes = 1024 * 1024))
+        compose.setContent { LibraryApp(app.store, folder, opening, app.backups, app.kavita, app.kavitaSync, "test-device") }
+        waitFor("Os Miseráveis")
+
+        compose.onNodeWithText("Os Miseráveis").performClick()
+        waitFor("Vol. 1")
+        compose.onNodeWithText("Vol. 1").performClick()
+
+        waitFor(app.getString(R.string.reader_too_large, 1))
     }
 
     @Test

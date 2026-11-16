@@ -13,6 +13,7 @@ import app.kamayoq.core.library.FolderWalk
 import app.kamayoq.core.library.UnitContent
 import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.reader.EpubArchive
+import app.kamayoq.core.reader.EpubLimits
 import app.kamayoq.data.ArchiveOpening
 import app.kamayoq.data.LibraryStore
 import app.kamayoq.data.StoredChapter
@@ -52,6 +53,8 @@ class ChapterOpening(
     private val folder: ChosenFolder,
     private val store: LibraryStore,
     private val kavitaFile: (StoredChapter, () -> Boolean) -> KavitaChapterFile,
+    /** The ceilings of a local book; the screen tests lower them to stay small. */
+    val bookLimits: EpubLimits = EpubLimits(),
 ) {
 
     private val resolver = context.contentResolver
