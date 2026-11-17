@@ -99,6 +99,18 @@ class TextProgressTest {
     }
 
     @Test
+    fun `dado a posição no começo exato e no fim exato do livro, quando as leio de volta, então as frações 0 e 10000 voltam iguais`() {
+        val id = book()
+        listOf(BasisPoints.START, BasisPoints.END).forEach { edge ->
+            val atEdge = reading.copy(position = place.copy(fraction = BasisPoints.fromStored(edge)))
+
+            store.saveProgress(id, atEdge)
+
+            assertEquals(atEdge, store.progress(id), "fraction $edge")
+        }
+    }
+
+    @Test
     fun `dado uma fração ou um CFI impossíveis escritos direto no banco, então o banco recusa`() {
         val id = book()
         val columns = "chapter_id, position_page, position_total, position_at, position_device, complete_reads, " +
