@@ -345,6 +345,19 @@ class BackupFormatTest {
     }
 
     @Test
+    fun `dado um capítulo com página e lugar de livro ao mesmo tempo, quando lido, então recusa em vez de escolher um`() {
+        val text = BackupFormat.write(backup(work(chapters = listOf(chapter("Comics/Sakamoto Days/Capítulo 2.cbz", halfway)))))
+            .replaceFirst(
+                "\"textPosition\": null",
+                "\"textPosition\": { \"section\": 2, \"sections\": 148, \"cfi\": \"epubcfi(/6/6!)\", \"fraction\": 137, " +
+                    "\"at\": \"2026-10-27T23:40:51Z\", \"device\": \"phone-a\" }",
+            )
+
+        assertTrue("\"section\": 2" in text, text)
+        assertFailsWith<IllegalArgumentException> { BackupFormat.read(text) }
+    }
+
+    @Test
     fun `dado 28 de outubro às 18h48 em São Paulo, então o arquivo se chama kamayoq_2026-10-28_18-48`() {
         val at = Instant.parse("2026-10-28T21:48:30Z")
 
