@@ -339,7 +339,10 @@ private class ChapterEntry(
         outbox = outbox?.let { BackupOutbox(it.page, it.bookScrollId, it.localCfi, it.state, Instant.parse(it.queuedAt)) },
     )
 
+    // A chapter has a page in a strip or a place in a book, never both: a file with both was not
+    // written by this app, and keeping one would drop the other without a word.
     private fun readPosition() = when {
+        position != null && textPosition != null -> throw IllegalArgumentException("Chapter $id has both a page and a book's place")
         position != null -> StripPosition(position.page, position.totalPages, Instant.parse(position.at), position.device)
         textPosition != null -> TextPosition(
             textPosition.section,
