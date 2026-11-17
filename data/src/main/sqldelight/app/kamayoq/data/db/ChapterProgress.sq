@@ -14,7 +14,11 @@ CREATE TABLE chapter_progress (
     -- A book read as text: page and total are its section and sections, and these the rest of its
     -- place, in basis points and as the fork's EPUB CFI. Both null is a position in the Strip.
     position_fraction INTEGER CHECK (position_fraction BETWEEN 0 AND 10000),
-    position_cfi TEXT,
+    -- Both or neither, and only with a position: half a book's place would read back as a page. On
+    -- the column, not the table, because that is where the migration can put it, and a fresh install
+    -- must match a migrated one.
+    position_cfi TEXT
+        CHECK ((position_cfi IS NULL) = (position_fraction IS NULL) AND (position_cfi IS NULL OR position_page IS NOT NULL)),
     -- A read mark has both its time and its source, or neither.
     CHECK ((read_at IS NULL AND read_source IS NULL) OR (read_at IS NOT NULL AND read_source IS NOT NULL)),
     -- A position has all four parts, or none.
@@ -24,9 +28,7 @@ CREATE TABLE chapter_progress (
             AND position_device IS NOT NULL)
     ),
     -- Page equal to the total is the end-of-chapter block (contract, section 9).
-    CHECK (position_total >= 1 AND position_page BETWEEN 0 AND position_total),
-    -- Both or neither, and only with a position: half a book's place would read back as a page.
-    CHECK ((position_cfi IS NULL) = (position_fraction IS NULL) AND (position_cfi IS NULL OR position_page IS NOT NULL))
+    CHECK (position_total >= 1 AND position_page BETWEEN 0 AND position_total)
 );
 
 progressOf:
