@@ -3,10 +3,12 @@ package app.kamayoq.core.backup
 import app.kamayoq.core.library.ChapterFormat
 import app.kamayoq.core.library.UnitKind
 import app.kamayoq.core.library.WorkType
+import app.kamayoq.core.progress.BasisPoints
 import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.ReadMark
 import app.kamayoq.core.progress.ReadMarkSource
 import app.kamayoq.core.progress.StripPosition
+import app.kamayoq.core.progress.TextPosition
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonObject
@@ -191,6 +193,26 @@ class BackupFormatTest {
 
         assertTrue("\"formatVersion\": 3" in text, text)
         assertFailsWith<IllegalArgumentException> { BackupFormat.read(text) }
+    }
+
+    @Test
+    fun `dado uma posição de livro, quando gravo no formato 2, então recusa em vez de perder o CFI e a fração`() {
+        val place = ChapterProgress(
+            readMark = null,
+            position = TextPosition(
+                section = 2,
+                sections = 148,
+                cfi = "epubcfi(/6/6!/4/2[cap-2]/10/1:42)",
+                fraction = BasisPoints.fromStored(137),
+                at = stoppedAt,
+                device = "phone-a",
+            ),
+            completeReads = 0,
+        )
+        val book = backup(work(chapters = listOf(chapter("Books/Dom Casmurro.epub", place, format = ChapterFormat.EPUB))))
+
+        val refusal = assertFailsWith<IllegalStateException> { BackupFormat.write(book) }
+        assertTrue("book's position" in refusal.message.orEmpty(), refusal.message)
     }
 
     @Test
