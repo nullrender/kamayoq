@@ -4,10 +4,12 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import app.kamayoq.core.backup.BackupFormat
 import app.kamayoq.core.library.FileStamp
 import app.kamayoq.core.library.FolderConvention
+import app.kamayoq.core.progress.BasisPoints
 import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.ReadMark
 import app.kamayoq.core.progress.ReadMarkSource
 import app.kamayoq.core.progress.StripPosition
+import app.kamayoq.core.progress.TextPosition
 import java.io.IOException
 import java.time.Instant
 import java.time.ZoneId
@@ -89,6 +91,30 @@ class BackupExportTest {
         assertEquals(BackupResult.Written("kamayoq_2026-10-28_18-48.json"), result)
         val kept = BackupFormat.read(folder.files.values.single())
         assertEquals(store.backup("r102", now), kept)
+    }
+
+    @Test
+    fun `dado um livro aberto no meio, quando exporto, então o arquivo leva CFI e fração e volta igual ao banco`() {
+        val path = "Books/Dom Casmurro.epub"
+        store.importLocal("content://tree/Kamayoq", FolderConvention.read(listOf(path)), mapOf(path to FileStamp(1_000, 5)))
+        val chapter = store.chapters(store.works().single().id).single()
+        val place = TextPosition(
+            section = 2,
+            sections = 148,
+            cfi = "epubcfi(/6/6!/4/2[cap-2]/10/1:42)",
+            fraction = BasisPoints.fromStored(137),
+            at = Instant.parse("2026-11-17T22:00:00Z"),
+            device = "phone-a",
+        )
+        store.saveProgress(chapter.id, ChapterProgress(readMark = null, position = place, completeReads = 0))
+        val folder = MemoryFolder()
+
+        val result = BackupExport(store, folder).run("r421", now, saoPaulo)
+
+        assertEquals(BackupResult.Written("kamayoq_2026-10-28_18-48.json"), result)
+        val text = folder.files.values.single()
+        assertTrue("epubcfi(/6/6!/4/2[cap-2]/10/1:42)" in text, text)
+        assertEquals(place, BackupFormat.read(text).works.single().chapters.single().progress.position)
     }
 
     @Test

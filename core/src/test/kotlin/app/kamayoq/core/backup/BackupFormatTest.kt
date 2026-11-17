@@ -11,6 +11,7 @@ import app.kamayoq.core.progress.StripPosition
 import app.kamayoq.core.progress.TextPosition
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.time.Instant
@@ -95,10 +96,10 @@ class BackupFormatTest {
     }
 
     @Test
-    fun `dado uma cópia gravada, então o arquivo diz a versão do formato, 2`() {
+    fun `dado uma cópia gravada, então o arquivo diz a versão do formato, 3`() {
         val text = BackupFormat.write(backup(work(chapters = emptyList())))
 
-        assertEquals(2, Json.parseToJsonElement(text).jsonObject["formatVersion"]?.jsonPrimitive?.int)
+        assertEquals(3, Json.parseToJsonElement(text).jsonObject["formatVersion"]?.jsonPrimitive?.int)
     }
 
     @Test
@@ -171,12 +172,132 @@ class BackupFormatTest {
         assertEquals(original, BackupFormat.read(BackupFormat.write(original)))
     }
 
-    @Test
-    fun `dado um arquivo do formato 1, quando lido, então recusa`() {
-        val text = BackupFormat.write(backup(work(chapters = emptyList())))
-            .replaceFirst("\"formatVersion\": 2", "\"formatVersion\": 1")
+    // Format 1 as the app wrote it from 28/10/2026: no servers, no Kavita fields, no alternatives.
+    private val format1 = """
+        {
+            "formatVersion": 1,
+            "appVersion": "r98",
+            "exportedAt": "2026-10-28T21:48:00Z",
+            "works": [
+                {
+                    "id": "work-Sakamoto Days",
+                    "versionId": "version-Sakamoto Days",
+                    "origin": "local",
+                    "path": "Comics/Sakamoto Days",
+                    "title": "Sakamoto Days",
+                    "alternativeTitle": null,
+                    "type": "COMICS",
+                    "subtype": null,
+                    "present": true,
+                    "chapters": [
+                        {
+                            "id": "chapter-1",
+                            "replacedBy": null,
+                            "path": "Comics/Sakamoto Days/Capítulo 1.cbz",
+                            "name": "Capítulo 1",
+                            "kind": "CHAPTER",
+                            "number": 1.0,
+                            "format": "ARCHIVE",
+                            "contentHash": "ab12",
+                            "present": true,
+                            "resume": true,
+                            "readMark": null,
+                            "position": { "page": 17, "totalPages": 38, "at": "2026-10-27T23:40:51Z", "device": "phone-a" },
+                            "completeReads": 0
+                        }
+                    ]
+                }
+            ]
+        }
+    """.trimIndent()
 
-        assertFailsWith<IllegalArgumentException> { BackupFormat.read(text) }
+    private val sakamotoInFormat1 = Backup(
+        appVersion = "r98",
+        exportedAt = Instant.parse("2026-10-28T21:48:00Z"),
+        works = listOf(
+            work(chapters = listOf(chapter("Comics/Sakamoto Days/Capítulo 1.cbz", halfway, contentHash = "ab12", resume = true, id = "chapter-1"))),
+        ),
+    )
+
+    @Test
+    fun `dado um arquivo do formato 1, quando lido, então entra sem perda`() {
+        assertEquals(sakamotoInFormat1, BackupFormat.read(format1))
+    }
+
+    @Test
+    fun `dado um arquivo do formato 2 com servidor e obra do Kavita, quando lido, então entra sem perda`() {
+        // Format 2 as the app wrote it from 02/11/2026: format 1 plus servers and the Kavita fields.
+        val format2 = """
+            {
+                "formatVersion": 2,
+                "appVersion": "r402",
+                "exportedAt": "2026-11-08T23:00:00Z",
+                "servers": [ { "id": "server-1", "address": "http://kavita.example:5000", "lastVersion": "0.9.1.4", "accountId": 1, "libraries": [2, 5] } ],
+                "works": [
+                    {
+                        "id": "work-12",
+                        "versionId": "version-12",
+                        "origin": "kavita",
+                        "path": "12",
+                        "title": "Sakamoto Days",
+                        "alternativeTitle": null,
+                        "type": "COMICS",
+                        "subtype": null,
+                        "present": true,
+                        "chapters": [
+                            {
+                                "id": "chapter-91",
+                                "replacedBy": null,
+                                "path": "91",
+                                "name": "91",
+                                "kind": "CHAPTER",
+                                "number": 91.0,
+                                "format": "ARCHIVE",
+                                "contentHash": null,
+                                "present": true,
+                                "resume": false,
+                                "readMark": { "at": "2026-10-25T22:14:03Z", "source": "READ_TO_END" },
+                                "position": { "page": 42, "totalPages": 42, "at": "2026-10-25T22:14:03Z", "device": "phone-a" },
+                                "completeReads": 1,
+                                "pageCount": 42,
+                                "remoteFile": "Vol. 1.cbz",
+                                "remoteVolumeId": 7,
+                                "agreement": { "page": 42, "bookScrollId": null, "serverAt": "2026-10-25T14:10:00", "ownReread": false, "localCfi": null },
+                                "outbox": { "page": 17, "bookScrollId": null, "localCfi": null, "state": "TO_SEND", "queuedAt": "2026-10-27T23:40:51Z" }
+                            }
+                        ],
+                        "source": "server-1",
+                        "remoteLibraryId": 2,
+                        "alternatives": [ { "reason": "CONFLICT", "chapterId": "chapter-91", "page": 3, "total": 42, "at": "2026-10-25T22:14:03Z", "device": "kavita" } ]
+                    }
+                ]
+            }
+        """.trimIndent()
+        val chapter = chapter("91", read, id = "chapter-91").copy(
+            pageCount = 42,
+            remoteFile = "Vol. 1.cbz",
+            remoteVolumeId = 7,
+            agreement = BackupAgreement(page = 42, bookScrollId = null, serverAt = "2026-10-25T14:10:00", ownReread = false, localCfi = null),
+            outbox = BackupOutbox(page = 17, bookScrollId = null, localCfi = null, state = "TO_SEND", queuedAt = stoppedAt),
+        )
+        val expected = Backup(
+            appVersion = "r402",
+            exportedAt = Instant.parse("2026-11-08T23:00:00Z"),
+            servers = listOf(BackupServer("server-1", "http://kavita.example:5000", "0.9.1.4", accountId = 1, libraries = listOf(2, 5))),
+            works = listOf(
+                work(chapters = listOf(chapter)).copy(
+                    id = "work-12",
+                    versionId = "version-12",
+                    origin = "kavita",
+                    path = "12",
+                    source = "server-1",
+                    remoteLibraryId = 2,
+                    alternatives = listOf(BackupAlternative("CONFLICT", "chapter-91", page = 3, total = 42, at = readAt, device = "kavita")),
+                ),
+            ),
+        )
+
+        assertEquals(expected, BackupFormat.read(format2))
     }
 
     @Test
@@ -189,14 +310,14 @@ class BackupFormatTest {
     @Test
     fun `dado um arquivo de uma versão do formato que este app não conhece, quando lido, então recusa`() {
         val text = BackupFormat.write(backup(work(chapters = emptyList())))
-            .replaceFirst("\"formatVersion\": 2", "\"formatVersion\": 3")
+            .replaceFirst("\"formatVersion\": 3", "\"formatVersion\": 4")
 
-        assertTrue("\"formatVersion\": 3" in text, text)
+        assertTrue("\"formatVersion\": 4" in text, text)
         assertFailsWith<IllegalArgumentException> { BackupFormat.read(text) }
     }
 
     @Test
-    fun `dado uma posição de livro, quando gravo no formato 2, então recusa em vez de perder o CFI e a fração`() {
+    fun `dado uma posição de livro e um capítulo pela metade, quando exporto, então CFI e fração estão no arquivo e voltam iguais`() {
         val place = ChapterProgress(
             readMark = null,
             position = TextPosition(
@@ -209,10 +330,18 @@ class BackupFormatTest {
             ),
             completeReads = 0,
         )
-        val book = backup(work(chapters = listOf(chapter("Books/Dom Casmurro.epub", place, format = ChapterFormat.EPUB))))
+        val original = backup(
+            work(title = "Dom Casmurro", chapters = listOf(chapter("Books/Dom Casmurro.epub", place, format = ChapterFormat.EPUB))),
+            work(chapters = listOf(chapter("Comics/Sakamoto Days/Capítulo 2.cbz", halfway))),
+        )
 
-        val refusal = assertFailsWith<IllegalStateException> { BackupFormat.write(book) }
-        assertTrue("book's position" in refusal.message.orEmpty(), refusal.message)
+        val text = BackupFormat.write(original)
+
+        val book = Json.parseToJsonElement(text).jsonObject["works"]!!.jsonArray[0].jsonObject["chapters"]!!.jsonArray[0].jsonObject
+        val written = book["textPosition"]!!.jsonObject
+        assertEquals("epubcfi(/6/6!/4/2[cap-2]/10/1:42)", written["cfi"]?.jsonPrimitive?.content)
+        assertEquals(137, written["fraction"]?.jsonPrimitive?.int)
+        assertEquals(original, BackupFormat.read(text))
     }
 
     @Test
