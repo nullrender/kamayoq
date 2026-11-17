@@ -2,6 +2,7 @@ package app.kamayoq.android
 
 import android.database.sqlite.SQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
+import app.kamayoq.core.progress.strip
 import java.io.File
 import java.io.RandomAccessFile
 import org.junit.Assert.assertArrayEquals
@@ -17,6 +18,7 @@ class LibraryDatabaseTest {
     private val app = ApplicationProvider.getApplicationContext<KamayoqApp>()
     private val database: File = app.getDatabasePath(NAME)
     private val copy = File(app.noBackupFilesDir, "kamayoq-v1.db")
+    private val copyOf2 = File(app.noBackupFilesDir, "kamayoq-v2.db")
     private val unfinishedCopy = File(app.noBackupFilesDir, "kamayoq-v1.db.tmp")
 
     /** A library as version 1 left it, from the snapshot of that schema. */
@@ -27,6 +29,28 @@ class LibraryDatabaseTest {
             execSQL("INSERT INTO work VALUES ('work-1', 'Dom Casmurro', NULL, 'COMICS', NULL)")
             execSQL("INSERT INTO work_version VALUES ('version-1', 'work-1', 'local', 'tree', 'Dom Casmurro', 1, 0)")
             version = 1
+        }
+    }
+
+    /**
+     * A library as version 2 left it, the version on phones before step 4: version 1 plus that
+     * migration's own file, with a chapter stopped on a page.
+     */
+    private fun version2() {
+        version1()
+        val migration = File(MIGRATION_1).readLines().filterNot { it.trimStart().startsWith("--") }.joinToString("\n")
+        edit {
+            migration.split(';').map(String::trim).filter(String::isNotEmpty).forEach(::execSQL)
+            execSQL(
+                "INSERT INTO chapter (id, version_id, path, name, kind, number, format, sort_index, present, stamp, " +
+                    "needs_check) VALUES ('chapter-1', 'version-1', 'Comics/Dom Casmurro/Cap. 1.cbz', 'Cap. 1', " +
+                    "'CHAPTER', 1, 'ARCHIVE', 0, 1, 'stamp', 0)",
+            )
+            execSQL(
+                "INSERT INTO chapter_progress (chapter_id, position_page, position_total, position_at, position_device, " +
+                    "complete_reads) VALUES ('chapter-1', 7, 20, 0, 'phone-a', 0)",
+            )
+            version = 2
         }
     }
 
@@ -80,6 +104,21 @@ class LibraryDatabaseTest {
         assertEquals(1, read(copy) { version })
         assertEquals("Dom Casmurro", title(copy))
         assertFalse(hasColumn(copy, "chapter", "page_count"))
+    }
+
+    @Test
+    fun `dado um banco da versão 2, quando abro, então migra, a página continua e a cópia guarda a versão 2 intacta`() {
+        version2()
+
+        val library = LibraryDatabase.open(app, NAME)
+
+        val store = (library as LibraryOpening.Opened).store
+        assertEquals(7, store.progress("chapter-1").position?.strip()?.page)
+        assertEquals(3, read(database) { version })
+        assertTrue(hasColumn(database, "chapter_progress", "position_cfi"))
+        assertEquals(2, read(copyOf2) { version })
+        assertFalse(hasColumn(copyOf2, "chapter_progress", "position_cfi"))
+        assertTrue(hasColumn(copyOf2, "chapter", "page_count"))
     }
 
     @Test
@@ -197,5 +236,6 @@ class LibraryDatabaseTest {
     private companion object {
         const val NAME = "library-test.db"
         const val SCHEMA_1 = "../data/src/main/sqldelight/databases/1.db"
+        const val MIGRATION_1 = "../data/src/main/sqldelight/migrations/1.sqm"
     }
 }
