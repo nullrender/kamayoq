@@ -4,13 +4,20 @@ import app.kamayoq.core.library.ChapterFormat
 import app.kamayoq.core.library.ComicsSubtype
 import app.kamayoq.core.library.UnitKind
 import app.kamayoq.core.library.WorkType
+import app.kamayoq.core.progress.BasisPoints
 import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.ReadMark
 import app.kamayoq.core.progress.ReadMarkSource
 import app.kamayoq.core.progress.StripPosition
+import app.kamayoq.core.progress.TextPosition
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.time.DateTimeException
@@ -116,7 +123,8 @@ data class BackupOutbox(
 
 /** The backup file: JSON, so a person can read it, with a format version (decision of 27/10/2026). */
 object BackupFormat {
-    const val VERSION = 2
+    /** 3 carries a book's place (step 4, piece 22); 2 added Kavita (step 3); 1 is from 28/10/2026. */
+    const val VERSION = 3
 
     // Pretty and with accents as they are, so the file reads in any text editor. Nulls are written
     // out, so every field shows even when empty.
@@ -131,14 +139,47 @@ object BackupFormat {
         // The version is read first: a later format may change any other field (LNReader reads
         // every version as its first one).
         // Bad JSON and a missing field are SerializationException, an IllegalArgumentException.
-        val version = json.parseToJsonElement(text).jsonObject["formatVersion"]?.jsonPrimitive?.intOrNull
-        require(version == VERSION) { "Backup format $version is not $VERSION" }
+        val file = json.parseToJsonElement(text).jsonObject
+        val version = file["formatVersion"]?.jsonPrimitive?.intOrNull
+        require(version != null && version in 1..VERSION) { "Backup format $version is not between 1 and $VERSION" }
+        // An earlier file is brought up to this format first, the way the database migrates, so
+        // the current one is still read strictly: a field missing from a format 3 file is an error.
+        var current = file
+        if (version < 2) current = toFormat2(current)
+        if (version < 3) current = toFormat3(current)
         return try {
-            json.decodeFromString(BackupFile.serializer(), text).toBackup()
+            json.decodeFromJsonElement(BackupFile.serializer(), current).toBackup()
         } catch (e: DateTimeException) {
             throw IllegalArgumentException("A time in the backup is not ISO 8601", e)
         }
     }
+
+    /** Format 2 added the Kavita servers and fields and the alternative positions, all empty in a format 1 file. */
+    private fun toFormat2(file: JsonObject): JsonObject =
+        file.adding("servers" to JsonArray(emptyList())).withWorks { work ->
+            work.adding("source" to JsonNull, "remoteLibraryId" to JsonNull, "alternatives" to JsonArray(emptyList()))
+                .withChapters { chapter ->
+                    chapter.adding(
+                        "pageCount" to JsonNull,
+                        "remoteFile" to JsonNull,
+                        "remoteVolumeId" to JsonNull,
+                        "agreement" to JsonNull,
+                        "outbox" to JsonNull,
+                    )
+                }
+        }
+
+    /** Format 3 added a book's place, which no earlier file could hold. */
+    private fun toFormat3(file: JsonObject): JsonObject =
+        file.withWorks { work -> work.withChapters { it.adding("textPosition" to JsonNull) } }
+
+    private fun JsonObject.adding(vararg fields: Pair<String, JsonElement>) = JsonObject(this + fields)
+
+    private fun JsonObject.withWorks(change: (JsonObject) -> JsonObject) =
+        adding("works" to JsonArray(getValue("works").jsonArray.map { change(it.jsonObject) }))
+
+    private fun JsonObject.withChapters(change: (JsonObject) -> JsonObject) =
+        adding("chapters" to JsonArray(getValue("chapters").jsonArray.map { change(it.jsonObject) }))
 
     /** `kamayoq_<yyyy-mm-dd_hh-mm>.json`, in the person's time. */
     fun fileName(at: Instant, zone: ZoneId): String = "kamayoq_${fileTime.format(at.atZone(zone))}.json"
@@ -273,6 +314,7 @@ private class ChapterEntry(
     val remoteVolumeId: Int?,
     val agreement: AgreementEntry?,
     val outbox: OutboxEntry?,
+    val textPosition: TextPositionEntry?,
 ) {
     fun toChapter() = BackupChapter(
         id = id,
@@ -287,7 +329,7 @@ private class ChapterEntry(
         resume = resume,
         progress = ChapterProgress(
             readMark = readMark?.let { ReadMark(Instant.parse(it.at), ReadMarkSource.valueOf(it.source)) },
-            position = position?.let { StripPosition(it.page, it.totalPages, Instant.parse(it.at), it.device) },
+            position = readPosition(),
             completeReads = completeReads,
         ),
         pageCount = pageCount,
@@ -296,6 +338,19 @@ private class ChapterEntry(
         agreement = agreement?.let { BackupAgreement(it.page, it.bookScrollId, it.serverAt, it.ownReread, it.localCfi) },
         outbox = outbox?.let { BackupOutbox(it.page, it.bookScrollId, it.localCfi, it.state, Instant.parse(it.queuedAt)) },
     )
+
+    private fun readPosition() = when {
+        position != null -> StripPosition(position.page, position.totalPages, Instant.parse(position.at), position.device)
+        textPosition != null -> TextPosition(
+            textPosition.section,
+            textPosition.sections,
+            textPosition.cfi,
+            BasisPoints.fromStored(textPosition.fraction),
+            Instant.parse(textPosition.at),
+            textPosition.device,
+        )
+        else -> null
+    }
 
     companion object {
         fun of(chapter: BackupChapter) = ChapterEntry(
@@ -310,11 +365,8 @@ private class ChapterEntry(
             present = chapter.present,
             resume = chapter.resume,
             readMark = chapter.progress.readMark?.let { ReadMarkEntry(it.at.toString(), it.source.name) },
-            position = chapter.progress.position?.let {
-                // A book's place needs its CFI and fraction, which format 2 has no room for: format 3
-                // (step 4, piece 22) carries them, and no book's place is saved before it.
-                val strip = it as? StripPosition ?: error("Backup format ${BackupFormat.VERSION} cannot carry a book's position")
-                PositionEntry(strip.page, strip.totalPages, strip.at.toString(), strip.device)
+            position = (chapter.progress.position as? StripPosition)?.let {
+                PositionEntry(it.page, it.totalPages, it.at.toString(), it.device)
             },
             completeReads = chapter.progress.completeReads,
             pageCount = chapter.pageCount,
@@ -326,6 +378,9 @@ private class ChapterEntry(
             outbox = chapter.outbox?.let {
                 OutboxEntry(it.page, it.bookScrollId, it.localCfi, it.state, it.queuedAt.toString())
             },
+            textPosition = (chapter.progress.position as? TextPosition)?.let {
+                TextPositionEntry(it.section, it.sections, it.cfi, it.fraction.value, it.at.toString(), it.device)
+            },
         )
     }
 }
@@ -335,6 +390,17 @@ private class ReadMarkEntry(val at: String, val source: String)
 
 @Serializable
 private class PositionEntry(val page: Int, val totalPages: Int, val at: String, val device: String)
+
+/** [fraction] in basis points, 0 to 10 000, as the app keeps it. */
+@Serializable
+private class TextPositionEntry(
+    val section: Int,
+    val sections: Int,
+    val cfi: String,
+    val fraction: Int,
+    val at: String,
+    val device: String,
+)
 
 @Serializable
 private class AgreementEntry(
