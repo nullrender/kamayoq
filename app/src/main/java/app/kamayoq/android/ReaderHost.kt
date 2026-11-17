@@ -33,6 +33,7 @@ import app.kamayoq.core.kavita.KavitaProgress
 import app.kamayoq.core.library.ChapterFormat
 import app.kamayoq.core.progress.strip
 import app.kamayoq.core.reader.FileTooLargeException
+import app.kamayoq.core.reader.TextReading
 import app.kamayoq.data.LibraryStore
 import app.kamayoq.data.StoredAlternative
 import app.kamayoq.data.StoredChapter
@@ -224,7 +225,7 @@ fun ReaderHost(
         Opening.EpubNotYet -> ReaderMessage(stringResource(R.string.reader_epub_not_yet), onBack)
         Opening.FormatNotYet -> ReaderMessage(stringResource(R.string.reader_format_not_yet), onBack)
         is Opening.TooLarge -> ReaderMessage(stringResource(R.string.reader_too_large, current.maxBytes / (1024 * 1024)), onBack)
-        is Opening.ReadyText -> TextReader(current.text.archive, current.title, onBack)
+        is Opening.ReadyText -> TextReader(current.text.archive, current.title, TextReading(null, deviceId), onSave = {}, onBack = onBack)
         is Opening.Conflict -> {
             ConflictScreen(
             localPage = current.localPage,

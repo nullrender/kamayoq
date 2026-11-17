@@ -10,6 +10,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import app.kamayoq.core.reader.EpubArchive
 import app.kamayoq.core.reader.ReaderMessage
+import app.kamayoq.core.reader.TextReading
 import app.kamayoq.epubfixtures.EpubFixtures
 import java.io.File
 import java.util.concurrent.CompletableFuture
@@ -50,7 +51,7 @@ class TextReaderTest {
         EpubArchive.open(file).use { archive ->
             ActivityScenario.launch(ComponentActivity::class.java).use { scenario ->
                 scenario.onActivity { activity ->
-                    activity.setContent { TextReader(archive, title = "Dom Casmurro", onBack = {}, onMessage = messages::add) }
+                    activity.setContent { TextReader(archive, title = "Dom Casmurro", reading = TextReading(null, "emulator"), onSave = {}, onBack = {}, onMessage = messages::add) }
                 }
                 check(messages, scenario)
             }

@@ -16,6 +16,7 @@ import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import app.kamayoq.core.reader.EpubArchive
 import app.kamayoq.core.reader.ReaderMessage
+import app.kamayoq.core.reader.TextReading
 import app.kamayoq.epubfixtures.EpubFixtures
 import java.io.File
 import java.util.concurrent.CompletableFuture
@@ -44,7 +45,7 @@ class TextReaderNavigationTest {
     fun openBook() {
         file = File(compose.activity.cacheDir, "navigation.epub").apply { writeBytes(EpubFixtures.short()) }
         archive = EpubArchive.open(file)
-        compose.setContent { TextReader(archive, "Livro", {}, messages::add) }
+        compose.setContent { TextReader(archive, "Livro", TextReading(null, "emulator"), onSave = {}, onBack = {}, onMessage = messages::add) }
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60)
         while (System.nanoTime() < deadline) {
             when (val message = messages.poll(1, TimeUnit.SECONDS)) {

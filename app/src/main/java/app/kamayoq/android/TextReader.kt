@@ -35,18 +35,30 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.reader.EpubArchive
 import app.kamayoq.core.reader.ReaderEngine
 import app.kamayoq.core.reader.ReaderContentsItem
 import app.kamayoq.core.reader.ReaderFlow
 import app.kamayoq.core.reader.ReaderLink
 import app.kamayoq.core.reader.RendererCrashes
+import app.kamayoq.core.reader.TextReading
 import java.util.UUID
 import app.kamayoq.core.reader.ReaderMessage as PageMessage
 
-/** Shows a book in the reader's page. [onMessage] hears every message of the page, for the tests. */
+/**
+ * Shows a book in the reader's page, from where [reading] starts; [onSave] gets each place to keep.
+ * [onMessage] hears every message of the page, for the tests.
+ */
 @Composable
-fun TextReader(archive: EpubArchive, title: String, onBack: () -> Unit, onMessage: (PageMessage) -> Unit = {}) {
+fun TextReader(
+    archive: EpubArchive,
+    title: String,
+    reading: TextReading,
+    onSave: (TextPosition) -> Unit,
+    onBack: () -> Unit,
+    onMessage: (PageMessage) -> Unit = {},
+) {
     val context = LocalContext.current
     // Checked before any WebView is made: below the floor the fork fails later, with no clear reason.
     val supported = remember {
