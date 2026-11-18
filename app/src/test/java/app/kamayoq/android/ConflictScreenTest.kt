@@ -62,4 +62,15 @@ class ConflictScreenTest {
 
         assertEquals(listOf(true), chosen)
     }
+
+    // Milestone C2 of step 4: in a book a page is a section, and the total is the book read.
+    @Test
+    fun `dado um conflito num livro, quando a tela abre, então os dois lugares aparecem como seções`() {
+        compose.setContent {
+            ConflictScreen(localPage = 1, remotePage = 3, total = 3, onKeepHere = {}, onUseKavita = {}, onBack = {}, sections = true)
+        }
+
+        compose.onNodeWithText(app.getString(R.string.conflict_here, app.getString(R.string.position_section, 2, 3))).assertHasClickAction()
+        compose.onNodeWithText(app.getString(R.string.conflict_kavita, app.getString(R.string.position_book_end))).assertHasClickAction()
+    }
 }

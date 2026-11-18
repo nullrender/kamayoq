@@ -134,6 +134,8 @@
     <string name="reader_format_not_yet">Kamayoq doesn\'t open this format yet.</string>
     <string name="position_page">page %1$d of %2$d</string>
     <string name="position_end">end of the chapter</string>
+    <string name="position_section">section %1$d of %2$d</string>
+    <string name="position_book_end">end of the book</string>
     <string name="conflict_title">This chapter changed on both sides</string>
     <string name="conflict_hint">Choose where to continue. The other position stays saved in the work.</string>
     <string name="conflict_here">On this device · %1$s</string>

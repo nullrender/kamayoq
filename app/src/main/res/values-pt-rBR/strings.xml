@@ -89,6 +89,8 @@
     <string name="reader_format_not_yet">O Kamayoq ainda não abre este formato.</string>
     <string name="position_page">página %1$d de %2$d</string>
     <string name="position_end">fim do capítulo</string>
+    <string name="position_section">seção %1$d de %2$d</string>
+    <string name="position_book_end">fim do livro</string>
     <string name="conflict_title">Este capítulo mudou nos dois lados</string>
     <string name="conflict_hint">Escolha onde continuar. A outra posição fica guardada na Obra.</string>
     <string name="conflict_here">Neste aparelho · %1$s</string>

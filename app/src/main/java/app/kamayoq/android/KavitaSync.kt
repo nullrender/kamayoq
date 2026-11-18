@@ -2,6 +2,7 @@ package app.kamayoq.android
 
 import android.util.Log
 import app.kamayoq.core.kavita.KavitaConnection
+import app.kamayoq.core.kavita.KavitaPlace
 import app.kamayoq.core.kavita.RemoteLibrary
 import app.kamayoq.data.LibraryStore
 import app.kamayoq.data.StoredChapter
@@ -139,12 +140,21 @@ class KavitaSync(
     }
 
     // The position goes when the reader closes this chapter.
-    fun keepHere(chapterId: String, conflict: KavitaSyncOutcome.Conflict) {
-        store.keepLocal(chapterId, conflict.remotePage, conflict.pageCount, conflict.serverAt, Instant.now())
+    /** [book] says the chapter is a book, whose page is a section with a marker. */
+    fun keepHere(chapterId: String, conflict: KavitaSyncOutcome.Conflict, book: Boolean = false) {
+        if (book) {
+            store.keepLocalText(chapterId, KavitaPlace(conflict.remotePage, conflict.remoteMarker), conflict.serverAt)
+        } else {
+            store.keepLocal(chapterId, conflict.remotePage, conflict.pageCount, conflict.serverAt, Instant.now())
+        }
     }
 
-    fun useKavita(chapterId: String, conflict: KavitaSyncOutcome.Conflict) {
-        store.adoptRemote(chapterId, conflict.remotePage, conflict.pageCount, conflict.serverAt, Instant.now(), LibraryStore.CONFLICT)
+    fun useKavita(chapterId: String, conflict: KavitaSyncOutcome.Conflict, book: Boolean = false) {
+        if (book) {
+            store.adoptRemoteText(chapterId, KavitaPlace(conflict.remotePage, conflict.remoteMarker), conflict.pageCount, conflict.serverAt, Instant.now())
+        } else {
+            store.adoptRemote(chapterId, conflict.remotePage, conflict.pageCount, conflict.serverAt, Instant.now(), LibraryStore.CONFLICT)
+        }
     }
 
     // Asked only when a download is needed: what is kept can be read with no usable key.

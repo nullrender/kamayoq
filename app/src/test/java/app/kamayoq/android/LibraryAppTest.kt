@@ -23,8 +23,10 @@ import app.kamayoq.core.library.ChapterFormat
 import app.kamayoq.core.library.LocalLibrary
 import app.kamayoq.core.library.UnitKind
 import app.kamayoq.core.library.WorkType
+import app.kamayoq.core.progress.BasisPoints
 import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.StripPosition
+import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.progress.strip
 import app.kamayoq.core.reader.EpubLimits
 import app.kamayoq.data.BackupResult
@@ -35,6 +37,7 @@ import java.io.File
 import java.io.IOException
 import java.time.Instant
 import javax.crypto.KeyGenerator
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -240,6 +243,40 @@ class LibraryAppTest {
         compose.onNodeWithText(app.getString(R.string.conflict_kavita, app.getString(R.string.position_page, 3, 3))).performClick()
 
         compose.waitUntil(10_000) { app.store.progress(stored.id).position?.strip()?.page == 2 }
+        waitFor(app.getString(R.string.reader_download_failed))
+    }
+
+    // Milestone C2 of step 4: a book from Kavita asks before it opens, as a CBZ chapter does.
+    @Test
+    fun `dado um conflito num livro do Kavita, quando toco nele, então vejo as seções e Usar o Kavita traz o lugar com o marcador`() {
+        val secret = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+        val access = KavitaAccess(app, { _, _ -> KavitaConnection.Connected("0.9.1.4") }) { secret }
+        val client = object : KavitaClient() {
+            override fun progress(address: String, key: String, chapterId: Int) = RemoteProgress(2, "2026-11-18T10:00:00", "//body/p[4]")
+            override fun download(address: String, key: String, chapterId: String, target: File, stillWanted: () -> Boolean) =
+                throw IOException("No network")
+        }
+        val sync = KavitaSync(app.store, access, File(app.cacheDir, "book-conflict"), client)
+        sync.connect("https://a.example", "key-of-a-1234")
+        val server = checkNotNull(app.store.kavitaServer()).id
+        val chapter = ImportedChapter("93", "Vol. 1", UnitKind.VOLUME, null, ChapterFormat.EPUB, "3|100", 3, "Livro.epub", 7)
+        app.store.importKavita(server, listOf(ImportedWork("14", "Livro dividido", WorkType.BOOKS, null, 2, listOf(chapter))))
+        val stored = app.store.chapters(app.store.works().single().id).single()
+        val here = TextPosition(1, 3, "epubcfi(/6/4!/4/2/1:0)", checkNotNull(BasisPoints.fromFraction(0.4)), Instant.EPOCH, "phone-a")
+        app.store.saveProgress(stored.id, ChapterProgress(null, here, 0), marker = "//body/p[2]")
+        val folder = FolderInMemory(app, emptyList()).apply { chosen = false }
+        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, sync, "test-device") }
+        waitFor("Livro dividido")
+
+        compose.onNodeWithText("Livro dividido").performClick()
+        waitFor("Vol. 1")
+        compose.onNodeWithText("Vol. 1").performClick()
+        waitFor(app.getString(R.string.conflict_title))
+        compose.onNodeWithText(app.getString(R.string.conflict_here, app.getString(R.string.position_section, 2, 3))).assertExists()
+        compose.onNodeWithText(app.getString(R.string.conflict_kavita, app.getString(R.string.position_section, 3, 3))).performClick()
+
+        compose.waitUntil(10_000) { (app.store.progress(stored.id).position as? TextPosition)?.section == 2 }
+        assertEquals("//body/p[4]", app.store.agreedMarker(stored.id))
         waitFor(app.getString(R.string.reader_download_failed))
     }
 

@@ -30,8 +30,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.kamayoq.core.kavita.KavitaProgress
+import app.kamayoq.core.kavita.KavitaText
 import app.kamayoq.core.library.ChapterFormat
 import app.kamayoq.core.progress.ChapterProgress
+import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.progress.strip
 import app.kamayoq.core.reader.FileTooLargeException
 import app.kamayoq.core.reader.TextReading
@@ -60,8 +62,24 @@ private sealed interface Opening {
     data object DownloadFailed : Opening
     data object FormatNotYet : Opening
     class TooLarge(val maxBytes: Long) : Opening
-    class ReadyText(val text: OpenedText, val title: String, val progress: ChapterProgress, val round: Long) : Opening
-    class Conflict(val chapterId: String, val localPage: Int, val conflict: KavitaSyncOutcome.Conflict, val turn: Long) : Opening
+    /** [turn] is a Kavita book's reading turn, and [marker] the place there it opens at; both null for a local one. */
+    class ReadyText(
+        val text: OpenedText,
+        val title: String,
+        val progress: ChapterProgress,
+        val round: Long,
+        val turn: Long?,
+        val marker: String?,
+    ) : Opening
+
+    /** In a book, [sections] says the pages are sections. */
+    class Conflict(
+        val chapterId: String,
+        val localPage: Int,
+        val conflict: KavitaSyncOutcome.Conflict,
+        val turn: Long,
+        val sections: Boolean = false,
+    ) : Opening
     class Ready(
         val chapter: OpenedChapter,
         val title: String,
@@ -186,7 +204,10 @@ fun ReaderHost(
                     kavita.finishReading(left.chapter.chapterId, left.turn, opening.turns)
                 }
                 is Opening.Conflict -> kavita.finishReading(left.chapterId, left.turn, opening.turns)
-                is Opening.ReadyText -> left.text.release()
+                is Opening.ReadyText -> {
+                    left.text.release()
+                    left.turn?.let { kavita.finishReading(left.text.chapterId, it, opening.turns) }
+                }
                 else -> Unit
             }
         }
@@ -226,8 +247,8 @@ fun ReaderHost(
         Opening.FormatNotYet -> ReaderMessage(stringResource(R.string.reader_format_not_yet), onBack)
         is Opening.TooLarge -> ReaderMessage(stringResource(R.string.reader_too_large, current.maxBytes / (1024 * 1024)), onBack)
         is Opening.ReadyText -> {
-            val reading = remember(current) { TextReading(current.progress, deviceId) }
-            val save = remember(current) { textSaving(store, opening.turns, current.round, current.text.chapterId) }
+            val reading = remember(current) { TextReading(current.progress, deviceId, current.marker) }
+            val save = remember(current) { textSaving(store, opening.turns, current.round, current.text.chapterId) { reading.marker } }
             TextReader(current.text.archive, current.title, reading, onSave = save, onBack = onBack)
         }
         is Opening.Conflict -> {
@@ -235,8 +256,9 @@ fun ReaderHost(
             localPage = current.localPage,
             remotePage = current.conflict.remotePage,
             total = current.conflict.pageCount,
-            onKeepHere = { thenReopen { kavita.keepHere(current.chapterId, current.conflict) } },
-            onUseKavita = { thenReopen { kavita.useKavita(current.chapterId, current.conflict) } },
+            sections = current.sections,
+            onKeepHere = { thenReopen { kavita.keepHere(current.chapterId, current.conflict, current.sections) } },
+            onUseKavita = { thenReopen { kavita.useKavita(current.chapterId, current.conflict, current.sections) } },
             onBack = onBack,
             )
         }
@@ -275,17 +297,28 @@ fun ReaderHost(
  * Saves each progress the text reader hands out for [chapterId], in the same line as the Strip's
  * saves, so leaving never drops the last place and a late save never lands on a newer opening. A
  * failed save is logged and the reading goes on. Shared with the test that kills the process.
+ * [marker] gives Kavita's marker of the same place, read when the place is handed out.
  */
-internal fun textSaving(store: LibraryStore, turns: OpeningTurns, round: Long, chapterId: String): (ChapterProgress) -> Unit {
+internal fun textSaving(
+    store: LibraryStore,
+    turns: OpeningTurns,
+    round: Long,
+    chapterId: String,
+    marker: () -> String? = { null },
+): (ChapterProgress) -> Unit {
     val saving = ProgressSaving(store)
     return { progress ->
+        val place = marker()
         turns.inLine(round) {
-            saving.save(chapterId, progress)?.let { Log.e("Kamayoq", "Saving the reading position failed", it) }
+            saving.save(chapterId, progress, place)?.let { Log.e("Kamayoq", "Saving the reading position failed", it) }
         }
     }
 }
 
-/** The two positions, neither one chosen, and no reader behind until one is (decision 3). */
+/**
+ * The two positions, neither one chosen, and no reader behind until one is (decision 3). In a book
+ * ([sections]) a page is a section, and the total the book read.
+ */
 @Composable
 internal fun ConflictScreen(
     localPage: Int,
@@ -294,10 +327,13 @@ internal fun ConflictScreen(
     onKeepHere: () -> Unit,
     onUseKavita: () -> Unit,
     onBack: () -> Unit,
+    sections: Boolean = false,
 ) {
     @Composable
-    fun place(page: Int) =
-        if (page >= total) stringResource(R.string.position_end) else stringResource(R.string.position_page, page + 1, total)
+    fun place(page: Int) = when {
+        page >= total -> stringResource(R.string.position_end)
+        else -> stringResource(R.string.position_page, page + 1, total)
+    }
 
     Column(
         // Scrolls: with no reader behind, a button cut off by a large font could not be chosen.
@@ -343,8 +379,7 @@ private fun openChapter(
     val (current, chapters) = store.openingOf(workId, chapterId)
     val chapter = chapters.firstOrNull { it.id == current } ?: return Opening.Missing
     when (chapter.format) {
-        // A Kavita book's place stays on this device until milestone C2 of step 4 converts it.
-        ChapterFormat.EPUB -> return openText(store, opening, tree, workId, chapter, round, stillWanted)
+        ChapterFormat.EPUB -> return openText(store, opening, tree, workId, chapter, round, stillWanted, turn = null)
         ChapterFormat.PDF, ChapterFormat.OTHER_ARCHIVE -> return Opening.FormatNotYet
         ChapterFormat.ARCHIVE, ChapterFormat.IMAGE_FOLDER -> Unit
     }
@@ -377,6 +412,34 @@ private fun openChapter(
     }
 }
 
+/** A book from Kavita takes a reading turn, as a CBZ chapter does: a conflict is asked before it opens. */
+private fun openKavitaText(
+    store: LibraryStore,
+    opening: ChapterOpening,
+    kavita: KavitaSync,
+    tree: Uri?,
+    workId: String,
+    chapter: StoredChapter,
+    round: Long,
+    stillWanted: () -> Boolean,
+): Opening {
+    val turn = kavita.beforeOpening(chapter.id)
+    turn.conflict?.let { conflict ->
+        val progress = store.progress(chapter.id)
+        // The marker does not show on the screen: only the section is compared there.
+        val here = KavitaText.toRemote(progress.position as? TextPosition, progress.readMark != null, null, conflict.pageCount, remoteHasRecord = true)
+        return Opening.Conflict(chapter.id, here?.page ?: 0, conflict, turn.token, sections = true)
+    }
+    return try {
+        openText(store, opening, tree, workId, chapter, round, stillWanted, turn.token)
+    } catch (e: Exception) {
+        // Nothing opened: the turn ends here.
+        kavita.finishReading(chapter.id, turn.token, opening.turns)
+        throw e
+    }
+}
+
+/** [turn] is the reading turn of a Kavita book, ended when the reader leaves it; null for a local one. */
 private fun openText(
     store: LibraryStore,
     opening: ChapterOpening,
@@ -385,13 +448,15 @@ private fun openText(
     chapter: StoredChapter,
     round: Long,
     stillWanted: () -> Boolean,
+    turn: Long?,
 ): Opening {
     val text = opening.openText(tree, chapter, stillWanted)
     try {
         val work = store.works().firstOrNull { it.id == workId }?.title
         // A loose book is a work of one volume with the same name: the name once is enough.
         val title = listOfNotNull(work, chapter.name.takeIf { it != work }).joinToString(" · ")
-        return Opening.ReadyText(text, title, store.progress(text.chapterId), round)
+        val marker = turn?.let { store.agreedMarker(text.chapterId) }
+        return Opening.ReadyText(text, title, store.progress(text.chapterId), round, turn, marker)
     } catch (e: Exception) {
         text.release()
         throw e
