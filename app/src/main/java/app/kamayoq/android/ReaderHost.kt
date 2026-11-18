@@ -211,6 +211,10 @@ fun ReaderHost(
     // In a compiled novel the reading moves on from the chapter that was opened. A screen made again
     // (the phone turned, the process killed) opens the file at the chapter being read, not at that one.
     var readingNow by rememberSaveable(chapterId) { mutableStateOf<String?>(null) }
+    // And it goes on with the same opening: where the reading is counted from, and the chapters whose
+    // complete read it already counted, or a look back would become a reading and a read count twice.
+    var readFromNow by rememberSaveable(chapterId) { mutableStateOf<String?>(null) }
+    var countedNow by rememberSaveable(chapterId) { mutableStateOf(arrayListOf<String>()) }
     val scope = rememberCoroutineScope()
     fun thenReopen(change: () -> Unit) {
         state = Opening.Loading
@@ -283,11 +287,22 @@ fun ReaderHost(
             TextReader(current.text.archive, current.title, reading, onSave = save, onBack = onBack, type = current.type, end = end)
         }
         is Opening.ReadySplit -> {
-            val reading = remember(current) { SplitReading(current.split.saved, current.split.opened, deviceId) }
-            val save = remember(current) { splitSaving(store, opening.turns, current.round, current.split.chapterIds) }
+            val ids = current.split.chapterIds
+            val reading = remember(current) {
+                SplitReading(
+                    current.split.saved,
+                    current.split.opened,
+                    deviceId,
+                    readFrom = readFromNow?.let(ids::indexOf)?.takeIf { it >= 0 } ?: current.split.opened,
+                    counted = countedNow.map(ids::indexOf).filter { it >= 0 }.toSet(),
+                )
+            }
+            val save = remember(current) { splitSaving(store, opening.turns, current.round, ids) }
             val session = remember(current) {
                 SplitText(reading, current.split.chapters) { saves ->
-                    readingNow = current.split.chapterIds[saves.last().chapter]
+                    readingNow = ids[saves.last().chapter]
+                    readFromNow = ids[reading.readingFrom]
+                    countedNow = ArrayList(reading.countedChapters.map(ids::get))
                     save(saves)
                 }
             }

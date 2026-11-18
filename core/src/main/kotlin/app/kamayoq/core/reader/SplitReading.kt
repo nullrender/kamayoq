@@ -32,7 +32,7 @@ class SplitReading(
     private val progress = saved.toMutableList()
 
     // Lives with the opening, as in the Strip: a new opening may count a new complete read.
-    private val counted = BooleanArray(saved.size)
+    private val counted = BooleanArray(saved.size).also { array -> counted.filter { it in array.indices }.forEach { array[it] = true } }
 
     private var phase = TextReading.Phase.OPENING
 
@@ -42,7 +42,7 @@ class SplitReading(
 
     // The chapter the person chose to read from, by opening it or by a jump. Paging back into the
     // end of an earlier one and forward again is a look, not a reading: it finishes nothing.
-    private var readFrom = opened
+    private var readFrom = readFrom.coerceIn(saved.indices)
 
     /** The chapter the reading is counted from, for a screen made again. */
     val readingFrom: Int get() = readFrom
