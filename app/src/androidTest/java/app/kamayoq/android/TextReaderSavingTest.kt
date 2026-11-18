@@ -20,6 +20,7 @@ import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import org.json.JSONArray
 import org.junit.After
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -49,8 +50,8 @@ class TextReaderSavingTest {
         file.delete()
     }
 
-    /** Shows the book from [saved] and waits for the restore. */
-    private fun show(saved: TextPosition?) {
+    /** Shows the book from [saved] and waits for the restore; [whileOpening] runs until it comes. */
+    private fun show(saved: TextPosition?, whileOpening: () -> Unit = {}) {
         messages.clear()
         scenario.onActivity { activity ->
             activity.setContent {
@@ -66,7 +67,8 @@ class TextReaderSavingTest {
         }
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60)
         while (System.nanoTime() < deadline) {
-            when (val message = messages.poll(1, TimeUnit.SECONDS)) {
+            whileOpening()
+            when (val message = messages.poll(100, TimeUnit.MILLISECONDS)) {
                 ReaderMessage.Restored -> return
                 is ReaderMessage.Failed -> throw AssertionError("Reader said: $message")
                 else -> Unit
@@ -142,6 +144,30 @@ class TextReaderSavingTest {
         show(saved)
 
         assertShows(word)
+    }
+
+    @Test
+    fun `dado um lugar gravado quando toco na tela e em Próxima durante a abertura então o livro não volta à primeira página`() {
+        val (saved, word) = readToAPlace()
+        hide()
+        saves.clear()
+        var width = 0
+        var height = 0
+        scenario.onActivity {
+            width = it.window.decorView.width
+            height = it.window.decorView.height
+        }
+
+        // Where Next page sits (bottom right) and the middle of the book, the way an impatient
+        // finger would, until the book says it has opened.
+        show(saved) {
+            touchScreen(width * 0.75f to height * 0.95f)
+            touchScreen(width * 0.5f to height * 0.5f)
+        }
+
+        assertShows(word)
+        val early = saves.toList()
+        assertTrue("A place before the restore was kept: $early", early.none { it.section < saved.section })
     }
 
     private companion object {
