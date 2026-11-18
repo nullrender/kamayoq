@@ -207,6 +207,9 @@ object FolderConvention {
         WorkType.COMICS -> false
     }
 
+    /** Whether the file at [path], relative to the chosen folder, is one to split by its table of contents. */
+    fun splitsByContents(path: String): Boolean = false
+
     /** The chapter number in the title of an item of a table of contents, by rule 4; null without one. */
     fun chapterNumber(title: String): Double? =
         numbering(title).let { (kind, number) -> number.takeIf { kind == UnitKind.CHAPTER } }

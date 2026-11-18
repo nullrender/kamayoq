@@ -394,25 +394,44 @@ class FolderConventionTest {
     }
 
     @Test
-    fun `dado um EPUB de romance com Vol ou sem número no nome, por ora, então ele aparece como ignorado e não some calado`() {
+    fun `dado um EPUB de romance com Vol ou sem número no nome, então ele é um arquivo a dividir pelo sumário, ao lado dos capítulos em arquivo próprio`() {
         val library = read(
             "Novels/Release That Witch/Release That Witch.epub",
             "Novels/Release That Witch/Vol. 1.epub",
-            "Novels/Lord of the Mysteries.epub",
-            // Loose in the type folder, the file is the whole work, whatever its name says.
-            "Novels/Cap. 0928.epub",
+            "Novels/Release That Witch/Cap. 0900.epub",
         )
 
-        assertEquals(emptyList(), library.works)
+        val folder = "Novels/Release That Witch"
         assertEquals(
             listOf(
-                IgnoredFile("Novels/Lord of the Mysteries.epub", IgnoreReason.UNSUPPORTED_FORMAT),
-                IgnoredFile("Novels/Cap. 0928.epub", IgnoreReason.UNSUPPORTED_FORMAT),
-                IgnoredFile("Novels/Release That Witch/Release That Witch.epub", IgnoreReason.UNSUPPORTED_FORMAT),
-                IgnoredFile("Novels/Release That Witch/Vol. 1.epub", IgnoreReason.UNSUPPORTED_FORMAT),
+                ReadingUnit("$folder/Vol. 1.epub", "Vol. 1", UnitKind.VOLUME, 1.0, UnitContent.SplitEpub),
+                ReadingUnit("$folder/Cap. 0900.epub", "Cap. 0900", UnitKind.CHAPTER, 900.0, UnitContent.Epub),
+                ReadingUnit("$folder/Release That Witch.epub", "Release That Witch", UnitKind.CHAPTER, null, UnitContent.SplitEpub),
             ),
-            library.ignored,
+            library.works.single().units,
         )
+        assertEquals(emptyList(), library.ignored)
+    }
+
+    @Test
+    fun `dado um EPUB solto em Novels, então ele é a obra inteira e sempre se divide, diga o nome o que disser`() {
+        val library = read("Novels/Lord of the Mysteries.epub", "Novels/Cap. 0928.epub")
+
+        assertEquals(listOf("Cap. 0928", "Lord of the Mysteries"), library.works.map { it.title })
+        assertEquals(listOf(WorkType.NOVELS, WorkType.NOVELS), library.works.map { it.type })
+        assertEquals(listOf(UnitContent.SplitEpub, UnitContent.SplitEpub), library.works.map { it.units.single().content })
+        assertEquals(emptyList(), library.ignored)
+    }
+
+    @Test
+    fun `dado o caminho de um EPUB, então só o de romance que não é capítulo em arquivo próprio se divide pelo sumário`() {
+        assertEquals(true, FolderConvention.splitsByContents("Novels/Release That Witch/Release That Witch.epub"))
+        assertEquals(true, FolderConvention.splitsByContents("novels/Release That Witch/Vol. 2.EPUB"))
+        assertEquals(true, FolderConvention.splitsByContents("Novels/Cap. 0928.epub"))
+        assertEquals(false, FolderConvention.splitsByContents("Novels/Release That Witch/Cap. 0928.epub"))
+        assertEquals(false, FolderConvention.splitsByContents("Books/Dom Casmurro.epub"))
+        assertEquals(false, FolderConvention.splitsByContents("Novels/Release That Witch/Cap. 0928.cbz"))
+        assertEquals(false, FolderConvention.splitsByContents("Solto.epub"))
     }
 
     @Test

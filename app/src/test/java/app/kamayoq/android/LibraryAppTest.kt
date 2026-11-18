@@ -21,6 +21,12 @@ import app.kamayoq.core.kavita.KavitaConnection
 import app.kamayoq.core.kavita.RemoteProgress
 import app.kamayoq.core.library.ChapterFormat
 import app.kamayoq.core.library.LocalLibrary
+import app.kamayoq.core.library.FileStamp
+import app.kamayoq.core.library.ReadingUnit
+import app.kamayoq.core.library.UnitContent
+import app.kamayoq.core.progress.ReadMark
+import app.kamayoq.core.progress.ReadMarkSource
+import app.kamayoq.epubfixtures.EpubFixtures
 import app.kamayoq.core.library.UnitKind
 import app.kamayoq.core.library.WorkType
 import app.kamayoq.core.progress.BasisPoints
@@ -356,5 +362,82 @@ class LibraryAppTest {
         restoration.emulateSavedInstanceStateRestore()
 
         waitFor("Comics/notas.txt")
+    }
+
+    // Step 4, milestone B: a compiled novel is one file, shown as the chapters of its table of contents.
+
+    private val compiledNovel = "Novels/Romance/Romance.epub"
+
+    private fun importNovel(titles: List<String>, modified: Long = 1) {
+        val units = titles.mapIndexed { index, title ->
+            ReadingUnit(compiledNovel, title, UnitKind.CHAPTER, null, UnitContent.SplitEpub, tocKey = if (titles.size == 1) "" else "OEBPS/c$index.xhtml")
+        }
+        val work = Work("Novels/Romance", "Romance", null, WorkType.NOVELS, null, units)
+        app.store.importLocal("content://test/tree/other", LocalLibrary(listOf(work), emptyList()), mapOf(compiledNovel to FileStamp(10, modified)))
+    }
+
+    @Test
+    fun `dado um romance compilado na pasta, quando a Biblioteca lê a pasta, então a obra mostra os capítulos do sumário do arquivo`() {
+        val folder = FolderInMemory(app, emptyList()).apply { novels = listOf("Novela em volumes") }
+        shadowOf(app.contentResolver).registerInputStream(
+            DocumentsContract.buildDocumentUriUsingTree(folder.tree, folder.novelFileId("Novela em volumes")),
+            ByteArrayInputStream(EpubFixtures.novel()),
+        )
+        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device") }
+        waitFor("Novela em volumes")
+
+        compose.onNodeWithText("Novela em volumes").performClick()
+
+        waitFor("Capítulo 1")
+        for (chapter in 2..5) compose.onNodeWithText("Capítulo $chapter").assertExists()
+        compose.onNodeWithText(app.getString(R.string.file_undivided)).assertDoesNotExist()
+    }
+
+    @Test
+    fun `dado um romance cujo arquivo mudou de edição com capítulos lidos, quando abro a obra e aplico, então o capítulo de mesmo título fica lido e a pergunta some`() {
+        importNovel(listOf("Capítulo 1", "Capítulo 2"))
+        val read = ChapterProgress(ReadMark(Instant.parse("2026-11-18T12:00:00Z"), ReadMarkSource.READ_TO_END), null, 1)
+        app.store.saveProgress(app.store.chapters(app.store.works().single().id).first().id, read)
+        importNovel(listOf("Prefácio", "Capítulo 1", "Capítulo 2"), modified = 2)
+        showWithoutFolder()
+        waitFor("Romance")
+        compose.onNodeWithText("Romance").performClick()
+        val question = app.getString(R.string.edition_changed, "Capítulo 1")
+        waitFor(question)
+        compose.onNodeWithText(app.getString(R.string.chapter_read)).assertDoesNotExist()
+
+        compose.onNodeWithText(app.getString(R.string.edition_apply)).performClick()
+
+        waitFor(app.getString(R.string.chapter_read))
+        compose.waitUntil(30_000) { compose.onAllNodes(hasText(question)).fetchSemanticsNodes().isEmpty() }
+    }
+
+    @Test
+    fun `dado a pergunta do arquivo que mudou, quando escolho não aplicar, então a pergunta some e nada fica lido`() {
+        importNovel(listOf("Capítulo 1", "Capítulo 2"))
+        val read = ChapterProgress(ReadMark(Instant.parse("2026-11-18T12:00:00Z"), ReadMarkSource.READ_TO_END), null, 1)
+        app.store.saveProgress(app.store.chapters(app.store.works().single().id).first().id, read)
+        importNovel(listOf("Prefácio", "Capítulo 1", "Capítulo 2"), modified = 2)
+        showWithoutFolder()
+        waitFor("Romance")
+        compose.onNodeWithText("Romance").performClick()
+        val question = app.getString(R.string.edition_changed, "Capítulo 1")
+        waitFor(question)
+
+        compose.onNodeWithText(app.getString(R.string.edition_dismiss)).performClick()
+
+        compose.waitUntil(30_000) { compose.onAllNodes(hasText(question)).fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithText(app.getString(R.string.chapter_read)).assertDoesNotExist()
+    }
+
+    @Test
+    fun `dado um romance compilado cujo arquivo não traz sumário, quando abro a obra, então ela avisa que o arquivo não traz a divisão`() {
+        importNovel(listOf("Romance"))
+        showWithoutFolder()
+        waitFor("Romance")
+
+        compose.onNodeWithText("Romance").performClick()
+
+        waitFor(app.getString(R.string.file_undivided))
     }
 }

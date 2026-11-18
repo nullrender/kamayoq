@@ -101,4 +101,9 @@
     <string name="moved_close">Fechar</string>
     <string name="other_position">Outra posição: %1$s, %2$s</string>
     <string name="other_position_use">Usar</string>
+    <string name="edition_changed">Este arquivo mudou. Seu progresso na edição anterior ia até “%s”.</string>
+    <string name="edition_changed_plain">Este arquivo mudou.</string>
+    <string name="edition_apply">Aplicar à nova edição</string>
+    <string name="edition_dismiss">Não aplicar</string>
+    <string name="file_undivided">Este arquivo não traz a divisão em capítulos.</string>
 </resources>

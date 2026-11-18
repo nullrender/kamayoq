@@ -146,4 +146,10 @@
     <string name="moved_close">Close</string>
     <string name="other_position">Other position: %1$s, %2$s</string>
     <string name="other_position_use">Use</string>
+    <!-- Work screen, a compiled novel: %s is the name of the last chapter read in the file's previous edition. -->
+    <string name="edition_changed">This file changed. Your progress in the previous edition went up to “%s”.</string>
+    <string name="edition_changed_plain">This file changed.</string>
+    <string name="edition_apply">Apply to the new edition</string>
+    <string name="edition_dismiss">Don\'t apply</string>
+    <string name="file_undivided">This file does not carry the chapter division.</string>
 </resources>

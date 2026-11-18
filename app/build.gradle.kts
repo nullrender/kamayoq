@@ -141,6 +141,8 @@ dependencies {
     testImplementation(libs.junit4)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
+    // Books made in code, for the screens that read a file's table of contents.
+    testImplementation(project(":epub-fixtures"))
     // Screens tested on the JVM too (decided on 29/10/2026). The manifest piece gives the tests
     // an empty screen to draw on; it goes in debug builds only, as Android's guide says.
     testImplementation(platform(libs.compose.bom))
