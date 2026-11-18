@@ -24,6 +24,7 @@ import app.kamayoq.core.library.LocalLibrary
 import app.kamayoq.core.library.FileStamp
 import app.kamayoq.core.library.ReadingUnit
 import app.kamayoq.core.library.UnitContent
+import app.kamayoq.core.library.Work
 import app.kamayoq.core.progress.ReadMark
 import app.kamayoq.core.progress.ReadMarkSource
 import app.kamayoq.epubfixtures.EpubFixtures
@@ -408,7 +409,10 @@ class LibraryAppTest {
 
         compose.onNodeWithText(app.getString(R.string.edition_apply)).performClick()
 
-        waitFor(app.getString(R.string.chapter_read))
+        // The mark goes by title: on the row of "Capítulo 1", not on the preface now in its old position.
+        val readLabel = app.getString(R.string.chapter_read)
+        compose.waitUntil(30_000) { compose.onAllNodes(hasText("Capítulo 1") and hasText(readLabel)).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNode(hasText("Prefácio") and hasText(readLabel)).assertDoesNotExist()
         compose.waitUntil(30_000) { compose.onAllNodes(hasText(question)).fetchSemanticsNodes().isEmpty() }
     }
 
