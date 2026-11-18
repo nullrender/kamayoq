@@ -124,15 +124,23 @@ class TextReaderEndTest {
 
     private fun endBlockShows() = compose.onAllNodesWithText(END_OF_BOOK).fetchSemanticsNodes().isNotEmpty()
 
-    /** Next page until the end block shows, the way a person reads to the end. */
+    /**
+     * The last section from the contents, then Next page until the end block shows. The short book
+     * runs to about 90 pages on the emulator, 30 of them in the last section (emulator 44316557957):
+     * reading it all from the start took more turns than the test allowed.
+     */
     private fun readToTheEnd() {
-        repeat(80) {
+        button(R.string.reader_contents).performClick()
+        compose.onNodeWithText("Seção 3").performClick()
+        compose.waitForIdle()
+        Thread.sleep(1_000)
+        repeat(60) {
             if (endBlockShows()) return
             button(R.string.reader_next_page).performClick()
             compose.waitForIdle()
             Thread.sleep(300)
         }
-        throw AssertionError("No end block after 80 pages; page: ${pageState()}; messages seen: ${seen.distinct()}; last save: ${saves.lastOrNull()}")
+        throw AssertionError("No end block after 60 pages of the last section; page: ${pageState()}; messages seen: ${seen.distinct()}; last save: ${saves.lastOrNull()}")
     }
 
     @Test
