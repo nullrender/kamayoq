@@ -1,6 +1,7 @@
 package app.kamayoq.android
 
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.os.SystemClock
 import android.view.View
 import android.view.ViewGroup
@@ -93,6 +94,20 @@ class TextReaderSavingTest {
 
     private fun hide() = scenario.onActivity { it.setContentView(View(it)) }
 
+    private fun awaitLandscape() {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20)
+        while (System.nanoTime() < deadline) {
+            var orientation = Configuration.ORIENTATION_UNDEFINED
+            scenario.onActivity { orientation = it.resources.configuration.orientation }
+            if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                instrumentation.waitForIdleSync()
+                return
+            }
+            Thread.sleep(100)
+        }
+        throw AssertionError("The screen did not turn to landscape")
+    }
+
     private fun View.findWebView(): WebView? = when (this) {
         is WebView -> this
         is ViewGroup -> (0 until childCount).firstNotNullOfOrNull { getChildAt(it).findWebView() }
@@ -154,7 +169,9 @@ class TextReaderSavingTest {
 
         // Turning the phone remakes the screen; the app then opens the book again from what it saved.
         scenario.onActivity { it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE }
-        instrumentation.waitForIdleSync()
+        // The system remakes the screen a moment after the request, not within it: a book shown before
+        // that goes away with the old screen, and the new one stays empty (emulator 44407586075).
+        awaitLandscape()
         show(saved)
 
         assertShows(word)
