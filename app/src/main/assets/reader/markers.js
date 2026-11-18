@@ -4,6 +4,7 @@
 // apart: what the web reader counts is the section as shown. A chunk of a large section keeps every
 // element of the section, empty and of the same tag, so its paths are the section's.
 
+const MAX_LENGTH = 1024
 const TAG = /^[a-z][a-z0-9-]*$/
 const FORM = /^(?:\/\/body|id\("([^"\\]{1,256})"\))((?:\/[a-z][a-z0-9-]*\[[1-9][0-9]{0,5}\])*)$/
 const STEP = /\/([a-z][a-z0-9-]*)\[([0-9]+)\]/g
@@ -40,7 +41,10 @@ export const markerOf = range => {
         el = parent
     }
     if (el !== body) return null
-    return ['//body', ...steps].join('/')
+    const marker = ['//body', ...steps].join('/')
+    // Kotlin accepts no longer marker (KavitaText.MAX_MARKER_LENGTH), and one this long could push the
+    // whole message past its 8 KiB: the place goes without a marker instead.
+    return marker.length <= MAX_LENGTH ? marker : null
 }
 
 /**

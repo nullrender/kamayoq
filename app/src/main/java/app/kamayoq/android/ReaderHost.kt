@@ -30,7 +30,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.kamayoq.core.kavita.KavitaProgress
-import app.kamayoq.core.kavita.KavitaText
 import app.kamayoq.core.library.ChapterFormat
 import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.TextPosition
@@ -42,6 +41,7 @@ import app.kamayoq.data.ProgressSaving
 import app.kamayoq.data.StoredAlternative
 import app.kamayoq.data.StoredChapter
 import app.kamayoq.data.kavita.KavitaSyncOutcome
+import app.kamayoq.data.kavita.placeHere
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -432,8 +432,8 @@ private fun openKavitaText(
     val turn = kavita.beforeOpening(chapter.id)
     turn.conflict?.let { conflict ->
         val progress = store.progress(chapter.id)
-        // The marker does not show on the screen: only the section is compared there.
-        val here = KavitaText.toRemote(progress.position as? TextPosition, progress.readMark != null, null, conflict.pageCount, remoteHasRecord = true)
+        // The same place the sync compared: the end shows only when the end block queued it.
+        val here = store.syncItem(chapter.id)?.placeHere(progress.position as? TextPosition, remoteHasRecord = true)
         return Opening.Conflict(chapter.id, here?.page ?: 0, conflict, turn.token, sections = true)
     }
     return try {

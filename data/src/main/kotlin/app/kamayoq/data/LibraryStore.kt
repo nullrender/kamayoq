@@ -210,7 +210,9 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
             writeProgress(chapterId, before.copy(readMark = mark, position = remote.position))
             val versionId = database.chapterQueries.versionOfChapter(chapterId).executeAsOne()
             if (moveResume) database.workResumeQueries.save(versionId, chapterId)
-            agree(chapterId, place.page, serverAt, ownReread = false, remote.marker, remote.position.cfi)
+            // Kavita's own marker, even one the reader cannot find: the agreement is what the server has,
+            // or the next sync would take it for news.
+            agree(chapterId, place.page, serverAt, ownReread = false, place.marker, remote.position.cfi)
         }
     }
 
@@ -273,10 +275,11 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
 
     /**
      * A conflict in a book settled for this device: the server's place becomes the agreement, so the
-     * place read here goes next. Not kept aside: the positions kept aside count images only.
+     * place read here goes next, with the marker it waits with in the queue: the queue stays. Not kept
+     * aside: the positions kept aside count images only.
      */
     fun keepLocalText(chapterId: String, place: KavitaPlace, serverAt: String?) {
-        agree(chapterId, place.page, serverAt, ownReread = false, place.marker, localCfi = null)
+        database.progressAgreementQueries.agree(chapterId, place.page.toLong(), place.marker, serverAt, 0L, null)
     }
 
     /** A conflict settled for this device: the server's position stays aside, and sending is free. */
@@ -597,12 +600,16 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
      */
     fun saveProgress(chapterId: String, progress: ChapterProgress, marker: String? = null) {
         database.transaction {
+            val before = progress(chapterId)
             writeProgress(chapterId, progress)
             val versionId = database.chapterQueries.versionOfChapter(chapterId).executeAsOne()
             database.workResumeQueries.save(versionId, chapterId)
             val place = progress.position as? TextPosition
             if (place != null && syncItem(chapterId)?.isText == true) {
-                queueProgress(chapterId, place.section, place.at, marker, place.cfi)
+                // Only the end block counts one more complete read (TextReading.ended): that save, and
+                // no other, queues the book read (decision C-3). The read mark stays through a reread.
+                val ended = progress.completeReads > before.completeReads
+                queueProgress(chapterId, if (ended) place.sections else place.section, place.at, marker, place.cfi)
             }
         }
     }

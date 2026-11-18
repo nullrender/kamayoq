@@ -36,14 +36,15 @@ object KavitaText {
      * different number of sections than the reader is another layout of the file: no section here
      * means the same there, so nothing goes. With no record in Kavita, a place in the first section
      * stays here (decision C-1): the server drops page 0 without a record. The end goes only when the
-     * person reached it here, through the end block (decision C-3), which is what [read] says.
+     * person reached it here, through the end block (decision C-3), which is what [read] says: never
+     * the read mark alone, which stays through a reread. [marker] goes as it is: the reader's own are
+     * already in a known form, and one agreed with Kavita must stay as the server has it.
      */
     fun toRemote(position: TextPosition?, read: Boolean, marker: String?, pageCount: Int, remoteHasRecord: Boolean): KavitaPlace? {
         if (position == null || position.sections != pageCount) return null
-        val known = markerOrNull(marker)
-        if (read && position.section == position.sections - 1) return KavitaPlace(pageCount, known)
+        if (read && position.section == position.sections - 1) return KavitaPlace(pageCount, marker)
         if (position.section == 0 && !remoteHasRecord) return null
-        return KavitaPlace(position.section, known)
+        return KavitaPlace(position.section, marker)
     }
 
     /**

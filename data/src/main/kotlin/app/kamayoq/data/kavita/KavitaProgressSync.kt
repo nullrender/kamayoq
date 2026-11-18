@@ -11,6 +11,22 @@ import app.kamayoq.data.SyncItem
 import java.io.IOException
 import java.time.Instant
 
+/**
+ * A book's place read here, in Kavita's terms (step 4, C2), or null for nothing to send. Kavita gives
+ * no CFI back, so page and marker are known only for the CFI they were queued or agreed with: the
+ * queued page is the book read only when the end block saved it (LibraryStore.saveProgress), and an
+ * agreed one is what Kavita has. Any other CFI is a section with no marker.
+ */
+fun SyncItem.placeHere(position: TextPosition?, remoteHasRecord: Boolean): KavitaPlace? {
+    val known = when (position?.cfi) {
+        null -> null
+        outboxCfi -> outboxPage?.let { KavitaPlace(it, outboxMarker) }
+        agreedCfi -> agreedPage?.let { KavitaPlace(it, agreedMarker) }
+        else -> null
+    }
+    return KavitaText.toRemote(position, read = known != null && known.page >= pageCount, known?.marker, pageCount, remoteHasRecord)
+}
+
 /** A reader's turn on a chapter: only its own close ends it. */
 data class KavitaOpened(val token: Long, val outcome: KavitaSyncOutcome)
 
@@ -98,7 +114,7 @@ class KavitaProgressSync(
         // Kavita counts other sections than the reader: no place means the same on both sides, so
         // neither goes anywhere and the place here stays.
         if (position != null && position.sections != item.pageCount) return KavitaSyncOutcome.Settled
-        val local = KavitaText.toRemote(position, progress.readMark != null, markerHere(item, position), item.pageCount, remote.at != null)
+        val local = item.placeHere(position, remoteHasRecord = remote.at != null)
         val arrived = item.outboxState == SENT_UNCONFIRMED && item.outboxPage == remote.page && item.outboxMarker == remote.marker
         if (arrived) store.agree(item.chapterId, remote.page, remote.at, ownReread = false, remote.marker, item.outboxCfi)
         val agreed = if (arrived) there else item.agreedPage?.let { KavitaPlace(it, item.agreedMarker) }
@@ -120,14 +136,6 @@ class KavitaProgressSync(
                 return KavitaSyncOutcome.Conflict(remote.page, remote.at, item.pageCount, remote.marker)
         }
         return KavitaSyncOutcome.Settled
-    }
-
-    // Kavita gives no CFI back: a marker is known only for the CFI it was taken or agreed with.
-    private fun markerHere(item: SyncItem, position: TextPosition?): String? = when (position?.cfi) {
-        null -> null
-        item.outboxCfi -> item.outboxMarker
-        item.agreedCfi -> item.agreedMarker
-        else -> null
     }
 
     private fun sendText(address: String, key: String, item: SyncItem, place: KavitaPlace, cfi: String, wasRead: Boolean) {
