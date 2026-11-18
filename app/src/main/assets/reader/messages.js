@@ -15,7 +15,7 @@ export const relocatedMessage = (detail, reason, marker = null) => ({
     cfi: detail.cfi,
     fraction: bounded(detail.fraction),
     reason: reason ?? 'page',
-    marker: null,
+    marker,
 })
 
 // Keep hrefs inside the shell: native controls select only an item's numeric index.

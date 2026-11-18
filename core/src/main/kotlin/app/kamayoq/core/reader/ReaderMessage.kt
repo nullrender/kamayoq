@@ -1,8 +1,10 @@
 package app.kamayoq.core.reader
 
+import app.kamayoq.core.kavita.KavitaText
 import app.kamayoq.core.progress.BasisPoints
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.doubleOrNull
@@ -74,7 +76,13 @@ sealed interface ReaderMessage {
             val fraction = (message["fraction"] as? JsonPrimitive)?.takeUnless { it.isString }?.doubleOrNull
             val position = BasisPoints.fromFraction(fraction) ?: return Refused("bad fraction")
             val reason = RelocateReason.entries.find { it.wire == message.string("reason") } ?: return Refused("unknown reason")
-            return Relocated(section, sections, cfi, position, reason)
+            // A marker the conversion cannot send is no marker: the place itself still counts.
+            val marker = when (val raw = message["marker"]) {
+                null, JsonNull -> null
+                is JsonPrimitive -> if (raw.isString) KavitaText.markerOrNull(raw.content) else return Refused("bad marker")
+                else -> return Refused("bad marker")
+            }
+            return Relocated(section, sections, cfi, position, reason, marker)
         }
 
         private fun link(message: JsonObject): ReaderMessage {

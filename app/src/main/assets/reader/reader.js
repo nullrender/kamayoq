@@ -2,7 +2,7 @@ import './foliate-js/view.js'
 import { EPUB } from './foliate-js/epub.js'
 import { neutralizeRefresh } from './sections.js'
 import { relocatedMessage, contentsOf, navigationQueue } from './messages.js'
-import { markerOf } from './markers.js'
+import { elementOf, markerOf } from './markers.js'
 
 const send = message => kamayoqBridge.postMessage(JSON.stringify(message))
 
@@ -72,10 +72,16 @@ const open = async token => {
 // or nothing at all: the saved section is the nearest place the person was. A CFI that finds its
 // section but not its path inside it already opens at the section's start (toRange gives null).
 const startOf = index => {
+    // Kavita counts the sections of a place from it: another count is another layout of the file, and
+    // no section here is the same there (milestone C2).
+    if (Number.isInteger(index.sections) && index.sections !== view.book.sections.length) return null
     const inBook = target => {
         const found = view.resolveNavigation(target)
         return found != null && found.index >= 0 && found.index < view.book.sections.length
     }
+    // An unknown marker opens the section's start, never fails.
+    if (typeof index.marker === 'string' && Number.isInteger(index.section) && inBook(index.section))
+        return { index: index.section, anchor: doc => elementOf(doc, index.marker) ?? 0 }
     if (index.position && inBook(index.position)) return index.position
     if (Number.isInteger(index.section) && inBook(index.section)) return index.section
     return null

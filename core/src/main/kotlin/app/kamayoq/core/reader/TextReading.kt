@@ -25,13 +25,13 @@ class TextReading(saved: ChapterProgress, private val device: String, savedMarke
      * The CFI to hand the fork; null opens the book at its start, or at [startMarker]. A place that
      * came from Kavita has only its section in the CFI: it opens by section and marker instead.
      */
-    val start: String? = (saved.position as? TextPosition)?.cfi
+    val start: String? = (saved.position as? TextPosition)?.takeIf { fromKavita == null }?.cfi
 
     /** The marker a place from Kavita opens at, in its section; null for any other place. */
-    val startMarker: String? = null
+    val startMarker: String? = savedMarker?.takeIf { fromKavita != null }
 
     /** How many sections Kavita counts for a place that came from it, for the reader to compare. */
-    val startSections: Int? = null
+    val startSections: Int? = fromKavita?.sections
 
     /** Kavita's marker of the place to save, from the same move as [position] (milestone C2). */
     var marker: String? = startMarker
@@ -56,7 +56,7 @@ class TextReading(saved: ChapterProgress, private val device: String, savedMarke
         phase = Phase.READING
         val position = TextPosition(message.section, message.sections, message.cfi, message.position, at, device)
         progress = progress.copy(position = position)
-
+        marker = message.marker
         return position
     }
 

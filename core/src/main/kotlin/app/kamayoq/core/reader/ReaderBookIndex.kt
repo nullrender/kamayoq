@@ -31,5 +31,7 @@ object ReaderBookIndex {
         put("position", position)
         put("flow", flow.wire)
         section?.let { put("section", it) }
+        marker?.let { put("marker", it) }
+        sections?.let { put("sections", it) }
     }.toString()
 }

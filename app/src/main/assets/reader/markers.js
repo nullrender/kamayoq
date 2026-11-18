@@ -17,6 +17,9 @@ export const markerOf = range => {
     const container = range?.startContainer
     if (!container) return null
     let el = container.nodeType === 1 ? container.childNodes?.[range.startOffset] ?? container : container.parentElement
+    // A page that starts in the blank between two blocks starts at the next one, not at their parent.
+    if (container.nodeType === 3 && !container.textContent.trim() && container.nextElementSibling)
+        el = container.nextElementSibling
     if (el && el.nodeType !== 1) el = el.parentElement
     const body = el?.ownerDocument?.body
     if (!body) return null
