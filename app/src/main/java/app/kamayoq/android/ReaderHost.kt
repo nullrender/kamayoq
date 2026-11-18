@@ -41,6 +41,7 @@ import app.kamayoq.data.ProgressSaving
 import app.kamayoq.data.StoredAlternative
 import app.kamayoq.data.StoredChapter
 import app.kamayoq.data.kavita.KavitaSyncOutcome
+import app.kamayoq.data.kavita.knownPlace
 import app.kamayoq.data.kavita.placeHere
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -344,7 +345,8 @@ internal fun ConflictScreen(
     ) {
         TextButton(onClick = onBack) { Text(stringResource(R.string.back)) }
         Text(stringResource(R.string.conflict_title), style = MaterialTheme.typography.headlineSmall)
-        Text(stringResource(R.string.conflict_hint))
+        // A book's other place is not kept aside: the positions kept aside count images only.
+        Text(stringResource(if (sections) R.string.conflict_hint_book else R.string.conflict_hint))
         OutlinedButton(onClick = onKeepHere, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.conflict_here, place(localPage)))
         }
@@ -461,8 +463,11 @@ private fun openText(
         val work = store.works().firstOrNull { it.id == workId }?.title
         // A loose book is a work of one volume with the same name: the name once is enough.
         val title = listOfNotNull(work, chapter.name.takeIf { it != work }).joinToString(" · ")
-        val marker = turn?.let { store.agreedMarker(text.chapterId) }
-        return Opening.ReadyText(text, title, store.progress(text.chapterId), round, turn, marker)
+        val progress = store.progress(text.chapterId)
+        // The marker known for the saved place, queued here or agreed with Kavita: it opens a place
+        // from Kavita, and goes with the place when the end block saves it with no move first.
+        val marker = turn?.let { store.syncItem(text.chapterId)?.knownPlace(progress.position as? TextPosition)?.marker }
+        return Opening.ReadyText(text, title, progress, round, turn, marker)
     } catch (e: Exception) {
         text.release()
         throw e

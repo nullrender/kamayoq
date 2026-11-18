@@ -18,13 +18,16 @@ import java.time.Instant
  * agreed one is what Kavita has. Any other CFI is a section with no marker.
  */
 fun SyncItem.placeHere(position: TextPosition?, remoteHasRecord: Boolean): KavitaPlace? {
-    val known = when (position?.cfi) {
-        null -> null
-        outboxCfi -> outboxPage?.let { KavitaPlace(it, outboxMarker) }
-        agreedCfi -> agreedPage?.let { KavitaPlace(it, agreedMarker) }
-        else -> null
-    }
+    val known = knownPlace(position)
     return KavitaText.toRemote(position, read = known != null && known.page >= pageCount, known?.marker, pageCount, remoteHasRecord)
+}
+
+/** The page and marker queued or agreed for [position]'s CFI, or null when neither has it. */
+fun SyncItem.knownPlace(position: TextPosition?): KavitaPlace? = when (position?.cfi) {
+    null -> null
+    outboxCfi -> outboxPage?.let { KavitaPlace(it, outboxMarker) }
+    agreedCfi -> agreedPage?.let { KavitaPlace(it, agreedMarker) }
+    else -> null
 }
 
 /** A reader's turn on a chapter: only its own close ends it. */
@@ -262,6 +265,8 @@ class KavitaProgressSync(
     }
 
     private fun changedThere(item: SyncItem, pagesRead: Map<String, Int>): Boolean {
+        // pagesRead says nothing of a move inside the same section: a book is always asked.
+        if (item.isText) return true
         val base = item.agreedPage ?: 0
         return (pagesRead[item.remoteId.toString()] ?: base) != base
     }

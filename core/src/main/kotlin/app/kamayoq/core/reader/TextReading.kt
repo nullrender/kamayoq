@@ -33,8 +33,12 @@ class TextReading(saved: ChapterProgress, private val device: String, savedMarke
     /** How many sections Kavita counts for a place that came from it, for the reader to compare. */
     val startSections: Int? = fromKavita?.sections
 
-    /** Kavita's marker of the place to save, from the same move as [position] (milestone C2). */
-    var marker: String? = startMarker
+    /**
+     * Kavita's marker of the place to save, from the same move as [position] (milestone C2). It starts
+     * as the one known for the saved place, from here or from Kavita: the end block may save that
+     * place again with no move first.
+     */
+    var marker: String? = savedMarker
         private set
 
     var phase: Phase = Phase.OPENING
