@@ -48,9 +48,12 @@ class EpubFixturesTest {
         val entries = entriesOf(EpubFixtures.novel())
         val nav = entries.text("OEBPS/nav.xhtml")
 
-        assertEquals(4, Regex("<itemref ").findAll(entries.text("OEBPS/content.opf")).count())
+        assertEquals(5, Regex("<itemref ").findAll(entries.text("OEBPS/content.opf")).count())
         assertFalse("capa.xhtml" in nav)
-        assertEquals(2, Regex("""<li><a href="v\d\.xhtml">Volume \d</a><ol>""").findAll(nav).count())
+        assertContains(nav, """<li><a href="v1.xhtml">Volume 1</a><ol>""")
+        // The second volume's title page is a section of its own, before the section of its chapters.
+        assertContains(nav, """<li><a href="rosto2.xhtml">Volume 2</a><ol>""")
+        assertFalse("cap-" in entries.text("OEBPS/rosto2.xhtml"))
         assertEquals(2, Regex("""href="v2\.xhtml#cap-5"""").findAll(nav).count())
         assertContains(entries.text("OEBPS/v2.xhtml"), """id="cap-5"""")
     }

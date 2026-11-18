@@ -176,9 +176,11 @@ class ReaderContentsAgreementTest {
         val contents = open(EpubFixtures.novel())
 
         val item = evaluateAsync(
-            "const view = document.querySelector('foliate-view'); await view.goTo('OEBPS/v2.xhtml'); " +
+            "const view = document.querySelector('foliate-view'); await view.goTo('OEBPS/rosto2.xhtml'); " +
                 "await new Promise(done => setTimeout(done, 500)); return view.lastLocation?.tocItem?.id ?? null",
         )
+        // The title page is a screen of its own: the fork names the volume's item, not a chapter's.
+        assertEquals("Volume 2", kotlinItems(contents)[item.toInt()].label)
         assertEquals("Capítulo 4", contents.chapters[contents.chapterOfItem[item.toInt()]].title)
     }
 }
