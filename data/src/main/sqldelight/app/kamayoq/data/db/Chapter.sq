@@ -58,13 +58,18 @@ UPDATE chapter SET sort_index = sort_index + ? WHERE version_id = ? AND sort_ind
 confirmFile:
 UPDATE chapter SET content_hash = ?, needs_check = 0 WHERE version_id = ? AND path = ? AND replaced_by IS NULL;
 
--- The chapters of the edition a file had just before its current one, in the order of its contents.
+-- The chapters a file's current ones took the place of, in the order of their contents. Found by
+-- the current chapters' path: a previous edition keeps the path it had.
 previousOfFile:
 SELECT previous.id, previous.name
 FROM chapter AS previous
-JOIN chapter AS current ON current.id = previous.replaced_by
-WHERE previous.version_id = ? AND previous.path = ? AND current.replaced_by IS NULL
+JOIN chapter AS heir ON heir.id = previous.replaced_by
+WHERE previous.version_id = ? AND heir.path = ? AND heir.replaced_by IS NULL
 ORDER BY previous.sort_index, previous.rowid;
+
+-- Keeps an earlier edition one step from the current one while its question is open.
+repoint:
+UPDATE chapter SET replaced_by = ? WHERE replaced_by = ?;
 
 -- What a reading of the folder may reuse instead of opening each EPUB again.
 splitOfSource:

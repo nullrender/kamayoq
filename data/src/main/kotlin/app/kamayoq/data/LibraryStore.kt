@@ -364,10 +364,12 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
                 val splitUnits = work.units.withIndex().filter { it.value.content == UnitContent.SplitEpub }.groupBy { it.value.path }
                 val incomingPaths = work.units.map { it.path }.toSet()
                 val storedByPath = current.groupBy(pathNow)
+                // A file renamed only in letter case is the same file, as for any chapter; each
+                // stored file serves one path.
+                val renamedFiles = storedByPath.filterKeys { it !in incomingPaths }.entries
+                    .groupByTo(mutableMapOf<String, MutableList<List<CurrentOfVersion>>>(), { it.key.lowercase(Locale.ROOT) }, { it.value })
                 val storedOfSplit = splitUnits.keys.associateWith { path ->
-                    storedByPath[path]
-                        ?: storedByPath.entries.firstOrNull { (stored, _) -> stored !in incomingPaths && stored.equals(path, ignoreCase = true) }?.value
-                        ?: emptyList()
+                    storedByPath[path] ?: renamedFiles[path.lowercase(Locale.ROOT)]?.removeFirstOrNull() ?: emptyList()
                 }
                 val inSplitFiles = storedOfSplit.values.flatten().map { it.id }.toSet()
                 val findChapter = PathMatch(
@@ -404,6 +406,9 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         workCameBack: Boolean,
         stored: List<CurrentOfVersion>,
     ): List<String> {
+        val path = units.first().second.path
+        // A question still open goes with the file when its path changes.
+        if (stored.isNotEmpty() && stored.first().path != path) database.editionOfferQueries.movePath(path, versionId, stored.first().path)
         if (stored.isEmpty() || stored.map { it.name } == units.map { it.second.name }) {
             val moving = stored.zip(units).filter { (row, unit) -> row.toc_href != unit.second.tocKey }
             // In two steps, so a key on its way never meets the same key still on another chapter.
@@ -415,10 +420,15 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         }
         val ids = units.map { newId() }
         val hadReadMark = stored.any { progress(it.id).readMark != null }
+        val openQuestion = database.editionOfferQueries.isOpen(versionId, path).executeAsOne()
         for ((index, row) in stored.withIndex()) {
             // The chapter at the same destination takes its place; without one, the one at the same position.
             val sameKey = units.indexOfFirst { it.second.tocKey == row.toc_href }
-            database.chapterQueries.replace(ids[if (sameKey >= 0) sameKey else minOf(index, ids.lastIndex)], row.id)
+            val heir = ids[if (sameKey >= 0) sameKey else minOf(index, ids.lastIndex)]
+            // The edition an open question is about must stay one step from the current one, or
+            // the question would lose sight of what was read.
+            if (openQuestion) database.chapterQueries.repoint(heir, row.id)
+            database.chapterQueries.replace(heir, row.id)
         }
         for ((id, entry) in ids.zip(units)) {
             val (sortIndex, unit) = entry
@@ -426,7 +436,7 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
                 id, versionId, unit.path, unit.name, unit.kind.name, unit.number, formatOf(unit.content).name, sortIndex, stamp, unit.tocKey,
             )
         }
-        if (hadReadMark) database.editionOfferQueries.offer(versionId, units.first().second.path)
+        if (hadReadMark) database.editionOfferQueries.offer(versionId, path)
         return ids
     }
 

@@ -18,3 +18,10 @@ FROM edition_offer
 JOIN work_version ON work_version.id = edition_offer.version_id
 WHERE work_version.work_id = ?
 ORDER BY edition_offer.path;
+
+-- The question goes with its file when the file's path changes.
+movePath:
+UPDATE OR IGNORE edition_offer SET path = ? WHERE version_id = ? AND path = ?;
+
+isOpen:
+SELECT EXISTS (SELECT 1 FROM edition_offer WHERE version_id = ? AND path = ?);
