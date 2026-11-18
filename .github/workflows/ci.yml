@@ -13,6 +13,9 @@ jobs:
   # Runs on every event, with no secrets: tests, lint and a build check that is never published.
   verify:
     runs-on: ubuntu-latest
+    # About 5 minutes when it works. A Robolectric run once hung for 19 minutes with no output (run
+    # 44209406155); without a limit GitHub lets a job run for 6 hours.
+    timeout-minutes: 30
     steps:
       # Actions are pinned to the commit of each release, checked on 2026-10-24.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
