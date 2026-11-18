@@ -20,6 +20,7 @@ import app.kamayoq.core.reader.SplitReading
 import app.kamayoq.data.SplitContents
 import app.kamayoq.epubfixtures.EpubFixtures
 import java.io.File
+import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.LinkedBlockingQueue
@@ -29,7 +30,6 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -48,9 +48,8 @@ class TextReaderSplitTest {
     private val messages = LinkedBlockingQueue<ReaderMessage>()
     private val saves = CopyOnWriteArrayList<SplitReading.Saved>()
 
-    @Before
-    fun writeBook() {
-        file = File(compose.activity.cacheDir, "split.epub").apply { writeBytes(EpubFixtures.novel()) }
+    private fun writeBook(book: ByteArray) {
+        file = File(compose.activity.cacheDir, "split.epub").apply { writeBytes(book) }
         archive = EpubArchive.open(file)
         val contents = SplitContents.of(archive)
         chapters = ReaderChapters(contents.chapters.map { it.key }, contents.chapterOfItem)
@@ -64,9 +63,13 @@ class TextReaderSplitTest {
         file.delete()
     }
 
-    /** Opens the novel at the chapter of place [opened] in the file, never read, and waits for the restore. */
-    private fun open(opened: Int) {
-        reading = SplitReading(List(chapters.keys.size) { ChapterProgress.NEVER_OPENED }, opened, "emulator")
+    /**
+     * Opens [book] at the chapter of place [opened] in the file and waits for the restore. No chapter
+     * was ever read, unless [savedAtOpened] gives the opened one a reading.
+     */
+    private fun open(opened: Int, book: ByteArray = EpubFixtures.novel(), savedAtOpened: ChapterProgress = ChapterProgress.NEVER_OPENED) {
+        writeBook(book)
+        reading = SplitReading(List(chapters.keys.size) { if (it == opened) savedAtOpened else ChapterProgress.NEVER_OPENED }, opened, "emulator")
         val session = SplitText(reading, chapters) { saves += it }
         compose.setContent {
             TextReader(archive, "Novela em volumes", session, onBack = {}, onMessage = messages::add, type = WorkType.NOVELS, end = TextEnd.Chapter(null) {})
@@ -88,13 +91,26 @@ class TextReaderSplitTest {
         else -> null
     }
 
-    private fun visibleText(): String {
+    private fun evaluate(script: String): String {
         val answer = CompletableFuture<String>()
         compose.runOnUiThread {
-            checkNotNull(compose.activity.window.decorView.findWebView())
-                .evaluateJavascript("document.querySelector('foliate-view').lastLocation?.range?.toString() ?? ''", answer::complete)
+            checkNotNull(compose.activity.window.decorView.findWebView()).evaluateJavascript(script, answer::complete)
         }
-        return JSONTokener(answer.get(30, TimeUnit.SECONDS)).nextValue() as String
+        return answer.get(30, TimeUnit.SECONDS)
+    }
+
+    private fun visibleText(): String =
+        JSONTokener(evaluate("document.querySelector('foliate-view').lastLocation?.range?.toString() ?? ''")).nextValue() as String
+
+    /** Waits until the screen shows [text], or fails saying what is there. */
+    private fun assertShows(text: String) {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20)
+        var shown = visibleText()
+        while (!shown.contains(text) && System.nanoTime() < deadline) {
+            Thread.sleep(500)
+            shown = visibleText()
+        }
+        assertTrue("The screen shows: ${shown.take(200)}", shown.contains(text))
     }
 
     private fun button(label: Int) = compose.onNodeWithText(compose.activity.getString(label))
@@ -116,15 +132,49 @@ class TextReaderSplitTest {
     fun `dado o capítulo 4 nunca aberto quando o arquivo abre nele então a tela mostra o começo do capítulo 4`() {
         open(opened = 3)
 
-        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20)
-        var shown = visibleText()
-        while (!shown.contains("Capítulo 4") && System.nanoTime() < deadline) {
-            Thread.sleep(500)
-            shown = visibleText()
-        }
-        assertTrue("The screen shows: ${shown.take(200)}", shown.contains("Capítulo 4"))
+        assertShows("Capítulo 4")
         // The first words of chapter 4, and none of the cover.
-        assertTrue("The screen shows: ${shown.take(200)}", shown.contains("m4n1 "))
+        assertShows("m4n1 ")
+    }
+
+    // Found by the independent review of 18/11/2026: with a place that no longer resolves, the file
+    // opened at its start, and the first move saved that place into the wrong chapter.
+    @Test
+    fun `dado um capítulo cujo lugar guardado não existe mais no arquivo quando ele abre então a tela mostra o começo desse capítulo`() {
+        val gone = TextPosition(section = 7, sections = 8, cfi = "epubcfi(/6/40!/4/2)", fraction = BasisPoints.fromStored(4_000), at = Instant.parse("2026-11-18T12:00:00Z"), device = "emulator")
+
+        open(opened = 3, savedAtOpened = ChapterProgress(readMark = null, position = gone, completeReads = 0))
+
+        assertShows("Capítulo 4")
+    }
+
+    // Found by the same review: a section above 512 KiB is shown in pieces, and in a piece the fork
+    // names the last chapter of the whole section for any page past the piece's last heading.
+    @Test
+    fun `dado um romance compilado numa seção em pedaços quando leio o último capítulo do primeiro pedaço então só ele ganha o lugar e ao passar adiante só ele fica lido`() {
+        open(opened = 0, book = EpubFixtures.positionsCompiled())
+        // The last chapter whose heading is in the first piece: the one the fork's answer goes wrong for.
+        val last = evaluate(
+            "Math.max(...[...document.querySelector('foliate-view').renderer.getContents()[0].doc.querySelectorAll('h2[id]')].map(heading => Number(heading.id.slice(4))))",
+        ).toInt()
+        assertTrue("Chapters in the first piece: $last of ${chapters.keys.size}", last in 2 until chapters.keys.size)
+        evaluate("document.querySelector('foliate-view').goTo('OEBPS/s1.xhtml#cap-$last'); null")
+        compose.waitUntil(15_000) { saves.any { it.chapter == last - 1 } }
+        saves.clear()
+
+        repeat(3) {
+            button(R.string.reader_next_page).performClick()
+            compose.waitForIdle()
+            Thread.sleep(400)
+        }
+
+        assertEquals("Chapters given a place inside chapter $last", setOf(last - 1), saves.map { it.chapter }.toSet())
+        assertEquals(emptyList<Int>(), saves.filter { it.progress.readMark != null }.map { it.chapter })
+
+        readInto(chapter = last)
+
+        assertEquals(listOf(last - 1), saves.filter { it.progress.readMark != null }.map { it.chapter }.distinct())
+        assertEquals(last, reading.current)
     }
 
     @Test
