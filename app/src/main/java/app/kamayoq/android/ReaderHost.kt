@@ -331,6 +331,8 @@ internal fun ConflictScreen(
 ) {
     @Composable
     fun place(page: Int) = when {
+        sections && page >= total -> stringResource(R.string.position_book_end)
+        sections -> stringResource(R.string.position_section, page + 1, total)
         page >= total -> stringResource(R.string.position_end)
         else -> stringResource(R.string.position_page, page + 1, total)
     }
@@ -379,7 +381,11 @@ private fun openChapter(
     val (current, chapters) = store.openingOf(workId, chapterId)
     val chapter = chapters.firstOrNull { it.id == current } ?: return Opening.Missing
     when (chapter.format) {
-        ChapterFormat.EPUB -> return openText(store, opening, tree, workId, chapter, round, stillWanted, turn = null)
+        ChapterFormat.EPUB -> return if (chapter.origin == LibraryStore.KAVITA) {
+            openKavitaText(store, opening, kavita, tree, workId, chapter, round, stillWanted)
+        } else {
+            openText(store, opening, tree, workId, chapter, round, stillWanted, turn = null)
+        }
         ChapterFormat.PDF, ChapterFormat.OTHER_ARCHIVE -> return Opening.FormatNotYet
         ChapterFormat.ARCHIVE, ChapterFormat.IMAGE_FOLDER -> Unit
     }
