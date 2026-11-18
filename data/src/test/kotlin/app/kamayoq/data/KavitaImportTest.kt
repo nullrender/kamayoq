@@ -298,10 +298,21 @@ class KavitaImportTest {
         assertEquals(emptyList(), store.alternatives(workId))
     }
 
+    // Step 3 left books out until their reader existed; milestone C2 of step 4 brings them in.
     @Test
-    fun `dado um capítulo de texto, então ele fica fora da sincronização`() {
+    fun `dado um livro EPUB, então ele entra na sincronização como livro`() {
         val text = chapter(10).copy(format = ChapterFormat.EPUB)
         store.importKavita(server, listOf(work(1, "Livro", text)))
+
+        assertEquals(listOf(true), store.syncItems(server).map { it.isText })
+    }
+
+    @Test
+    fun `dado um PDF ou um arquivo que o app não lê, então ele fica fora da sincronização`() {
+        store.importKavita(
+            server,
+            listOf(work(1, "PDF", chapter(10).copy(format = ChapterFormat.PDF)), work(2, "CBR", chapter(11).copy(format = ChapterFormat.OTHER_ARCHIVE))),
+        )
 
         assertEquals(emptyList(), store.syncItems(server))
     }
