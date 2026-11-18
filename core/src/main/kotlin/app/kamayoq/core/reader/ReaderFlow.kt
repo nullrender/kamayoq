@@ -15,7 +15,8 @@ enum class ReaderFlow(val wire: String) {
         // Paginated columns expose off-screen text to screen readers; scrolling keeps reading order.
         fun forAccessibility(touchExploration: Boolean): ReaderFlow = if (touchExploration) SCROLL else PAGES
 
-        /** The flow a work of [type] opens in. */
-        fun of(type: WorkType, touchExploration: Boolean): ReaderFlow = forAccessibility(touchExploration)
+        /** The flow a work of [type] opens in: a novel scrolls, a book turns pages (product design). */
+        fun of(type: WorkType, touchExploration: Boolean): ReaderFlow =
+            if (type == WorkType.NOVELS) SCROLL else forAccessibility(touchExploration)
     }
 }

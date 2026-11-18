@@ -9,6 +9,8 @@ In `Novels/`, an EPUB is read by its **name** first:
 - A name with a **chapter number** (`Cap. 0928.epub`, `Chapter 12.epub`, a bare `928.epub`, by the same rule 4 that numbers comics) is **one chapter**, with that number. Its own table of contents is shown only inside the reader, as for a book.
 - A name with `Vol.` and no chapter number, or with **no number**, is **split by its table of contents** (E2): each item of the last level becomes a chapter. A `Vol. N` file is that volume, and its chapters belong to it.
 
+- A file **loose in `Novels/`**, outside a work's folder, is the whole work and always splits, whatever its name says.
+
 The name is enough to choose; nothing is opened to decide. Discarded: splitting every file (a one-chapter file with "Prefácio" and "Capítulo" in its contents would become two chapters and lose its number); the Work screen asking for each work (one more question per novel).
 
 `Books/` does not change: a book is one reading unit, and its contents stay inside the reader.

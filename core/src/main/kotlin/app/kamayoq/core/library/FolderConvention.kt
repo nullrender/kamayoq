@@ -92,7 +92,7 @@ object FolderConvention {
                 val path = childPath(folder.path, name)
                 when (extension(name)) {
                     in archiveExtensions -> works += looseWork(path, name, type, UnitContent.Archive)
-                    EPUB -> if (readsEpub(type)) {
+                    EPUB -> if (readsEpub(type, stem(name), loose = true)) {
                         works += looseWork(path, name, type, UnitContent.Epub)
                     } else {
                         ignore(path, IgnoreReason.UNSUPPORTED_FORMAT)
@@ -132,7 +132,7 @@ object FolderConvention {
                 val path = childPath(folder.path, fileName)
                 when (extension(fileName)) {
                     in archiveExtensions -> units += unit(path, stem(fileName), UnitContent.Archive)
-                    EPUB -> if (readsEpub(type)) {
+                    EPUB -> if (readsEpub(type, stem(fileName), loose = false)) {
                         units += unit(path, stem(fileName), UnitContent.Epub)
                     } else {
                         ignore(path, IgnoreReason.UNSUPPORTED_FORMAT)
@@ -196,10 +196,16 @@ object FolderConvention {
     }
 
     /**
-     * Only Books reads an EPUB for now: in Novels a file may be one chapter or a whole compiled
-     * novel, and telling them apart waits for milestone B of step 4 (`docs/research/epub-step-4-design.md`).
+     * A book is read whole. In a novel's folder the name tells a chapter file from a compiled one
+     * (`docs/decisions/novel-chapters-2026-11-18.md`): a chapter number makes it one chapter. A file
+     * with "Vol." or no number, or loose in the type folder (the file is the whole work), is split
+     * by its table of contents, which is not read yet: until then it stays out, in sight.
      */
-    private fun readsEpub(type: WorkType) = type == WorkType.BOOKS
+    private fun readsEpub(type: WorkType, stem: String, loose: Boolean) = when (type) {
+        WorkType.BOOKS -> true
+        WorkType.NOVELS -> !loose && numbering(stem).let { (kind, number) -> kind == UnitKind.CHAPTER && number != null }
+        WorkType.COMICS -> false
+    }
 
     /** Rule 4 and E3: a chapter number wins over a volume number; "Vol." alone makes a volume. */
     private fun numbering(name: String): Pair<UnitKind, Double?> {
