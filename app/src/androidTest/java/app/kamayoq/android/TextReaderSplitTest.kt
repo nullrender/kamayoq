@@ -148,6 +148,17 @@ class TextReaderSplitTest {
         assertShows("Capítulo 4")
     }
 
+    // Found by the review of the fixes: a place whose section is still in the file but whose path
+    // inside it is gone opened at the section's start, which is chapter 4, not chapter 5.
+    @Test
+    fun `dado um capítulo cujo lugar guardado aponta para um trecho que não existe mais na seção quando ele abre então a tela mostra o começo desse capítulo`() {
+        val stale = TextPosition(section = 4, sections = 5, cfi = "epubcfi(/6/10!/4/999)", fraction = BasisPoints.fromStored(4_000), at = Instant.parse("2026-11-18T12:00:00Z"), device = "emulator")
+
+        open(opened = 4, savedAtOpened = ChapterProgress(readMark = null, position = stale, completeReads = 0))
+
+        assertShows("Capítulo 5")
+    }
+
     // Found by the same review: a section above 512 KiB is shown in pieces, and in a piece the fork
     // names the last chapter of the whole section for any page past the piece's last heading.
     @Test
