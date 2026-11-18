@@ -10,6 +10,7 @@ import android.webkit.WebView
 import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -179,7 +181,7 @@ fun TextReader(
                     },
                 )
             }
-            if (atEnd) EndOfBook()
+            if (atEnd) EndOfText(end)
             }
             TextReaderControls(
                 enabled = ready,
@@ -226,18 +228,41 @@ fun TextReader(
     }
 }
 
-/** The end-of-book block, over the last page (decision 9), in its minimal first version. */
+/**
+ * The end block, over the last page (decision 9), in its minimal first version. A novel's chapter
+ * offers the next one, with the Strip's own words.
+ */
 @Composable
-private fun EndOfBook() {
+private fun EndOfText(end: TextEnd) {
     Box(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            stringResource(R.string.end_of_book),
-            modifier = Modifier.padding(24.dp).announced(),
-            style = MaterialTheme.typography.titleMedium,
-        )
+        Column(
+            modifier = Modifier.padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            when (end) {
+                TextEnd.Book -> Text(
+                    stringResource(R.string.end_of_book),
+                    modifier = Modifier.announced(),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                is TextEnd.Chapter -> {
+                    Text(
+                        stringResource(R.string.end_of_chapter),
+                        modifier = Modifier.announced(),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    if (end.nextName != null) {
+                        Button(onClick = end.onNext) { Text(stringResource(R.string.next_chapter, end.nextName)) }
+                    } else {
+                        Text(stringResource(R.string.no_next_chapter), style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+        }
     }
 }
 
