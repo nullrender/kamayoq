@@ -6,10 +6,12 @@ import app.kamayoq.core.reader.EpubLimits
 import app.kamayoq.epubfixtures.EpubFixtures
 import java.io.ByteArrayInputStream
 import java.io.File
+import java.io.IOException
 import java.nio.file.Files
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 // Step 4, piece B6: the reading of the folder opens a file to split only to read its contents.
@@ -50,9 +52,19 @@ class SplitContentsTest {
     }
 
     @Test
-    fun `dado um arquivo que não é EPUB, ou acima do teto, então não há capítulos e nada fica no cache`() {
-        assertEquals(emptyList(), read("isto não é um ZIP".encodeToByteArray()))
+    fun `dado um arquivo acima do teto, então não há capítulos e nada fica no cache`() {
         assertEquals(emptyList(), read(EpubFixtures.novel(), EpubLimits(maxFileBytes = 1_000)))
+        assertEquals(emptyList(), cache.listFiles().orEmpty().toList())
+    }
+
+    // Decided on 18/11/2026: a file that does not open as an archive, such as one still being copied,
+    // cannot be read now, so the reading of the folder keeps its chapters and tries it again.
+    @Test
+    fun `dado um arquivo que não abre como ZIP, como um cortado no meio da cópia, então a leitura falha como arquivo que não se lê e nada fica no cache`() {
+        val novel = EpubFixtures.novel()
+
+        assertFailsWith<IOException> { read("isto não é um ZIP".encodeToByteArray()) }
+        assertFailsWith<IOException> { read(novel.copyOf(novel.size / 2)) }
         assertEquals(emptyList(), cache.listFiles().orEmpty().toList())
     }
 
