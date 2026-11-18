@@ -123,6 +123,27 @@ class TextReaderEndOfChunkTest {
         )
     }
 
+    // Found by reading, in the review of milestone B: the paginator's primaryIndex is the section, not
+    // the chunk, so on the last chunk the check for later chunks still counted the chunk on screen.
+    @Test
+    fun `dado a última página do último pedaço de uma seção grande quando toco próxima então aparece o bloco de fim`() {
+        // In the outline of chunks every paragraph is there, as a placeholder: the last one is in the last chunk.
+        evaluate("document.querySelector('foliate-view').renderer.goTo({ index: 0, anchor: doc => [...doc.querySelectorAll('p')].at(-1) }); null")
+        Thread.sleep(2_000)
+
+        val states = mutableListOf<String>()
+        repeat(12) {
+            if (!endBlockShows()) {
+                states += paginator()
+                compose.onNodeWithText(compose.activity.getString(R.string.reader_next_page)).performClick()
+                compose.waitForIdle()
+                Thread.sleep(700)
+            }
+        }
+
+        assertTrue("No end block past the last chunk; on screen: ${visibleText().takeLast(80)}; before each Next: $states", endBlockShows())
+    }
+
     private companion object {
         const val END_OF_BOOK = "End of the book"
         const val CHUNK = "data-foliate-chunk"
