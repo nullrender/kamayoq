@@ -5,11 +5,15 @@ set -eu
 APP=app.kamayoq.android.debug
 RUNNER="$APP.test/androidx.test.runner.AndroidJUnitRunner"
 
-# `am instrument` exits 0 even when a test fails, so its own summary decides.
+# `am instrument` exits 0 even when a test fails, so its raw report decides. Each step runs one test
+# and skips the other (status -4); "OK" alone would also pass a run that skipped both.
 step() {
-    out=$(adb shell am instrument -w -e processDeath "$1" -e class app.kamayoq.android.ProcessDeathTest "$RUNNER")
+    out=$(adb shell am instrument -r -w -e processDeath "$1" -e class app.kamayoq.android.ProcessDeathTest "$RUNNER")
     echo "$out"
-    echo "$out" | grep -q '^OK ('
+    echo "$out" | grep -q 'INSTRUMENTATION_CODE: -1'
+    ! echo "$out" | grep -q 'INSTRUMENTATION_STATUS_CODE: -2'
+    [ "$(echo "$out" | grep -c 'INSTRUMENTATION_STATUS_CODE: -4')" -eq 1 ]
+    [ "$(echo "$out" | grep -c 'INSTRUMENTATION_STATUS_CODE: 0')" -eq 1 ]
 }
 
 # connectedDebugAndroidTest uninstalls the app when it ends: install it and its tests again.
