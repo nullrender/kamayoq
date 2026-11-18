@@ -101,6 +101,8 @@ data class BackupChapter(
     val remoteVolumeId: Int? = null,
     val agreement: BackupAgreement? = null,
     val outbox: BackupOutbox? = null,
+    /** Where the chapter starts inside a file split by its table of contents; empty for a whole file. */
+    val tocKey: String = "",
 )
 
 /** The last position both sides agreed on (progress contract, section 2d). */
