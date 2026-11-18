@@ -97,6 +97,17 @@ object EpubFixtures {
     }
 
     /**
+     * Like [positionsCompiled], but every word of chapters 1 to 20 is in a span of its own: that half
+     * holds several times the markup per word of the other. The paginator cuts its pieces by markup,
+     * so there a share of the text and a share of the markup are far apart.
+     */
+    fun unevenCompiled(): ByteArray {
+        val chapters = 1..40
+        val section = Section("s1.xhtml", "Novela desigual", numberedParts(1, "Capítulo", "cap-", chapters, 42) { it <= 20 })
+        return epub3("Novela desigual", listOf(section), chapters.map { TocItem("Capítulo $it", "s1.xhtml#cap-$it") })
+    }
+
+    /**
      * A compiled novel as the convention splits it: a cover outside the table of contents, two volumes
      * whose title pages lead into their chapters (the first shares a screen with chapter 1, the second
      * is a section of its own), chapters as anchors and one as a whole section, and a last item that
@@ -133,12 +144,25 @@ object EpubFixtures {
 
     private const val NOVEL_PARAGRAPHS = 24
 
-    /** Parts headed `<h2 id="<idPrefix><part>">`, of paragraphs whose words `m<seed>n<count>` never repeat. */
-    private fun numberedParts(seed: Int, label: String, idPrefix: String, parts: IntRange, paragraphsPerPart: Int): String {
+    /**
+     * Parts headed `<h2 id="<idPrefix><part>">`, of paragraphs whose words `m<seed>n<count>` never
+     * repeat; in a part [spanned] picks, each word is in a span.
+     */
+    private fun numberedParts(
+        seed: Int,
+        label: String,
+        idPrefix: String,
+        parts: IntRange,
+        paragraphsPerPart: Int,
+        spanned: (part: Int) -> Boolean = { false },
+    ): String {
         var word = 0
         return parts.joinToString("\n") { part ->
             val paragraphs = (1..paragraphsPerPart).joinToString("\n") {
-                "<p>" + (1..WORDS_PER_PARAGRAPH).joinToString(" ") { "m${seed}n${++word}" } + "</p>"
+                "<p>" + (1..WORDS_PER_PARAGRAPH).joinToString(" ") {
+                    val text = "m${seed}n${++word}"
+                    if (spanned(part)) """<span class="palavra">$text</span>""" else text
+                } + "</p>"
             }
             """<h2 id="$idPrefix$part">$label $part</h2>""" + "\n" + paragraphs
         }

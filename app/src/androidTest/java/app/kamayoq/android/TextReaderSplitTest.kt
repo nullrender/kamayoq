@@ -188,6 +188,26 @@ class TextReaderSplitTest {
         assertEquals(last, reading.current)
     }
 
+    // Found by the review of the fixes: a page of a piece before its first heading took its chapter
+    // from fractions, the chapters' starts measured in text and the page in markup, which are far
+    // apart where the markup is dense, so the page named a chapter well ahead of it.
+    @Test
+    fun `dado um romance compilado de marcação desigual quando passo de um pedaço ao seguinte no meio de um capítulo então o lugar fica nesse capítulo`() {
+        open(opened = 0, book = EpubFixtures.unevenCompiled())
+        val last = evaluate(
+            "Math.max(...[...document.querySelector('foliate-view').renderer.getContents()[0].doc.querySelectorAll('h2[id]')].map(heading => Number(heading.id.slice(4))))",
+        ).toInt()
+        assertTrue("Chapters in the first piece: $last of ${chapters.keys.size}", last in 2 until chapters.keys.size)
+        evaluate("document.querySelector('foliate-view').goTo('OEBPS/s1.xhtml#cap-$last'); null")
+        compose.waitUntil(15_000) { saves.any { it.chapter == last - 1 } }
+        saves.clear()
+
+        readInto(chapter = last)
+
+        assertEquals("Chapters given a place from chapter $last into the next", setOf(last - 1, last), saves.map { it.chapter }.toSet())
+        assertShows("Capítulo ${last + 1}")
+    }
+
     @Test
     fun `dado a leitura do capítulo 1 quando avanço até entrar no capítulo 2 então o 1 fica lido no fim e o lugar passa para o 2`() {
         open(opened = 0)
