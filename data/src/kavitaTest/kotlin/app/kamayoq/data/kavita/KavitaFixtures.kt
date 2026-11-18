@@ -59,6 +59,8 @@ fun main(args: Array<String>) {
     writeEpub(File(books, "Chapters Folder/Cap. 0929.epub"), "Beta Story")
     // One book per progress test, so no test finds a record another one left.
     for (name in listOf("Unmarked Book", "Marked Book", "Id Book", "Zero Book")) writeEpub(File(books, "$name/$name.epub"), name)
+    // Read by the sync tests, one book each.
+    writeEpub(File(books, "Read Here Book/Read Here Book.epub"), "Read Here Book")
 }
 
 /** An EPUB of three sections, with invented text: the book is what the OPF title says. */

@@ -22,14 +22,25 @@ class KavitaChapterFilesTest {
         folder.deleteRecursively()
     }
 
-    private fun chapter(needsCheck: Boolean) = StoredChapter(
-        "c", "w", "9", "Cap. 1", UnitKind.CHAPTER, 1.0, ChapterFormat.ARCHIVE, present = true,
+    private fun chapter(needsCheck: Boolean, format: ChapterFormat = ChapterFormat.ARCHIVE) = StoredChapter(
+        "c", "w", "9", "Cap. 1", UnitKind.CHAPTER, 1.0, format, present = true,
         needsContentCheck = needsCheck, origin = "kavita",
     )
 
     private class Answers(private val write: (File) -> Unit) : KavitaClient() {
         override fun download(address: String, key: String, chapterId: String, target: File, stillWanted: () -> Boolean) =
             write(target)
+    }
+
+    // The kept copy carries the format's own extension: a book is not a CBZ.
+    @Test
+    fun `dado um capítulo EPUB, quando baixo, então o arquivo guardado termina em epub`() {
+        val files = KavitaChapterFiles(Answers { it.writeText("book") }, folder)
+
+        val kept = files.file("http://a", "key", chapter(needsCheck = false, format = ChapterFormat.EPUB))
+
+        assertEquals("9.epub", kept.file.name)
+        assertEquals("book", kept.file.readText())
     }
 
     @Test

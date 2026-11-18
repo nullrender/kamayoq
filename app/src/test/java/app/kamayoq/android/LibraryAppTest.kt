@@ -28,6 +28,7 @@ import app.kamayoq.core.progress.StripPosition
 import app.kamayoq.core.progress.strip
 import app.kamayoq.core.reader.EpubLimits
 import app.kamayoq.data.BackupResult
+import app.kamayoq.data.kavita.KavitaChapterFile
 import app.kamayoq.data.kavita.KavitaClient
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -93,17 +94,35 @@ class LibraryAppTest {
         compose.onNodeWithText(" · Kavita", substring = true).assertExists()
     }
 
+    // Milestone C1 of step 4: a book from Kavita goes the way of a local one, through the download.
     @Test
-    fun `dado um livro EPUB do Kavita, quando toco no capítulo, então o app avisa que ainda não abre`() {
-        kavitaWork("Livro do Kavita", ChapterFormat.EPUB)
+    fun `dado um livro EPUB do Kavita sem servidor alcançável, quando toco no capítulo, então o app diz que não conseguiu baixar`() {
+        kavitaWork("Livro sem rede", ChapterFormat.EPUB)
         showWithoutFolder()
-        waitFor("Livro do Kavita")
+        waitFor("Livro sem rede")
 
-        compose.onNodeWithText("Livro do Kavita").performClick()
+        compose.onNodeWithText("Livro sem rede").performClick()
         waitFor("Cap. 1")
         compose.onNodeWithText("Cap. 1").performClick()
 
-        waitFor(app.getString(R.string.reader_epub_not_yet))
+        waitFor(app.getString(R.string.reader_download_failed))
+    }
+
+    // The ceiling in the message proves the kept file went to the book's copy, not to the CBZ's.
+    @Test
+    fun `dado um livro EPUB do Kavita já guardado maior que o teto, quando toco no capítulo, então a cópia para e o app diz o teto`() {
+        kavitaWork("Livro grande", ChapterFormat.EPUB)
+        val kept = File(app.cacheDir, "kavita-large.epub").apply { writeBytes(ByteArray(2 * 1024 * 1024)) }
+        val folder = FolderInMemory(app, emptyList()).apply { chosen = false }
+        val opening = ChapterOpening(app, folder, app.store, { _, _ -> KavitaChapterFile(kept, outdated = false) }, EpubLimits(maxFileBytes = 1024 * 1024))
+        compose.setContent { LibraryApp(app.store, folder, opening, app.backups, app.kavita, app.kavitaSync, "test-device") }
+        waitFor("Livro grande")
+
+        compose.onNodeWithText("Livro grande").performClick()
+        waitFor("Cap. 1")
+        compose.onNodeWithText("Cap. 1").performClick()
+
+        waitFor(app.getString(R.string.reader_too_large, 1))
     }
 
     // The ceiling comes from the opening, so the message says the ceiling that stopped the copy.

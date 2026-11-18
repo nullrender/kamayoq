@@ -1,10 +1,12 @@
 package app.kamayoq.data.kavita
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import app.kamayoq.core.progress.BasisPoints
 import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.ReadMark
 import app.kamayoq.core.progress.ReadMarkSource
 import app.kamayoq.core.progress.StripPosition
+import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.progress.strip
 import app.kamayoq.data.LibraryStore
 import app.kamayoq.core.kavita.RemoteProgress
@@ -53,6 +55,27 @@ class KavitaProgressSyncTest {
     )
 
     private fun item(chapter: StoredChapter) = checkNotNull(store.syncItem(chapter.id))
+
+    // Milestone C1 of step 4: a book from Kavita opens in the text reader, and its place stays here
+    // until the conversion of C2 exists.
+    @Test
+    fun `dado um capítulo de texto do Kavita lido aqui, quando sincronizo, então nada é enviado`() {
+        store.linkKavita(address, "0.9.1.4", accountId = 1)
+        store.markLibraries(checkNotNull(store.kavitaServer()).id, listOf(KavitaServer.bookLibraryId))
+        val pagesRead = KavitaImport(client, store).run(key)
+        val work = store.works().single { it.title == "Read Here Book" }
+        val chapter = store.chapters(work.id).single()
+        val place = TextPosition(2, 3, "epubcfi(/6/8!/4/2/1:0)", checkNotNull(BasisPoints.fromFraction(0.9)), Instant.EPOCH, "phone-a")
+        store.saveProgress(chapter.id, ChapterProgress(null, place, 0))
+
+        sync.all(address, key, pagesRead)
+        sync.afterReading(address, key, chapter.id)
+
+        val remote = KavitaServer.chapters(KavitaServer.works(KavitaServer.bookLibraryId).single { it.name == "Read Here Book" }.id).single()
+        // With no record the server invents one with no volume: nothing reached it.
+        assertEquals(0, KavitaServer.progress(remote).getValue("volumeId").jsonPrimitive.int)
+        assertEquals(place, store.progress(chapter.id).position)
+    }
 
     @Test
     fun `dado a página 3 lida aqui, quando sincronizo, então o Kavita guarda 3, o acordo fica em 3 e a fila esvazia`() {
