@@ -90,7 +90,19 @@ sealed interface ReaderMessage {
                 is JsonPrimitive -> if (raw.isString) KavitaText.markerOrNull(raw.content) else return Refused("bad marker")
                 else -> return Refused("bad marker")
             }
-            return Relocated(section, sections, cfi, position, reason, marker)
+            val chapter = when (val raw = message["chapter"]) {
+                null, JsonNull -> null
+                is JsonPrimitive -> raw.takeUnless { it.isString }?.intOrNull?.takeIf { it in 0 until EpubContents.MAX_ITEMS }
+                    ?: return Refused("bad chapter")
+                else -> return Refused("bad chapter")
+            }
+            val chapterPosition = when (val raw = message["chapterFraction"]) {
+                null, JsonNull -> null
+                is JsonPrimitive -> BasisPoints.fromFraction(raw.takeUnless { it.isString }?.doubleOrNull)
+                    ?: return Refused("bad chapter fraction")
+                else -> return Refused("bad chapter fraction")
+            }
+            return Relocated(section, sections, cfi, position, reason, marker, chapter, chapterPosition)
         }
 
         private fun link(message: JsonObject): ReaderMessage {
