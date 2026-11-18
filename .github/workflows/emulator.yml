@@ -67,7 +67,9 @@ jobs:
           ram-size: 2048M
           script: |
             adb shell dumpsys webviewupdate
+            adb logcat -G 16M
             ./gradlew :app:connectedDebugAndroidTest --stacktrace
+            adb logcat -d -s KamayoqMeasure:I
             sh .github/scripts/process-death.sh
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

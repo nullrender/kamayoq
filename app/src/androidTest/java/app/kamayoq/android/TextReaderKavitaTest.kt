@@ -1,5 +1,6 @@
 package app.kamayoq.android
 
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebView
@@ -24,6 +25,7 @@ import java.util.concurrent.TimeUnit
 import org.json.JSONArray
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -171,7 +173,39 @@ class TextReaderKavitaTest {
         assertEquals("first word $word", "//body/p[${(number - 1) / 40 + 1}]", place.marker)
     }
 
+    // The measure of milestone C3: what a round trip through Kavita's marker costs, on the page the
+    // WebView renders. The server keeps the marker byte for byte (KavitaEpubFactsTest), so the loss is
+    // all here. It enters green: the number is what the WebView and foliate-js give, and the checks
+    // hold only what the conversion promises, the same section and never a later place. The emulator
+    // workflow prints the KamayoqMeasure lines after the tests.
+    @Test
+    fun `dado um lugar no meio de uma seção quando vai ao Kavita pelo marcador e volta então a seção é a mesma e a perda fica medida`() {
+        open(EpubFixtures.positions())
+        val losses = mutableListOf<Int>()
+        for (pages in 1..4) {
+            show(TextReading(null as TextPosition?, "emulator"))
+            move("document.querySelector('foliate-view').goTo('OEBPS/s2.xhtml#parte-2-1')")
+            var place = move("kamayoqReader.next()")
+            repeat(pages - 1) { place = move("kamayoqReader.next()") }
+            val (before, numberBefore) = firstWord()
+            val marker = checkNotNull(place.marker) { "No marker at $before" }
+
+            show(fromKavita(page = place.section, sections = place.sections, marker = marker))
+
+            // The paragraph the marker names starts on the page it reopens at.
+            PARAGRAPH.matchEntire(marker)?.let { assertShows("m2n${(it.groupValues[1].toInt() - 1) * 40 + 1}") }
+            val (after, numberAfter) = firstWord()
+            assertEquals("section of $after", before.substringBefore('n'), after.substringBefore('n'))
+            assertTrue("$after came after $before", numberAfter <= numberBefore)
+            losses += numberBefore - numberAfter
+            Log.i(MEASURE, "Kavita round trip: $before ($marker) came back at $after, ${numberBefore - numberAfter} words back")
+        }
+        Log.i(MEASURE, "Kavita round trip, words back per place: $losses")
+    }
+
     private companion object {
         val WORD = Regex("m\\d+n\\d+")
+        val PARAGRAPH = Regex("//body/p\\[(\\d+)]")
+        const val MEASURE = "KamayoqMeasure"
     }
 }
