@@ -1,6 +1,7 @@
 package app.kamayoq.android
 
 import android.content.pm.ActivityInfo
+import android.os.SystemClock
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebView
@@ -16,6 +17,7 @@ import app.kamayoq.core.reader.TextReading
 import app.kamayoq.epubfixtures.EpubFixtures
 import java.io.File
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import org.json.JSONArray
@@ -36,6 +38,10 @@ class TextReaderSavingTest {
     private val messages = LinkedBlockingQueue<ReaderMessage>()
     private val saves = LinkedBlockingQueue<TextPosition>()
 
+    // When the book said it opened and when each place was handed out, on the uptime clock.
+    @Volatile private var restoredAt: Long? = null
+    private val saveTimes = CopyOnWriteArrayList<Long>()
+
     @Before
     fun openActivity() {
         file = File(instrumentation.targetContext.cacheDir, "saving.epub").apply { writeBytes(EpubFixtures.positions()) }
@@ -53,15 +59,22 @@ class TextReaderSavingTest {
     /** Shows the book from [saved] and waits for the restore; [whileOpening] runs until it comes. */
     private fun show(saved: TextPosition?, whileOpening: () -> Unit = {}) {
         messages.clear()
+        restoredAt = null
         scenario.onActivity { activity ->
             activity.setContent {
                 TextReader(
                     archive = archive,
                     title = "Livro",
                     reading = TextReading(saved, "emulator"),
-                    onSave = saves::add,
+                    onSave = { place ->
+                        saveTimes += SystemClock.uptimeMillis()
+                        saves += place
+                    },
                     onBack = {},
-                    onMessage = messages::add,
+                    onMessage = { message ->
+                        if (message == ReaderMessage.Restored) restoredAt = SystemClock.uptimeMillis()
+                        messages += message
+                    },
                 )
             }
         }
@@ -146,33 +159,53 @@ class TextReaderSavingTest {
         assertShows(word)
     }
 
+    /**
+     * The middle of Next page and of the book, from the book's own view, or null before it exists.
+     * Under the book sit Contents, in a row of its own, and then Previous and Next, each row at least
+     * 48 dp (TextReaderControls); below the app's window a touch would reach the system instead.
+     */
+    private fun targets(): Pair<Pair<Float, Float>, Pair<Float, Float>>? {
+        var found: Pair<Pair<Float, Float>, Pair<Float, Float>>? = null
+        scenario.onActivity { activity ->
+            activity.window.decorView.findWebView()?.let { view ->
+                val (left, top) = IntArray(2).also(view::getLocationOnScreen)
+                val dp = view.resources.displayMetrics.density
+                val next = left + view.width * 0.75f to top + view.height + (48 + 24) * dp
+                val middle = left + view.width * 0.5f to top + view.height * 0.5f
+                found = next to middle
+            }
+        }
+        return found
+    }
+
     @Test
     fun `dado um lugar gravado quando toco na tela e em Próxima durante a abertura então o livro não volta à primeira página`() {
         val (saved, word) = readToAPlace()
         hide()
         saves.clear()
+        saveTimes.clear()
+        val taps = CopyOnWriteArrayList<Long>()
 
-        // Where Next page sits (the row of controls right under the book, on the right) and the
-        // middle of the book, the way an impatient finger would, until the book says it has opened.
-        // Placed from the book's own view: below the app's window the touch would reach the system.
+        // An impatient finger on Next page and on the book until the book says it has opened.
         show(saved) {
-            var book: IntArray? = null
-            scenario.onActivity { activity ->
-                activity.window.decorView.findWebView()?.let { view ->
-                    val location = IntArray(2).also(view::getLocationOnScreen)
-                    val controlsRow = (24 * view.resources.displayMetrics.density).toInt()
-                    book = intArrayOf(location[0], location[1], view.width, view.height, controlsRow)
+            if (restoredAt == null) {
+                targets()?.let { (next, middle) ->
+                    touchScreen(next)
+                    touchScreen(middle)
+                    // Taken after the touches: a time before the restore means the touches were too.
+                    taps += SystemClock.uptimeMillis()
                 }
             }
-            book?.let { (left, top, width, height, controlsRow) ->
-                touchScreen(left + width * 0.75f to (top + height + controlsRow).toFloat())
-                touchScreen(left + width * 0.5f to top + height * 0.5f)
-            }
         }
+        val opened = checkNotNull(restoredAt)
 
+        assertTrue("No touch landed before the book opened", taps.any { it < opened })
         assertShows(word)
-        val early = saves.toList()
-        assertTrue("A place before the restore was kept: $early", early.none { it.section < saved.section })
+        assertTrue("A place was handed out before the book opened", saveTimes.none { it < opened })
+        // The same spot, now that the controls work, turns the page: it is Next page indeed.
+        saves.clear()
+        touchScreen(checkNotNull(targets()).first)
+        assertTrue("The spot touched is not Next page", saves.poll(15, TimeUnit.SECONDS) != null)
     }
 
     // A changed edition can drop the spine item the CFI names: the fork then opens the book at its
