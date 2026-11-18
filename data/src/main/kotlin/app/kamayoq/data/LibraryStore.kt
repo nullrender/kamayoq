@@ -34,6 +34,7 @@ import app.kamayoq.core.progress.ReadMarkSource
 import app.kamayoq.core.progress.StripPosition
 import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.progress.strip
+import app.kamayoq.core.reader.ContentsChapter
 import app.kamayoq.data.db.CurrentOfVersion
 import app.kamayoq.data.db.KamayoqDatabase
 import app.kamayoq.data.db.RemoteOfVersion
@@ -128,6 +129,15 @@ data class StoredResume(val chapterId: String, val position: ReadingPosition?)
 
 /** The Kavita server of this app (one address only, by design), with the [marked] libraries. */
 data class StoredServer(val id: String, val address: String, val marked: List<Int>)
+
+/**
+ * The question of a split file whose table of contents changed while its chapters had progress
+ * (rule E1): [lastRead] is the last chapter read in the previous edition.
+ */
+data class EditionOffer(val path: String, val lastRead: String?)
+
+/** What is stored of a split file: the stamp it had when its contents were read, and its chapters. */
+data class StoredSplit(val stamp: String, val chapters: List<ContentsChapter>)
 
 /** What opening a chapter reads at one moment: [current] is the edition to read, in [chapters]. */
 data class ChapterOpeningList(val current: String, val chapters: List<StoredChapter>)
@@ -361,6 +371,27 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
             database.workVersionQueries.markAbsentExcept(LOCAL, source, versionIds)
         }
     }
+
+    /** The split files of [source] as stored, by path, for a reading of the folder to reuse. */
+    fun splitFiles(source: String): Map<String, StoredSplit> = emptyMap()
+
+    /** The current chapters of the file [chapterId] is in, in the order of its contents. */
+    fun fileChapters(chapterId: String): List<StoredChapter> = emptyList()
+
+    /**
+     * Brings the chapters of the file [chapterId] is in in line with [chapters], read from the file
+     * as it opens, by the same rule as the import. Returns the chapter that stands for [chapterId].
+     */
+    fun resplit(chapterId: String, chapters: List<ContentsChapter>): String = chapterId
+
+    /** The questions a work's changed files ask (rule E1). */
+    fun editionOffers(workId: String): List<EditionOffer> = emptyList()
+
+    /** Marks read, in the new edition of the file at [path], the chapters read in the previous one, by title. */
+    fun applyPreviousEdition(workId: String, path: String) = Unit
+
+    /** Ends the question without applying anything; the previous edition stays stored. */
+    fun dismissEdition(workId: String, path: String) = Unit
 
     /**
      * Brings the stored works of [server] in line with [works], everything its marked libraries hold
