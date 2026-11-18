@@ -40,7 +40,20 @@ class EpubFixturesTest {
             EpubFixtures.fixedLayout(),
             EpubFixtures.positions(),
             EpubFixtures.positionsCompiled(),
+            EpubFixtures.novel(),
         )
+
+    @Test
+    fun `dado o romance em volumes, então a capa fica fora do sumário, que tem dois volumes e um destino repetido`() {
+        val entries = entriesOf(EpubFixtures.novel())
+        val nav = entries.text("OEBPS/nav.xhtml")
+
+        assertEquals(4, Regex("<itemref ").findAll(entries.text("OEBPS/content.opf")).count())
+        assertFalse("capa.xhtml" in nav)
+        assertEquals(2, Regex("""<li><a href="v\d\.xhtml">Volume \d</a><ol>""").findAll(nav).count())
+        assertEquals(2, Regex("""href="v2\.xhtml#cap-5"""").findAll(nav).count())
+        assertContains(entries.text("OEBPS/v2.xhtml"), """id="cap-5"""")
+    }
 
     @Test
     fun `dado o gerador, quando crio um EPUB, então mimetype é a primeira entrada, sem compressão`() {

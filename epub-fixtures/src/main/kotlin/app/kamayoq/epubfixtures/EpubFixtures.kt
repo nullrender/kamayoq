@@ -96,6 +96,41 @@ object EpubFixtures {
         return epub3("Novela de posições", listOf(section), chapters.map { TocItem("Capítulo $it", "s1.xhtml#cap-$it") })
     }
 
+    /**
+     * A compiled novel as the convention splits it: a cover outside the table of contents, two volumes
+     * whose title pages lead into their chapters, chapters as anchors and one as a whole section, and
+     * a last item that repeats the destination of chapter 5. Every word is unique.
+     */
+    fun novel(): ByteArray {
+        val sections = listOf(
+            Section("capa.xhtml", "Capa", numberedParts(1, "Capa", "capa-", 1..1, 4)),
+            Section("v1.xhtml", "Volume 1", numberedParts(2, "Capítulo", "cap-", 1..2, NOVEL_PARAGRAPHS)),
+            Section("c3.xhtml", "Capítulo 3", numberedParts(3, "Trecho", "trecho-", 1..1, NOVEL_PARAGRAPHS)),
+            Section("v2.xhtml", "Volume 2", numberedParts(4, "Capítulo", "cap-", 4..5, NOVEL_PARAGRAPHS)),
+        )
+        val toc = """
+            <li><a href="v1.xhtml">Volume 1</a><ol>
+            <li><a href="v1.xhtml#cap-1">Capítulo 1</a></li>
+            <li><a href="v1.xhtml#cap-2">Capítulo 2</a></li>
+            <li><a href="c3.xhtml">Capítulo 3</a></li>
+            </ol></li>
+            <li><a href="v2.xhtml">Volume 2</a><ol>
+            <li><a href="v2.xhtml#cap-4">Capítulo 4</a></li>
+            <li><a href="v2.xhtml#cap-5">Capítulo 5</a></li>
+            <li><a href="v2.xhtml#cap-5">Epílogo</a></li>
+            </ol></li>
+        """.flat()
+        val manifest = """<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>""" + "\n" + sectionItems(sections)
+        val modified = """<meta property="dcterms:modified">2026-01-01T00:00:00Z</meta>"""
+        return zipped(
+            sections,
+            PACKAGE to packageDocument("3.0", "Novela em volumes", modified, manifest, "<spine>", sections),
+            "OEBPS/nav.xhtml" to navDocument(toc),
+        )
+    }
+
+    private const val NOVEL_PARAGRAPHS = 24
+
     /** Parts headed `<h2 id="<idPrefix><part>">`, of paragraphs whose words `m<seed>n<count>` never repeat. */
     private fun numberedParts(seed: Int, label: String, idPrefix: String, parts: IntRange, paragraphsPerPart: Int): String {
         var word = 0
@@ -205,8 +240,10 @@ object EpubFixtures {
         """.flat()
     }
 
-    private fun nav(toc: List<TocItem>): String {
-        val items = toc.joinToString("\n") { """<li><a href="${it.href}">${it.label}</a></li>""" }
+    private fun nav(toc: List<TocItem>): String =
+        navDocument(toc.joinToString("\n") { """<li><a href="${it.href}">${it.label}</a></li>""" })
+
+    private fun navDocument(items: String): String {
         return """
             <?xml version="1.0" encoding="UTF-8"?>
             <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
