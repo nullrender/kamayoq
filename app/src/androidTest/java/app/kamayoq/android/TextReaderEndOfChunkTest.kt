@@ -78,6 +78,13 @@ class TextReaderEndOfChunkTest {
     private fun visibleText(): String =
         JSONArray("[" + evaluate("document.querySelector('foliate-view').lastLocation?.range?.toString() ?? ''") + "]").getString(0)
 
+    /** The paginator's own view of where it is, for a failure to explain itself. */
+    private fun paginator(): String = evaluate(
+        "(() => { const r = document.querySelector('foliate-view').renderer; " +
+            "return JSON.stringify({ units: r.sections.length, primary: r.primaryIndex, " +
+            "loaded: r.getContents().map(c => c.index), page: r.page, pages: r.pages, atEnd: r.atEnd }) })()",
+    )
+
     private fun endBlockShows() = compose.onAllNodesWithText(END_OF_BOOK).fetchSemanticsNodes().isNotEmpty()
 
     @Test
@@ -100,13 +107,15 @@ class TextReaderEndOfChunkTest {
         )
         Thread.sleep(2_000)
 
+        val states = mutableListOf<String>()
         repeat(4) {
+            states += paginator()
             compose.onNodeWithText(compose.activity.getString(R.string.reader_next_page)).performClick()
             compose.waitForIdle()
             Thread.sleep(700)
         }
 
-        assertFalse("The end block showed at the end of a chunk ($lastWord)", endBlockShows())
+        assertFalse("The end block showed at the end of a chunk ($lastWord); before each Next: $states", endBlockShows())
         val number = Regex("m1n(\\d+)").findAll(visibleText()).map { it.groupValues[1].toInt() }.maxOrNull() ?: 0
         assertTrue(
             "The reader did not move past the chunk's last word $lastWord; on screen: ${visibleText().take(120)}",
