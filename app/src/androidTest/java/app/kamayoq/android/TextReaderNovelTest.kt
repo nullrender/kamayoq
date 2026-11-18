@@ -5,6 +5,9 @@ import android.view.ViewGroup
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.kamayoq.core.library.WorkType
 import app.kamayoq.core.reader.EpubArchive
@@ -15,6 +18,7 @@ import java.io.File
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -45,9 +49,12 @@ class TextReaderNovelTest {
         file.delete()
     }
 
-    private fun open(type: WorkType) {
+    private fun open(type: WorkType, end: TextEnd = TextEnd.Book) {
         compose.setContent {
-            TextReader(archive, "Capítulo", TextReading(null, "emulator"), onSave = {}, onBack = {}, onMessage = messages::add, type = type)
+            TextReader(
+                archive, "Capítulo", TextReading(null, "emulator"),
+                onSave = {}, onBack = {}, onMessage = messages::add, type = type, end = end,
+            )
         }
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60)
         while (System.nanoTime() < deadline) {
@@ -85,5 +92,42 @@ class TextReaderNovelTest {
     fun `dado um livro quando ele abre então o texto vem em páginas`() {
         open(WorkType.BOOKS)
         assertEquals("\"paginated\"", flow())
+    }
+
+    private fun shows(text: String) = compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
+
+    /** The last section from the contents, then Next page until [block] shows, as the end-of-book test does. */
+    private fun readToTheEnd(block: String) {
+        compose.onNodeWithText(compose.activity.getString(R.string.reader_contents)).performClick()
+        compose.onNodeWithText("Seção 3").performClick()
+        compose.waitForIdle()
+        Thread.sleep(1_000)
+        repeat(80) {
+            if (shows(block)) return
+            compose.onNodeWithText(compose.activity.getString(R.string.reader_next_page)).performClick()
+            compose.waitForIdle()
+            Thread.sleep(300)
+        }
+        throw AssertionError("No \"$block\" after 80 screens of the last section")
+    }
+
+    @Test
+    fun `dado o fim de um capítulo de romance quando toco no próximo então o bloco de fim leva ao capítulo seguinte`() {
+        val opened = AtomicInteger()
+        open(WorkType.NOVELS, TextEnd.Chapter("Cap. 0929") { opened.incrementAndGet() })
+
+        readToTheEnd("End of the chapter")
+        compose.onNodeWithText("Next: Cap. 0929").performClick()
+
+        assertEquals(1, opened.get())
+    }
+
+    @Test
+    fun `dado o fim do último capítulo de um romance então o bloco de fim diz que é o último`() {
+        open(WorkType.NOVELS, TextEnd.Chapter(nextName = null) {})
+
+        readToTheEnd("End of the chapter")
+
+        compose.onNodeWithText("This is the last chapter in the folder.").assertExists()
     }
 }

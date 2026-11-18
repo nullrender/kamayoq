@@ -73,6 +73,7 @@ private sealed interface Opening {
         val turn: Long?,
         val marker: String?,
         val type: WorkType,
+        val next: StoredChapter?,
     ) : Opening
 
     /** In a book, [sections] says the pages are sections. */
@@ -252,7 +253,13 @@ fun ReaderHost(
         is Opening.ReadyText -> {
             val reading = remember(current) { TextReading(current.progress, deviceId, current.marker) }
             val save = remember(current) { textSaving(store, opening.turns, current.round, current.text.chapterId) { reading.marker } }
-            TextReader(current.text.archive, current.title, reading, onSave = save, onBack = onBack, type = current.type)
+            // A novel is read chapter after chapter; a book's volume ends where it ends.
+            val end = if (current.type == WorkType.NOVELS) {
+                TextEnd.Chapter(current.next?.name) { current.next?.let { onOpenChapter(it.id) } }
+            } else {
+                TextEnd.Book
+            }
+            TextReader(current.text.archive, current.title, reading, onSave = save, onBack = onBack, type = current.type, end = end)
         }
         is Opening.Conflict -> {
             ConflictScreen(
@@ -385,10 +392,13 @@ private fun openChapter(
     val (current, chapters) = store.openingOf(workId, chapterId)
     val chapter = chapters.firstOrNull { it.id == current } ?: return Opening.Missing
     when (chapter.format) {
-        ChapterFormat.EPUB -> return if (chapter.origin == LibraryStore.KAVITA) {
-            openKavitaText(store, opening, kavita, tree, workId, chapter, round, stillWanted)
-        } else {
-            openText(store, opening, tree, workId, chapter, round, stillWanted, turn = null)
+        ChapterFormat.EPUB -> {
+            val next = chapters.getOrNull(chapters.indexOfFirst { it.id == chapter.id } + 1)
+            return if (chapter.origin == LibraryStore.KAVITA) {
+                openKavitaText(store, opening, kavita, tree, workId, chapter, round, stillWanted, next)
+            } else {
+                openText(store, opening, tree, workId, chapter, round, stillWanted, turn = null, next = next)
+            }
         }
         ChapterFormat.PDF, ChapterFormat.OTHER_ARCHIVE -> return Opening.FormatNotYet
         ChapterFormat.ARCHIVE, ChapterFormat.IMAGE_FOLDER -> Unit
@@ -432,6 +442,7 @@ private fun openKavitaText(
     chapter: StoredChapter,
     round: Long,
     stillWanted: () -> Boolean,
+    next: StoredChapter?,
 ): Opening {
     val turn = kavita.beforeOpening(chapter.id)
     turn.conflict?.let { conflict ->
@@ -441,7 +452,7 @@ private fun openKavitaText(
         return Opening.Conflict(chapter.id, here?.page ?: 0, conflict, turn.token, sections = true)
     }
     return try {
-        openText(store, opening, tree, workId, chapter, round, stillWanted, turn.token)
+        openText(store, opening, tree, workId, chapter, round, stillWanted, turn.token, next)
     } catch (e: Exception) {
         // Nothing opened: the turn ends here.
         kavita.finishReading(chapter.id, turn.token, opening.turns)
@@ -459,6 +470,7 @@ private fun openText(
     round: Long,
     stillWanted: () -> Boolean,
     turn: Long?,
+    next: StoredChapter?,
 ): Opening {
     val text = opening.openText(tree, chapter, stillWanted)
     try {
@@ -470,7 +482,7 @@ private fun openText(
         // The marker known for the saved place, queued here or agreed with Kavita: it opens a place
         // from Kavita, and goes with the place when the end block saves it with no move first.
         val marker = turn?.let { store.syncItem(text.chapterId)?.knownPlace(progress.position as? TextPosition)?.marker }
-        return Opening.ReadyText(text, title, progress, round, turn, marker, stored?.type ?: WorkType.BOOKS)
+        return Opening.ReadyText(text, title, progress, round, turn, marker, stored?.type ?: WorkType.BOOKS, next)
     } catch (e: Exception) {
         text.release()
         throw e

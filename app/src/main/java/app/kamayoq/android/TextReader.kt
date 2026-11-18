@@ -51,9 +51,18 @@ import java.time.Instant
 import java.util.UUID
 import app.kamayoq.core.reader.ReaderMessage as PageMessage
 
+/** What comes after the last page of a text: a book just ends; a novel's chapter leads to the next. */
+sealed interface TextEnd {
+    data object Book : TextEnd
+
+    /** [nextName] is null on the last chapter of the work. */
+    class Chapter(val nextName: String?, val onNext: () -> Unit) : TextEnd
+}
+
 /**
  * Shows a book in the reader's page, from where [reading] starts; [onSave] gets the progress to keep.
- * [onMessage] hears every message of the page, for the tests. The work's [type] chooses the flow.
+ * [onMessage] hears every message of the page, for the tests. The work's [type] chooses the flow,
+ * and [end] what the end block offers.
  */
 @Composable
 fun TextReader(
@@ -64,6 +73,7 @@ fun TextReader(
     onBack: () -> Unit,
     onMessage: (PageMessage) -> Unit = {},
     type: WorkType = WorkType.BOOKS,
+    end: TextEnd = TextEnd.Book,
 ) {
     val context = LocalContext.current
     // Checked before any WebView is made: below the floor the fork fails later, with no clear reason.
