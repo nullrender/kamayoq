@@ -211,6 +211,20 @@ class KavitaProgressSyncTest {
         assertEquals(0 to "//body/p[3]", remotePlace("Kept Here Book"))
     }
 
+    // From the Codex review of milestone C (18/11): the batch looked only at pagesRead, which a move
+    // inside the same section does not change.
+    @Test
+    fun `dado só o marcador mudado no Kavita na mesma seção, quando a sincronização em lote roda, então o lugar novo vem`() {
+        val chapter = book("Batch Marker Book")
+        readText(chapter, 1, "//body/p[1]")
+        sync.chapter(address, key, item(chapter))
+        KavitaServer.saveProgress(remoteBook("Batch Marker Book"), remoteBookChapter("Batch Marker Book"), page = 1, bookScrollId = "//body/p[2]")
+
+        sync.all(address, key, KavitaImport(client, store).run(key))
+
+        assertEquals("//body/p[2]", store.agreedMarker(chapter.id))
+    }
+
     @Test
     fun `dado seções diferentes nos dois lados, quando sincronizo, então é conflito e nada é enviado`() {
         val chapter = book("Crossed Book")

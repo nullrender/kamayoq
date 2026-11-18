@@ -46,6 +46,18 @@ class TextReadingTest {
         assertNull(reading.startSections)
     }
 
+    // From the Codex review of milestone C (18/11): reopened at the last page, the end block saves
+    // with no move first, and the marker known for that place must go with it.
+    @Test
+    fun `dado um lugar lido aqui com marcador conhecido, quando o bloco de fim chega sem outra virada, então o marcador a gravar é o conhecido`() {
+        val reading = TextReading(ChapterProgress(null, saved, 0), device, savedMarker = "//body/p[4]")
+        reading.restored()
+
+        reading.ended(now)
+
+        assertEquals("//body/p[4]", reading.marker)
+    }
+
     @Test
     fun `dado uma virada da pessoa com marcador, então o marcador acompanha o lugar a gravar`() {
         val reading = TextReading(fromKavita(), device, savedMarker = "//body/p[4]")

@@ -93,6 +93,7 @@
     <string name="position_book_end">fim do livro</string>
     <string name="conflict_title">Este capítulo mudou nos dois lados</string>
     <string name="conflict_hint">Escolha onde continuar. A outra posição fica guardada na Obra.</string>
+    <string name="conflict_hint_book">Escolha onde continuar. Num livro, a outra posição não fica guardada.</string>
     <string name="conflict_here">Neste aparelho · %1$s</string>
     <string name="conflict_kavita">No Kavita · %1$s</string>
     <string name="moved_notice">Aberto onde você parou em outro aparelho.</string>

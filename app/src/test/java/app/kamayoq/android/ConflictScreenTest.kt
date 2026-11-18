@@ -73,4 +73,16 @@ class ConflictScreenTest {
         compose.onNodeWithText(app.getString(R.string.conflict_here, app.getString(R.string.position_section, 2, 3))).assertHasClickAction()
         compose.onNodeWithText(app.getString(R.string.conflict_kavita, app.getString(R.string.position_book_end))).assertHasClickAction()
     }
+
+    // From the Codex review of milestone C (18/11): a book's other place is not kept aside, so the
+    // screen must not promise that it is.
+    @Test
+    fun `dado um conflito num livro, quando a tela abre, então ela não promete guardar a outra posição`() {
+        compose.setContent {
+            ConflictScreen(localPage = 1, remotePage = 2, total = 3, onKeepHere = {}, onUseKavita = {}, onBack = {}, sections = true)
+        }
+
+        compose.onNodeWithText(app.getString(R.string.conflict_hint_book)).assertExists()
+        compose.onNodeWithText(app.getString(R.string.conflict_hint)).assertDoesNotExist()
+    }
 }

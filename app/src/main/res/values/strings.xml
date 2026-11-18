@@ -138,6 +138,7 @@
     <string name="position_book_end">end of the book</string>
     <string name="conflict_title">This chapter changed on both sides</string>
     <string name="conflict_hint">Choose where to continue. The other position stays saved in the work.</string>
+    <string name="conflict_hint_book">Choose where to continue. In a book, the other place is not kept.</string>
     <string name="conflict_here">On this device · %1$s</string>
     <string name="conflict_kavita">On Kavita · %1$s</string>
     <string name="moved_notice">Opened where you stopped on another device.</string>
