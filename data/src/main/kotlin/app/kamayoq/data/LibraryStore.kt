@@ -259,9 +259,9 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         if (!localMoved && before?.chapterId == chapterId) return@transaction
         if (localMoved) {
             // A book's place is not kept aside: the positions kept aside count images only.
-            progress(chapterId).position?.strip()?.let { keepAside(versionId, CONFLICT, chapterId, it) }
+            (progress(chapterId).position as? StripPosition)?.let { keepAside(versionId, CONFLICT, chapterId, it) }
         } else {
-            before?.position?.strip()?.takeIf { it.page > 0 }?.let { keepAside(versionId, PREVIOUS, before.chapterId, it) }
+            (before?.position as? StripPosition)?.takeIf { it.page > 0 }?.let { keepAside(versionId, PREVIOUS, before.chapterId, it) }
             database.workResumeQueries.save(versionId, chapterId)
         }
     }
@@ -600,6 +600,10 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
             writeProgress(chapterId, progress)
             val versionId = database.chapterQueries.versionOfChapter(chapterId).executeAsOne()
             database.workResumeQueries.save(versionId, chapterId)
+            val place = progress.position as? TextPosition
+            if (place != null && syncItem(chapterId)?.isText == true) {
+                queueProgress(chapterId, place.section, place.at, marker, place.cfi)
+            }
         }
     }
 

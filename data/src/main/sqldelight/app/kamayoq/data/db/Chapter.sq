@@ -135,7 +135,7 @@ JOIN work_version ON work_version.id = chapter.version_id
 LEFT JOIN progress_agreement ON progress_agreement.chapter_id = chapter.id
 LEFT JOIN progress_outbox ON progress_outbox.chapter_id = chapter.id
 WHERE work_version.origin = 'kavita' AND work_version.source = ? AND chapter.replaced_by IS NULL
-    AND chapter.present = 1 AND work_version.present = 1 AND chapter.format = 'ARCHIVE' AND chapter.page_count > 0
+    AND chapter.present = 1 AND work_version.present = 1 AND chapter.format IN ('ARCHIVE', 'EPUB') AND chapter.page_count > 0
     -- Until the hash says, no one knows whose position this is.
     AND chapter.needs_check = 0
 ORDER BY chapter.sort_index;
@@ -152,4 +152,4 @@ JOIN work_version ON work_version.id = chapter.version_id
 LEFT JOIN progress_agreement ON progress_agreement.chapter_id = chapter.id
 LEFT JOIN progress_outbox ON progress_outbox.chapter_id = chapter.id
 WHERE chapter.id = ? AND work_version.origin = 'kavita' AND chapter.present = 1 AND work_version.present = 1
-    AND chapter.format = 'ARCHIVE' AND chapter.page_count > 0 AND chapter.needs_check = 0;
+    AND chapter.format IN ('ARCHIVE', 'EPUB') AND chapter.page_count > 0 AND chapter.needs_check = 0;
