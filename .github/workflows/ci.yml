@@ -61,8 +61,11 @@ jobs:
         run: ./gradlew :data:verifyMainKamayoqDatabaseMigration --stacktrace
 
       # Robolectric fetches its copy of Android here while the tests run; a failed download once
-      # broke a run that had nothing to do with it. Its key follows the version in use.
+      # broke a run that had nothing to do with it. Its key follows the version in use. Like the steps
+      # around it, it runs after a red test: skipped, it left the app tests to fetch Android and fail
+      # (runs 44424153101 and 44424716022, red commits).
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: ${{ !cancelled() }}
         with:
           path: ~/.m2/repository/org/robolectric
           key: robolectric-${{ hashFiles('gradle/libs.versions.toml') }}
