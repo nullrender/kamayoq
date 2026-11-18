@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -207,6 +208,9 @@ fun ReaderHost(
     var state by remember(chapterId) { mutableStateOf<Opening>(Opening.Loading) }
     // Raised to open the chapter again after a choice that changes where it opens.
     var round by remember(chapterId) { mutableStateOf(0) }
+    // In a compiled novel the reading moves on from the chapter that was opened. A screen made again
+    // (the phone turned, the process killed) opens the file at the chapter being read, not at that one.
+    var readingNow by rememberSaveable(chapterId) { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     fun thenReopen(change: () -> Unit) {
         state = Opening.Loading
@@ -243,7 +247,7 @@ fun ReaderHost(
         // the result with CancellationException, and leaving right after it never composes it.
         state = try {
             opening.turns.open { turnsRound ->
-                openChapter(store, opening, kavita, tree, workId, chapterId, turnsRound) { screen.isActive }.also { owned.take(thisRound, it) }
+                openChapter(store, opening, kavita, tree, workId, readingNow ?: chapterId, turnsRound) { screen.isActive }.also { owned.take(thisRound, it) }
             }
         } catch (e: CancellationException) {
             throw e
@@ -280,8 +284,12 @@ fun ReaderHost(
         }
         is Opening.ReadySplit -> {
             val reading = remember(current) { SplitReading(current.split.saved, current.split.opened, deviceId) }
+            val save = remember(current) { splitSaving(store, opening.turns, current.round, current.split.chapterIds) }
             val session = remember(current) {
-                SplitText(reading, current.split.chapters, splitSaving(store, opening.turns, current.round, current.split.chapterIds))
+                SplitText(reading, current.split.chapters) { saves ->
+                    readingNow = current.split.chapterIds[saves.last().chapter]
+                    save(saves)
+                }
             }
             val end = TextEnd.Chapter(current.next?.name) { current.next?.let { onOpenChapter(it.id) } }
             TextReader(current.text.archive, current.title, session, onBack = onBack, type = current.type, end = end)
