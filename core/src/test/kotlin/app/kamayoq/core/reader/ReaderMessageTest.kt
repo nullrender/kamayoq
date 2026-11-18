@@ -15,6 +15,32 @@ class ReaderMessageTest {
         reason: String = "\"page\"",
     ) = """{"type":"relocated","section":$section,"sections":$sections,"cfi":$cfi,"fraction":$fraction,"reason":$reason}"""
 
+    private fun relocatedWithMarker(marker: String) =
+        """{"type":"relocated","section":1,"sections":3,"cfi":"epubcfi(/6/4!/4/2)","fraction":0.5,"reason":"page","marker":$marker}"""
+
+    // Milestone C2 of step 4: the page names the element it starts at, in Kavita's form.
+    @Test
+    fun `dado relocated com o marcador do Kavita, então o marcador vem com o lugar`() {
+        val message = assertIs<ReaderMessage.Relocated>(ReaderMessage.parse(relocatedWithMarker("\"//body/p[3]\"")))
+
+        assertEquals("//body/p[3]", message.marker)
+    }
+
+    @Test
+    fun `dado relocated com marcador nulo ou de forma desconhecida, então o lugar vale sem marcador`() {
+        for (marker in listOf("null", "\"idx:12\"", "\"//div[1]\"")) {
+            val message = assertIs<ReaderMessage.Relocated>(ReaderMessage.parse(relocatedWithMarker(marker)), marker)
+            assertEquals(null, message.marker, marker)
+        }
+    }
+
+    @Test
+    fun `dado relocated com marcador que não é texto, então a mensagem é recusada`() {
+        for (marker in listOf("3", "true", "{}", "[]")) {
+            assertIs<ReaderMessage.Refused>(ReaderMessage.parse(relocatedWithMarker(marker)), marker)
+        }
+    }
+
     @Test
     fun `dado ready, então o leitor está pronto`() {
         assertEquals(ReaderMessage.Ready, ReaderMessage.parse("""{"type":"ready"}"""))

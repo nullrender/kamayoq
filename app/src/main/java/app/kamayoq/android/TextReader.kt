@@ -83,6 +83,8 @@ fun TextReader(
     // Where a new page of this screen opens (a crash, a change of mode): the last place kept.
     var cfi by remember(archive) { mutableStateOf(reading.start) }
     var section by remember(archive) { mutableStateOf(reading.position?.section) }
+    // A place from Kavita opens by its marker until the person moves; then the CFI read here leads.
+    var marker by remember(archive) { mutableStateOf(reading.startMarker) }
     // The end block shows over the last page until Previous page or another move leaves it.
     var atEnd by remember(archive) { mutableStateOf(false) }
 
@@ -112,7 +114,11 @@ fun TextReader(
                             // AndroidView leaves a view in wrap-content height, and a WebView in that
                             // mode gives the page a viewport of height 0: the book became a white strip.
                             layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-                            val client = ReaderClient(viewContext.assets, ReaderBook(archive, token, position = cfi, flow = flow, section = section)) {
+                            val book = ReaderBook(
+                                archive, token, position = cfi, flow = flow, section = section, marker = marker,
+                                sections = reading.startSections.takeIf { cfi == null },
+                            )
+                            val client = ReaderClient(viewContext.assets, book) {
                                 when (crashes.afterCrash()) {
                                     RendererCrashes.Decision.REOPEN -> renderer++
                                     RendererCrashes.Decision.STOP -> problem = R.string.reader_renderer_gone
@@ -133,6 +139,7 @@ fun TextReader(
                                             atEnd = false
                                             cfi = place.cfi
                                             section = place.section
+                                            marker = null
                                             onSave(reading.progress)
                                         }
                                     }

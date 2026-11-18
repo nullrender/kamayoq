@@ -2,6 +2,7 @@ import './foliate-js/view.js'
 import { EPUB } from './foliate-js/epub.js'
 import { neutralizeRefresh } from './sections.js'
 import { relocatedMessage, contentsOf, navigationQueue } from './messages.js'
+import { markerOf } from './markers.js'
 
 const send = message => kamayoqBridge.postMessage(JSON.stringify(message))
 
@@ -53,10 +54,17 @@ const open = async token => {
         view.renderer.setAttribute(`margin-${side}`, '24px')
     // The view handles the paginator's event first and keeps the result in lastLocation; the
     // paginator's event is the one that says why it moved.
-    view.renderer.addEventListener('relocate', ({ detail }) => send(relocatedMessage(view.lastLocation, detail.reason)))
+    view.renderer.addEventListener('relocate', ({ detail }) =>
+        send(relocatedMessage(view.lastLocation, detail.reason, markerOf(view.lastLocation?.range))))
     // Before the restore: changing the flow of an open book lands on another place.
     view.renderer.setAttribute('flow', index.flow)
-    await view.init({ lastLocation: startOf(index) })
+    const start = startOf(index)
+    // A marker is no target the view resolves: the paginator takes the section and a function that
+    // finds the element in the document it renders (in a chunk, also in the outline of chunks).
+    if (start?.anchor) {
+        await view.renderer.goTo(start)
+        view.history.pushState(start.index)
+    } else await view.init({ lastLocation: start })
     send({ type: 'restored' })
 }
 

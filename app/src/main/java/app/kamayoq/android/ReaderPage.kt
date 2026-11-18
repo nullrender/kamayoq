@@ -29,7 +29,7 @@ import java.io.InputStream
 import java.util.concurrent.CopyOnWriteArrayList
 
 /** Everything under `/reader/` that the page may ask for: the assets of the app, fixed in the APK. */
-private val READER_FILES: Set<String> = setOf("index.html", "errors.js", "reader.js", "sections.js", "messages.js") + listOf(
+private val READER_FILES: Set<String> = setOf("index.html", "errors.js", "reader.js", "sections.js", "messages.js", "markers.js") + listOf(
     "view",
     "epub",
     "epubcfi",
@@ -47,7 +47,8 @@ private const val BRIDGE = "kamayoqBridge"
 
 /**
  * The book the page may read; [token] goes in its addresses, new at each opening. [section] is the
- * saved place's section, where the book opens when [position] no longer resolves.
+ * saved place's section, where the book opens when [position] no longer resolves. A place from
+ * Kavita comes as [section] and [marker] instead, with the [sections] Kavita counts.
  */
 class ReaderBook(
     val archive: EpubArchive,
@@ -55,6 +56,8 @@ class ReaderBook(
     val position: String?,
     val flow: ReaderFlow = ReaderFlow.PAGES,
     val section: Int? = null,
+    val marker: String? = null,
+    val sections: Int? = null,
 )
 
 /**
@@ -129,7 +132,9 @@ open class ReaderClient(
     private fun typeOf(path: String) = if (path.endsWith(".html")) "text/html" else "text/javascript"
 
     private fun indexOf(book: ReaderBook) =
-        ReaderBookIndex.json(book.archive.names.associateWith(book.archive::sizeOf), book.position, book.flow, book.section)
+        ReaderBookIndex.json(
+            book.archive.names.associateWith(book.archive::sizeOf), book.position, book.flow, book.section, book.marker, book.sections,
+        )
 
     // Never a type a browser would run: a `<script src>` to a book file fails here too.
     private fun bookFile(content: InputStream) = WebResourceResponse(

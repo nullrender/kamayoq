@@ -2,6 +2,7 @@ package app.kamayoq.core.reader
 
 import app.kamayoq.core.progress.BasisPoints
 import app.kamayoq.core.progress.ChapterProgress
+import app.kamayoq.core.progress.KavitaDevice
 import app.kamayoq.core.progress.ReadMark
 import app.kamayoq.core.progress.ReadMarkSource
 import app.kamayoq.core.progress.TextPosition
@@ -23,6 +24,38 @@ class TextReadingTest {
 
     private fun moved(reason: RelocateReason, cfi: String = "epubcfi(/6/4!/4/2)") =
         ReaderMessage.Relocated(1, 3, cfi, fraction(0.1), reason)
+
+    private fun fromKavita() = ChapterProgress(null, TextPosition(2, 3, "epubcfi(/6/6!/4)", fraction(0.66), earlier, KavitaDevice.NAME), 0)
+
+    // Milestone C2 of step 4: the CFI of a place from Kavita only names the section.
+    @Test
+    fun `dado um lugar vindo do Kavita, quando abre, então o leitor parte da seção e do marcador, não do CFI`() {
+        val reading = TextReading(fromKavita(), device, savedMarker = "//body/p[4]")
+
+        assertNull(reading.start)
+        assertEquals("//body/p[4]", reading.startMarker)
+        assertEquals(3, reading.startSections)
+    }
+
+    @Test
+    fun `dado um lugar lido aqui, quando abre, então o marcador guardado não decide onde abre`() {
+        val reading = TextReading(ChapterProgress(null, saved, 0), device, savedMarker = "//body/p[4]")
+
+        assertEquals("epubcfi(/6/4!/4/20)", reading.start)
+        assertNull(reading.startMarker)
+        assertNull(reading.startSections)
+    }
+
+    @Test
+    fun `dado uma virada da pessoa com marcador, então o marcador acompanha o lugar a gravar`() {
+        val reading = TextReading(fromKavita(), device, savedMarker = "//body/p[4]")
+        reading.restored()
+
+        reading.relocated(ReaderMessage.Relocated(1, 3, "epubcfi(/6/4!/4/2)", fraction(0.1), RelocateReason.PAGE, "//body/p[9]"), now)
+
+        assertEquals("//body/p[9]", reading.marker)
+        assertEquals(device, reading.position?.device)
+    }
 
     @Test
     fun `dado uma posição salva, quando abre, então o leitor parte do CFI salvo`() {

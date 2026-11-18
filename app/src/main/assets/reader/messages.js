@@ -7,13 +7,15 @@ const bounded = fraction => typeof fraction === 'number' && !Number.isNaN(fracti
 
 // The reason comes from the paginator's own event: the view's event leaves it out. In scrolled flow
 // the fork gives no reason only when it turns next or previous, which the person asked for.
-export const relocatedMessage = (detail, reason) => ({
+// The marker is Kavita's name of the element the page starts at (markers.js), or null.
+export const relocatedMessage = (detail, reason, marker = null) => ({
     type: 'relocated',
     section: detail.section.current,
     sections: detail.section.total,
     cfi: detail.cfi,
     fraction: bounded(detail.fraction),
     reason: reason ?? 'page',
+    marker: null,
 })
 
 // Keep hrefs inside the shell: native controls select only an item's numeric index.

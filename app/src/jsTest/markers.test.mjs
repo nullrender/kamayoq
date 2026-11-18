@@ -9,12 +9,15 @@ import { elementOf, markerOf } from '../main/assets/reader/markers.js'
 const build = spec => {
     const doc = { body: null, ids: new Map(), getElementById: id => doc.ids.get(id) ?? null }
     const make = (node, parent) => {
-        if (typeof node === 'string') return { nodeType: 3, parentElement: parent, ownerDocument: doc }
+        if (typeof node === 'string') return { nodeType: 3, textContent: node, parentElement: parent, ownerDocument: doc }
         const [localName, attributes, ...rest] = node
         const el = { nodeType: 1, localName, parentElement: parent, ownerDocument: doc, attributes }
         el.hasAttribute = name => name in attributes
         el.childNodes = rest.map(child => make(child, el))
         el.children = el.childNodes.filter(child => child.nodeType === 1)
+        el.childNodes.forEach((child, i) => {
+            child.nextElementSibling = el.childNodes.slice(i + 1).find(next => next.nodeType === 1) ?? null
+        })
         if (attributes.id) doc.ids.set(attributes.id, el)
         return el
     }
@@ -59,6 +62,11 @@ test('dado um lugar dentro do que o leitor acrescentou, então o marcador fica n
 test('dado o próprio body com um deslocamento, então o marcador é o filho nesse lugar', () => {
     const doc = book()
     assert.equal(markerOf(at(doc.body, 2)), '//body/p[1]')
+})
+
+test('dado uma página que começa no branco entre dois blocos, então o marcador é o bloco seguinte', () => {
+    const doc = build(['html', {}, ['body', {}, ['p', {}, 'Um'], '\n', ['p', {}, 'Dois']]])
+    assert.equal(markerOf(at(doc.body.childNodes[1])), '//body/p[2]')
 })
 
 test('dado nada onde começar, então não há marcador', () => {

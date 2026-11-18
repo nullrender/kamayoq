@@ -1,6 +1,7 @@
 package app.kamayoq.core.reader
 
 import app.kamayoq.core.progress.ChapterProgress
+import app.kamayoq.core.progress.KavitaDevice
 import app.kamayoq.core.progress.ReadMark
 import app.kamayoq.core.progress.ReadMarkSource
 import app.kamayoq.core.progress.TextPosition
@@ -12,14 +13,29 @@ import java.time.Instant
  * and none of those is the person reading: taking them would drift the saved place, so nothing is
  * accepted before the restore is confirmed, and after that only the person's moves.
  */
-class TextReading(saved: ChapterProgress, private val device: String) {
+class TextReading(saved: ChapterProgress, private val device: String, savedMarker: String? = null) {
     /** An opening that only knows a place, as the tests of the place alone use. */
     constructor(saved: TextPosition?, device: String) : this(ChapterProgress(readMark = null, position = saved, completeReads = 0), device)
 
     enum class Phase { OPENING, RESTORED, READING }
 
-    /** The CFI to hand the fork; null opens the book at its start. */
+    private val fromKavita = (saved.position as? TextPosition)?.takeIf { it.device == KavitaDevice.NAME }
+
+    /**
+     * The CFI to hand the fork; null opens the book at its start, or at [startMarker]. A place that
+     * came from Kavita has only its section in the CFI: it opens by section and marker instead.
+     */
     val start: String? = (saved.position as? TextPosition)?.cfi
+
+    /** The marker a place from Kavita opens at, in its section; null for any other place. */
+    val startMarker: String? = null
+
+    /** How many sections Kavita counts for a place that came from it, for the reader to compare. */
+    val startSections: Int? = null
+
+    /** Kavita's marker of the place to save, from the same move as [position] (milestone C2). */
+    var marker: String? = startMarker
+        private set
 
     var phase: Phase = Phase.OPENING
         private set
@@ -40,6 +56,7 @@ class TextReading(saved: ChapterProgress, private val device: String) {
         phase = Phase.READING
         val position = TextPosition(message.section, message.sections, message.cfi, message.position, at, device)
         progress = progress.copy(position = position)
+
         return position
     }
 

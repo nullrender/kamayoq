@@ -7,7 +7,12 @@ const detail = fraction => ({ section: { current: 2, total: 3 }, cfi: 'epubcfi(/
 
 test('dado uma posição no meio virada pela pessoa, então a mensagem leva seção, total, CFI, fração e motivo', () => {
     assert.deepEqual(relocatedMessage(detail(0.5), 'page'),
-        { type: 'relocated', section: 2, sections: 3, cfi: 'epubcfi(/6/6!/4/2)', fraction: 0.5, reason: 'page' })
+        { type: 'relocated', section: 2, sections: 3, cfi: 'epubcfi(/6/6!/4/2)', fraction: 0.5, reason: 'page', marker: null })
+})
+
+// Milestone C2: the marker of the page's first element goes with the place, for Kavita.
+test('dado o marcador do Kavita, então ele vai na mensagem com o lugar', () => {
+    assert.equal(relocatedMessage(detail(0.5), 'page', '//body/p[3]').marker, '//body/p[3]')
 })
 
 // Piece 14: the view's own event drops the paginator's reason, which tells the person from a re-layout.

@@ -20,6 +20,8 @@ sealed interface ReaderMessage {
         val cfi: String,
         val position: BasisPoints,
         val reason: RelocateReason,
+        /** Kavita's marker of the element the page starts at, taken on the rendered section (milestone C2). */
+        val marker: String? = null,
     ) : ReaderMessage
 
     /**
@@ -62,7 +64,8 @@ sealed interface ReaderMessage {
         }
 
         private fun relocated(message: JsonObject): ReaderMessage {
-            if (message.keys != setOf("type", "section", "sections", "cfi", "fraction", "reason")) return Refused("unexpected fields")
+            val fields = setOf("type", "section", "sections", "cfi", "fraction", "reason")
+            if (message.keys != fields && message.keys != fields + "marker") return Refused("unexpected fields")
             val section = message.int("section")
             val sections = message.int("sections")
             if (section == null || sections == null || section !in 0 until sections) return Refused("section outside the book")

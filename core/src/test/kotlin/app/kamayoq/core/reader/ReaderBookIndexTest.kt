@@ -30,6 +30,15 @@ class ReaderBookIndexTest {
         )
     }
 
+    // Milestone C2: a place from Kavita opens by section and marker, and the page compares the count.
+    @Test
+    fun `dado um lugar do Kavita, então seção, marcador e seções vão no índice, sem CFI`() {
+        assertEquals(
+            """{"entries":[],"position":null,"flow":"paginated","section":2,"marker":"//body/p[3]","sections":5}""",
+            ReaderBookIndex.json(emptyMap(), position = null, ReaderFlow.PAGES, section = 2, marker = "//body/p[3]", sections = 5),
+        )
+    }
+
     // Piece 21: a CFI that no longer resolves opens at the start of its section, not of the book.
     @Test
     fun `dado uma posição salva com a seção, então a seção vai no índice com ela`() {
