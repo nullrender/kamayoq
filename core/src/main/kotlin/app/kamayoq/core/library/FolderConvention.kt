@@ -207,6 +207,10 @@ object FolderConvention {
         WorkType.COMICS -> false
     }
 
+    /** The chapter number in the title of an item of a table of contents, by rule 4; null without one. */
+    fun chapterNumber(title: String): Double? =
+        numbering(title).let { (kind, number) -> number.takeIf { kind == UnitKind.CHAPTER } }
+
     /** Rule 4 and E3: a chapter number wins over a volume number; "Vol." alone makes a volume. */
     private fun numbering(name: String): Pair<UnitKind, Double?> {
         val unwrapped = name.replace(mihonHash, "")

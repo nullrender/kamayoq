@@ -17,6 +17,12 @@ sealed interface UnitContent {
     /** An EPUB file; its sections are read from inside the file when it opens. */
     data object Epub : UnitContent
 
+    /**
+     * An EPUB file to split by its table of contents, or a chapter of one: a compiled novel
+     * (`docs/decisions/novel-chapters-2026-11-18.md`).
+     */
+    data object SplitEpub : UnitContent
+
     /** A folder of images, with the pages in reading order. */
     data class ImageFolder(val pages: List<String>) : UnitContent
 }
