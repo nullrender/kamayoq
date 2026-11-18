@@ -10,6 +10,7 @@ import androidx.activity.compose.setContent
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import app.kamayoq.core.progress.BasisPoints
 import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.reader.EpubArchive
 import app.kamayoq.core.reader.ReaderMessage
@@ -180,7 +181,7 @@ class TextReaderSavingTest {
 
     @Test
     fun `dado um lugar gravado quando toco na tela e em Próxima durante a abertura então o livro não volta à primeira página`() {
-        val (saved, word) = readToAPlace()
+        val (saved, _) = readToAPlace()
         hide()
         saves.clear()
         saveTimes.clear()
@@ -200,7 +201,10 @@ class TextReaderSavingTest {
         val opened = checkNotNull(restoredAt)
 
         assertTrue("No touch landed before the book opened", taps.any { it < opened })
-        assertShows(word)
+        // A touch on Next that lands as the book opens is a person reading on, so the book may be a
+        // page ahead (emulator 44308361429); it must never be behind the saved place.
+        val shown = evaluate("document.querySelector('foliate-view').lastLocation.fraction").toDouble()
+        assertTrue("The book went back: at $shown, saved at ${saved.fraction.value}", shown * BasisPoints.END >= saved.fraction.value - 1)
         assertTrue("A place was handed out before the book opened", saveTimes.none { it < opened })
         // The same spot, now that the controls work, turns the page: it is Next page indeed.
         saves.clear()
