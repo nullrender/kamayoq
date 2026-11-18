@@ -1919,6 +1919,12 @@ export class Paginator extends HTMLElement {
     get primaryUnitIndex() {
         return this.#primaryIndex
     }
+    // Kamayoq: the place in `sections` of the unit that renders `doc`, -1 when none does. In scrolled
+    // mode the primary unit follows the scroll late, so a place is placed by its own document.
+    unitIndexOf(doc) {
+        for (const [index, view] of this.#views) if (view.document === doc) return index
+        return -1
+    }
     setAttribute(name, value) {
         // The scrolled-mode scroll handler is debounced, so #anchor and
         // #primaryIndex can lag behind the user's actual viewport by up to

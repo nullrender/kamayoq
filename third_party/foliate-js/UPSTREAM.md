@@ -19,7 +19,7 @@ Updating is a deliberate act: in a clone of the fork, `git diff <old>..<new> -- 
 | `epub.js` | `5326553896410cc2f4d1dd21c7a824058afd2bf986fee8e584fd81339eadcb54` | `5326553896410cc2f4d1dd21c7a824058afd2bf986fee8e584fd81339eadcb54` |
 | `epubcfi.js` | `89c0610cb6d3b482dde1552da2bc02e37ec804bc7b1916a1a86299e3c979d221` | `89c0610cb6d3b482dde1552da2bc02e37ec804bc7b1916a1a86299e3c979d221` |
 | `overlayer.js` | `f0ef045950656ff6c0fefe01249d83215c58ba149bde528e26a6db531c349268` | `f0ef045950656ff6c0fefe01249d83215c58ba149bde528e26a6db531c349268` |
-| `paginator.js` | `8556e845bbd9c88f45eea701b5b1fe282976ab41cfd812124e22bfd80a9710cd` | `a099b57042b88d8c9158c3a3fa5c9ff030d67cae3ea2596f1a4a69ee9bfcf35a` |
+| `paginator.js` | `8556e845bbd9c88f45eea701b5b1fe282976ab41cfd812124e22bfd80a9710cd` | `d0134f7f65a309673f2db88c77522e81678d884fe962497d13a165784ce3975c` |
 | `progress.js` | `e9a6ba8b0b45802677de2ac7c6722299ab1d45df2cb780ea623ab2dc6d7cfd15` | `e9a6ba8b0b45802677de2ac7c6722299ab1d45df2cb780ea623ab2dc6d7cfd15` |
 | `section-chunks.js` | `0d84803c201ce5b7d29f158f3bd7715291a01c697247aecd9fa6dde45e779f46` | `0d84803c201ce5b7d29f158f3bd7715291a01c697247aecd9fa6dde45e779f46` |
 | `text-walker.js` | `a9ba231c192ee214ef664b2e01f712d199700bcf2be1c20a38c1b26024428aff` | `a9ba231c192ee214ef664b2e01f712d199700bcf2be1c20a38c1b26024428aff` |
@@ -31,3 +31,4 @@ Updating is a deliberate act: in a clone of the fork, `git diff <old>..<new> -- 
 |---|---|---|
 | `paginator.js` | Line 783: the book's frame loses `allow-scripts` and keeps only `allow-same-origin`, so no script of the book runs, not even one the CSP would let through (tests in `HostileBookSandboxTest`). The comment above the line, about the WebKit bug, stays as it came. | the commit "Take allow-scripts out of the book's frame" |
 | `paginator.js` | After `primaryIndex`: a getter `primaryUnitIndex`, the place of the page's unit in `sections`. `primaryIndex` gives the section, while `sections` counts the chunks of a large section, so the reader could not tell which chunk is on screen (end block past the last chunk, `TextReaderEndOfChunkTest`; chapter of a page in a chunk, `TextReaderSplitTest`). | the commit "Show the end block past the last chunk of a large section" |
+| `paginator.js` | After `primaryUnitIndex`: a method `unitIndexOf(doc)`, the place in `sections` of the unit that renders a document. In scrolled mode the primary unit follows the scroll late, so the chunk of a reported place is found by the place's own document (`TextReaderSplitTest`). | the commit "Find the piece of a page by its own document" |

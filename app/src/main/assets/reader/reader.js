@@ -159,7 +159,10 @@ const chapterMeter = chapters => {
         if (shown !== null) return shown
         const pieces = await headingPieceOf(section)
         if (!pieces) return null
-        const piece = view.renderer.primaryUnitIndex - piecesOf(section).first
+        // The piece of the page's own document: in Scroll the paginator's primary unit lags behind it.
+        const unit = doc ? view.renderer.unitIndexOf(doc) : -1
+        if (unit < 0) return null
+        const piece = unit - piecesOf(section).first
         let started = null
         for (const { key, chapter } of here) {
             // A chapter at the section's own start begins before every piece; one whose heading no
