@@ -2,6 +2,8 @@
 
 **Status:** decided on 24/10/2026 as a minimal version, to be tested, adjusted and improved step by step. There were no local test files at the time; the convention comes from what the app needs and from Mihon's local source.
 
+**Amended on 18/11/2026** by [novels by chapter](novel-chapters-2026-11-18.md): which EPUBs in `Novels/` split by their table of contents (by the name: a chapter number makes one chapter; `Vol.` or no number splits), and the exact form of rules 3, E1 and E2 for a split file. Where they disagree, that text wins.
+
 **Sources:** Mihon's local source (github.com/mihonapp/mihon, default branch `main`, commit `d001e6f210e6a077a30dd9a1392573a3225bba2f`, read on 24/10/2026: `source-local/.../LocalSource.kt`, `LocalCoverManager.kt`, `core/.../DiskUtil.kt`) and its documentation (mihon.app/docs/guides/local-source, read on 24/10/2026); the foliate-js README (github.com/johnfactotum/foliate-js, `main`, read on 24/10/2026); the product design; the progress contract (`progress-contract-2026-10-24.md`).
 
 ## Example

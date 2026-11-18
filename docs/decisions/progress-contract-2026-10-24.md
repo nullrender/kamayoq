@@ -2,6 +2,8 @@
 
 **Status:** version 1 approved on 24/10/2026 (see 6b). Version 2, the same day, settles seven open points, called C1 to C7 here, with three decisions (C1, C4 and C5, section 8). Version 3 settles four more, called D1 to D4 here, with one decision (D3, section 8), and adopts the definition of chapter from the folder convention (`folder-convention-2026-10-24.md`). This is not a database schema: it says **what** the app stores and why; the SQLDelight tables are derived from it.
 
+**Amended on 18/11/2026** by [novels by chapter](novel-chapters-2026-11-18.md) (questions B-1 to B-3): the position, read mark and reopening of a chapter that is an item of a file's table of contents; a Kavita record that stands for several chapters here (sections 2d and 3); and the round-trip test of section 7 that Kavita's page 0 makes impossible as written. Where they disagree, that text wins.
+
 **Sources:** the rules for work status, for the chapter state "reading, with progress" and for progress sync defined in the app design; the five sample-data cases from the design (section 4); Kavita's code (section 6).
 
 Lines the app shows on screen are quoted in Portuguese, with the English in parentheses.
@@ -168,7 +170,7 @@ Decided on 24/10/2026: the contract approved with the four choices (fraction as 
 - given the reread of chapter 3 sent to Kavita, when the app rereads Kavita and finds the same partial value it sent, then chapter 3 stays read here;
 - given the reread of chapter 3 sent, when Kavita returns a partial different from the one sent, then it is a change from the other side;
 - given a book reading with a decimal fraction coming from foliate-js, when it is converted, then it becomes the nearest integer; the start is 0, the end is 10 000, and missing or invalid input is rejected, it does not become zero;
-- given an EPUB with a single section, and another with sections of different sizes, when the position goes to Kavita and back, then the section is the same and the position lands on the nearest bookmark (round-trip test with controlled content; it measures the loss, it does not hide it);
+- ~~given an EPUB with a single section, and another with sections of different sizes, when the position goes to Kavita and back, then the section is the same and the position lands on the nearest bookmark~~ (replaced on 18/11/2026: Kavita stores nothing for page 0 with no record): given an EPUB with a single section and no record on Kavita, then the position stays only here and nothing is sent (C-1); given sections of different sizes, when a position past the first section goes to Kavita and back, then the section is the same and the position lands at the start of the element the marker names (round-trip test with controlled content; it measures the loss, it does not hide it);
 - given a compiled novel EPUB with a table of contents of 3 items, then there are 3 chapters with separate read marks.
 
 *Sync*
