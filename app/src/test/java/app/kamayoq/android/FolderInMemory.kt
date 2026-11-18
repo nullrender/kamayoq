@@ -24,6 +24,9 @@ class FolderInMemory(context: Context, var titles: List<String>) : ChosenFolder(
     /** Works in `Novels`, each a folder with one compiled file named after it; none unless a test adds them. */
     var novels: List<String> = emptyList()
 
+    /** When the compiled files in `Novels` last changed, as the folder says. */
+    var novelsModified = 1L
+
     /** False when no folder was chosen yet. */
     var chosen = true
 
@@ -48,7 +51,7 @@ class FolderInMemory(context: Context, var titles: List<String>) : ChosenFolder(
             "books" -> books.map { FolderEntry("book:$it", it, isFolder = true, size = 0, modified = 1) }
             "novels" -> novels.map { FolderEntry("novel:$it", it, isFolder = true, size = 0, modified = 1) }
             in novels.map { "novel:$it" } -> folderId.removePrefix("novel:").let { title ->
-                listOf(FolderEntry(novelFileId(title), "$title.epub", isFolder = false, size = 10, modified = 1))
+                listOf(FolderEntry(novelFileId(title), "$title.epub", isFolder = false, size = 10, modified = novelsModified))
             }
             "comics" -> titles.map { FolderEntry(it, it, isFolder = true, size = 0, modified = 1) } +
                 looseFiles.map { FolderEntry(it, it, isFolder = false, size = 10, modified = 1) }
