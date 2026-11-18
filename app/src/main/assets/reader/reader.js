@@ -60,8 +60,9 @@ const open = async token => {
     view.renderer.setAttribute('flow', index.flow)
     const start = startOf(index)
     // A marker is no target the view resolves: the paginator takes the section and a function that
-    // finds the element in the document it renders (in a chunk, also in the outline of chunks).
-    if (start?.anchor) {
+    // finds the element in the document it renders (in a chunk, also in the outline of chunks). Only
+    // that target is an object: a CFI is a string, and every string has a legacy `anchor` method.
+    if (typeof start === 'object' && start !== null) {
         await view.renderer.goTo(start)
         view.history.pushState(start.index)
     } else await view.init({ lastLocation: start })
