@@ -19,4 +19,17 @@ class SplitOpening(
  * Prepares the opening of [chapterId], a chapter of a file whose table of contents, read from the
  * file as it opens, is [contents]. Null when the file is to be read whole.
  */
-fun LibraryStore.splitOpening(chapterId: String, contents: BookContents): SplitOpening? = null
+fun LibraryStore.splitOpening(chapterId: String, contents: BookContents): SplitOpening? {
+    val keys = contents.chapters.map { it.key }
+    var asked = currentEdition(chapterId)
+    // The reading of the folder may be from before the file changed: the file itself says its chapters.
+    if (fileChapters(asked).map { it.tocKey }.filter { it.isNotEmpty() } != keys) asked = resplit(asked, contents.chapters)
+    if (keys.isEmpty()) return null
+    val rows = fileChapters(asked)
+    return SplitOpening(
+        chapterIds = rows.map { it.id },
+        saved = rows.map { progress(it.id) },
+        opened = rows.indexOfFirst { it.id == asked }.coerceAtLeast(0),
+        chapters = ReaderChapters(keys, contents.chapterOfItem),
+    )
+}
