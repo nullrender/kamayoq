@@ -110,11 +110,41 @@ const chapterMeter = chapters => {
         const inside = (await measure(section)).get(key)
         return inside === undefined ? null : from + inside * (to - from)
     }
+    // The section's units in the paginator's list, one per piece, in order.
+    const piecesOf = section => {
+        const id = view.book.sections[section]?.id
+        const units = view.renderer.sections
+        const first = units.findIndex(unit => unit.id === id)
+        let count = 0
+        while (first >= 0 && units[first + count]?.id === id) count++
+        return { first, count }
+    }
+    // The piece that holds each chapter's heading, read in the pieces' own markup: the paginator cuts
+    // a section by the length of its markup, which a share of its text does not follow. A section
+    // above MEASURED_SECTION is not read again for this.
+    const headingPieces = new Map()
+    const headingPieceOf = section => {
+        if (!headingPieces.has(section)) headingPieces.set(section, (async () => {
+            if (!(sizeOf(section) <= MEASURED_SECTION)) return null
+            const { first, count } = piecesOf(section)
+            const wanted = targets.filter(target => target.section === section && target.key.includes('#'))
+            const found = new Map()
+            for (let piece = 0; piece < count; piece++) {
+                const html = await view.renderer.sections[first + piece].loadContent()
+                if (!html) continue
+                const doc = new DOMParser().parseFromString(html, 'text/html')
+                for (const { key } of wanted)
+                    if (!found.has(key) && view.book.getTOCFragment(doc, key.slice(key.indexOf('#') + 1))) found.set(key, piece)
+            }
+            return found
+        })().catch(() => null))
+        return headingPieces.get(section)
+    }
     // A section the paginator shows in pieces: a piece holds only its own headings, and for a page
     // past the last of them the fork names the last item of the whole section (emulator, 18/11/2026).
     // There the chapter is the last one whose heading this piece shows on or before the page's end;
-    // with none in the piece, the last one that starts before the page ends, by the measured starts.
-    // Null when neither says: the app then keeps the chapter it was in.
+    // with none in the piece, the last one whose heading an earlier piece holds. Null when the pieces
+    // were not read: the app then keeps the chapter it was in.
     const inPieces = async (location, section) => {
         const here = targets.filter(target => target.section === section)
         const range = location.range
@@ -127,11 +157,15 @@ const chapterMeter = chapters => {
             shown = chapter
         }
         if (shown !== null) return shown
+        const pieces = await headingPieceOf(section)
+        if (!pieces) return null
+        const piece = view.renderer.primaryUnitIndex - piecesOf(section).first
         let started = null
-        for (const { chapter } of here) {
-            const start = await startOf(chapter)
-            if (start === null) return null
-            if (start <= location.fraction) started = chapter
+        for (const { key, chapter } of here) {
+            // A chapter at the section's own start begins before every piece; one whose heading no
+            // piece holds cannot be placed, and is passed over.
+            const at = key.includes('#') ? pieces.get(key) : -1
+            if (at !== undefined && at < piece) started = chapter
         }
         // Before the first chapter that starts in this section: still in the one before it.
         return started ?? Math.max(here[0].chapter - 1, 0)
