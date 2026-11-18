@@ -21,6 +21,7 @@ import app.kamayoq.data.SplitContents
 import app.kamayoq.data.StoredChapter
 import app.kamayoq.data.kavita.KavitaChapterFile
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.IOException
 import java.io.InputStream
 
@@ -82,7 +83,8 @@ class ChapterOpening(
      */
     fun contents(tree: Uri, documentId: String): List<ContentsChapter> {
         val uri = DocumentsContract.buildDocumentUriUsingTree(tree, documentId)
-        val input = checkNotNull(resolver.openInputStream(uri)) { "The folder provider gave no stream" }
+        // As a file that cannot be read, which the reading of the folder knows how to pass over.
+        val input = resolver.openInputStream(uri) ?: throw FileNotFoundException("The folder provider gave no stream")
         return SplitContents.read(input, contentsCache, bookLimits)
     }
 

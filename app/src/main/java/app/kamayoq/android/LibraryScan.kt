@@ -3,6 +3,7 @@ package app.kamayoq.android
 import android.net.Uri
 import android.util.Log
 import app.kamayoq.core.library.ContentCheck
+import app.kamayoq.core.library.FileStamp
 import app.kamayoq.core.library.FolderConvention
 import app.kamayoq.core.library.FolderWalk
 import app.kamayoq.core.library.IgnoredFile
@@ -13,6 +14,8 @@ import java.io.IOException
 
 /** Reads the Library folder and brings the stored library in line with it. Runs off the main thread. */
 object LibraryScan {
+    private val UNREAD = FileStamp(size = Long.MIN_VALUE, modified = null)
+
     /**
      * Returns the files the folder convention left out, for the person to see. Writes nothing when
      * [stillLatest] says a newer reading started before this one ended. [contents] reads the table of
@@ -32,6 +35,7 @@ object LibraryScan {
         // Opening a file costs a copy of it: only a file that is new, or changed since its contents
         // were read, is opened. The others keep the chapters stored for them.
         val known = store.splitFiles(tree.toString())
+        val unread = mutableSetOf<String>()
         val expanded = SplitFiles.expand(library) { file ->
             val stored = known[file.path]
             if (stored != null && stored.stamp == ContentCheck.stampOf(file, stamps)) {
@@ -43,11 +47,14 @@ object LibraryScan {
                     // One file that cannot be read must not take the whole Library away: it keeps
                     // the chapters it had, or stays whole, and opening it says what is wrong.
                     Log.e("Kamayoq", "Reading the contents of a file failed", e)
+                    unread += file.path
                     stored?.chapters.orEmpty()
                 }
             }
         }
-        store.importLocal(tree.toString(), expanded, stamps, stillLatest)
+        // A file that was not read is stored with a stamp no file has, so the next reading of the
+        // folder opens it again.
+        store.importLocal(tree.toString(), expanded, stamps + unread.associateWith { UNREAD }, stillLatest)
         return library.ignored
     }
 }
