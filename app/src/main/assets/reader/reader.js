@@ -66,9 +66,10 @@ const open = async token => {
     // Before the restore: changing the flow of an open book lands on another place.
     view.renderer.setAttribute('flow', index.flow)
     const start = startOf(index)
-    // A marker is no target the view resolves: the paginator takes the section and a function that
-    // finds the element in the document it renders (in a chunk, also in the outline of chunks). Only
-    // that target is an object: a CFI is a string, and every string has a legacy `anchor` method.
+    // A marker, or a place with the chapter's start behind it, is no target the view resolves: the
+    // paginator takes the section and a function that finds the place in the document it renders (in
+    // a chunk, also in the outline of chunks). Only those targets are objects: a CFI is a string, and
+    // every string has a legacy `anchor` method.
     if (typeof start === 'object' && start !== null) {
         await view.renderer.goTo(start)
         view.history.pushState(start.index)
@@ -165,7 +166,8 @@ const textBefore = (doc, element) => {
 
 // A CFI whose spine item is gone (another edition of the book) makes the fork open the book's start,
 // or nothing at all: the saved section is the nearest place the person was. A CFI that finds its
-// section but not its path inside it already opens at the section's start (toRange gives null).
+// section but not its path inside it opens at the section's start (toRange gives null), which in a
+// split file may be an earlier chapter: there the chapter's own start in that section comes first.
 const startOf = index => {
     // Kavita counts the sections of a place from it: another count is another layout of the file, and
     // no section here is the same there (milestone C2).
@@ -177,11 +179,21 @@ const startOf = index => {
     // An unknown marker opens the section's start, never fails.
     if (typeof index.marker === 'string' && Number.isInteger(index.section) && inBook(index.section))
         return { index: index.section, anchor: doc => elementOf(doc, index.marker) ?? 0 }
-    if (index.position && inBook(index.position)) return index.position
+    if (index.position && inBook(index.position)) {
+        const place = view.resolveNavigation(index.position)
+        const own = typeof index.start === 'string' && inBook(index.start) ? view.resolveNavigation(index.start) : null
+        if (own?.index !== place.index || typeof place.anchor !== 'function' || typeof own.anchor !== 'function') return index.position
+        return { index: place.index, anchor: doc => anchorIn(doc, place.anchor) ?? anchorIn(doc, own.anchor) ?? 0 }
+    }
     // A chapter of a split file with no place yet, or whose place is gone: its own start (milestone B7).
     if (typeof index.start === 'string' && inBook(index.start)) return index.start
     if (Number.isInteger(index.section) && inBook(index.section)) return index.section
     return null
+}
+
+// What an anchor finds in a document, or null when it finds nothing or fails.
+const anchorIn = (doc, anchor) => {
+    try { return anchor(doc) ?? null } catch { return null }
 }
 
 // The paginator's atEnd, checked against its own units: on the emulator it said true at the end of
