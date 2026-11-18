@@ -72,7 +72,8 @@ class ReaderBookTest {
             when (val message = messages.poll(seconds, TimeUnit.SECONDS)) {
                 null -> return null
                 is ReaderMessage.Relocated -> return message
-                is ReaderMessage.Failed, is ReaderMessage.Refused, is ReaderMessage.Link -> fail("Reader said: $message; console: $console")
+                is ReaderMessage.Failed, is ReaderMessage.Refused, is ReaderMessage.Link, ReaderMessage.End ->
+                    fail("Reader said: $message; console: $console")
                 ReaderMessage.Ready, ReaderMessage.Restored -> Unit
             }
         }
