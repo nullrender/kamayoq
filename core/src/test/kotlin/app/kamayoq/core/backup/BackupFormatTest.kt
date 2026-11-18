@@ -385,6 +385,32 @@ class BackupFormatTest {
         assertFailsWith<IllegalArgumentException> { BackupFormat.read(text) }
     }
 
+    // A file this version cannot read says so with IllegalArgumentException, whatever its format.
+    @Test
+    fun `dado um arquivo do formato 1 sem a lista de obras, quando lido, então recusa como arquivo ilegível`() {
+        val text = """{ "formatVersion": 1, "appVersion": "r98", "exportedAt": "2026-10-28T21:48:00Z" }"""
+
+        assertFailsWith<IllegalArgumentException> { BackupFormat.read(text) }
+    }
+
+    @Test
+    fun `dado um arquivo do formato 2 com uma obra sem capítulos, quando lido, então recusa como arquivo ilegível`() {
+        val text = """
+            {
+                "formatVersion": 2, "appVersion": "r402", "exportedAt": "2026-11-08T23:00:00Z", "servers": [],
+                "works": [
+                    {
+                        "id": "work-1", "versionId": "version-1", "origin": "local", "path": "Comics/Sakamoto Days",
+                        "title": "Sakamoto Days", "alternativeTitle": null, "type": "COMICS", "subtype": null,
+                        "present": true, "source": null, "remoteLibraryId": null, "alternatives": []
+                    }
+                ]
+            }
+        """.trimIndent()
+
+        assertFailsWith<IllegalArgumentException> { BackupFormat.read(text) }
+    }
+
     @Test
     fun `dado 28 de outubro às 18h48 em São Paulo, então o arquivo se chama kamayoq_2026-10-28_18-48`() {
         val at = Instant.parse("2026-10-28T21:48:30Z")
