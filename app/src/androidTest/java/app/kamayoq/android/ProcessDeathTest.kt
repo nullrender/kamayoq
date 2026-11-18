@@ -133,7 +133,8 @@ class ProcessDeathTest {
             }
         }
         expected.writeText(words.toString())
-        // No close and no goodbye: the workflow kills the process next, as the system would.
+        // The workflow kills the process next. Each move was already in the store before this run
+        // ends: this proves the kept places survive, not a save still under way at the kill.
     }
 
     @Test

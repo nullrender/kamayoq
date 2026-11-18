@@ -3,6 +3,7 @@ package app.kamayoq.android
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
+import android.view.View
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityManager
 import android.webkit.WebView
@@ -147,6 +148,9 @@ fun TextReader(
                             }
                         }
                     },
+                    // Hidden under the end block: an invisible view takes no touch and no TalkBack focus,
+                    // and keeps its page for Previous page.
+                    update = { it.visibility = if (atEnd) View.INVISIBLE else View.VISIBLE },
                     onRelease = {
                         if (webView === it) {
                             webView = null

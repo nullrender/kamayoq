@@ -73,23 +73,11 @@ const startOf = index => {
     return null
 }
 
-// Nothing left to read after the words on screen, in the last section read in order.
-const atBookEnd = location => {
-    const last = view.book.sections.findLastIndex(section => section.linear !== 'no')
-    const range = location?.range
-    if (location?.section?.current !== last || !range) return false
-    const doc = range.endContainer.ownerDocument
-    const rest = doc.createRange()
-    rest.setStart(range.endContainer, range.endOffset)
-    rest.setEnd(doc.body, doc.body.childNodes.length)
-    return rest.toString().trim() === '' && !rest.cloneContents().querySelector('img, svg, video, audio, math')
-}
-
 globalThis.kamayoqReader = {
     // Past the last page there is no page to turn to: the app shows its end block (piece 23). The
-    // turn is never asked for there: on the last page the fork's atEnd stayed false and its turn
-    // never ended (emulator 44311566694), holding every later move in line behind it.
-    next: () => navigate(() => atBookEnd(view.lastLocation) ? send({ type: 'end' }) : view.next()),
+    // paginator's own atEnd knows the chunks of a large section and the sections read out of order;
+    // reading the text left in the loaded document did not (Codex review of 18/11).
+    next: () => navigate(() => view.renderer.atEnd ? send({ type: 'end' }) : view.next()),
     previous: () => navigate(() => view.prev()),
     contents: () => contents.map(({ index, title, depth }) => ({ index, title, depth })),
 }
