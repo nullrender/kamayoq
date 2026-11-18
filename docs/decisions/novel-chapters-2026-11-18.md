@@ -56,6 +56,8 @@ The chapters of a split file are compared **as a whole**, in one transaction, wh
 
 ## 6. A compiled novel from Kavita (B-3)
 
+**Decided, not built in milestone B**, whose pieces B1 to B7 are the local folder's. Until it is built, a file from Kavita stays one chapter here, as milestone C left it, whatever its name says.
+
 Kavita sees a file as **one chapter, one record** (milestone C). For a Kavita novel whose file name splits by rule 1, the app shows the chapters of the table of contents, each with its own read mark here, and Kavita keeps the one record:
 
 - The position sent is the file's, as in milestone C: section and marker of the page being read.
@@ -70,3 +72,17 @@ The contract changes in two places: a chapter of a Kavita work is no longer alwa
 In the contract's section 7, the round-trip test "given an EPUB with a single section … the section is the same" does not pass as written: Kavita answers success to page 0 with no record and stores nothing, marker included (`ReaderService.cs:229`, Kavita commit `d549d5b1`, read on 31/10/2026; measured in `KavitaEpubFactsTest`). It becomes two tests: "given an EPUB with a single section and no record on Kavita, then the position stays only here and nothing is sent" (decision C-1), and "given sections of different sizes, when a position past the first section goes to Kavita and back, then the section is the same and the position lands at the start of the element the marker names" (measured in milestone C: 0 to 37 words back, never forward).
 
 New logic tests (JVM): given `Novels/X/Cap. 0928.epub`, then one chapter, number 928; given `Novels/X/Vol. 1.epub` or `Novels/X/X.epub`, then it splits; given "Volume 1 → Cap. 1, Cap. 2", then one volume with 2 chapters; given two items with the same destination, then 1 chapter; given empty contents, then 1 chapter and a warning; given an item outside the spine, then it is not a chapter; given reading paged from chapter 3 into 4, then 3 is read; given a jump by the contents from 3 to 10, then 3 is not read; given an EPUB replaced by an edition with a new preface, then the marks do not carry over on their own and the Work screen asks; given the same titles in the same order, then the marks carry over.
+
+## 8. As built (18/11/2026)
+
+What the code does where this text left room, and the limits it has.
+
+- **Where a chapter is in the page:** the chapter of a page is the last one whose start is on or before the page's end, as the fork reports it (`tocItem`). So the screen that shows the start of the next chapter already belongs to it, and the chapter before it becomes read there.
+- **A look back is not a reading:** paging back into the end of an earlier chapter and forward again finishes nothing. Only the chapters from the one the person opened, or jumped to by the contents, are finished by reading on.
+- **The chapter's fraction** is measured on the book's fraction, between the starts of the chapter and of the next. A chapter that starts inside a section needs that section parsed once more to be placed: a section above 8 MiB is not parsed, and its chapters keep the place (section and CFI) with the fraction at the start. A place being read never takes the end's fraction, kept for a chapter left behind or finished: the last page of a chapter reopens on that page.
+- **A section the paginator shows in pieces** (above 512 KiB): in a piece the fork names the last chapter of the whole section for any page past the piece's last heading, so the page does not ask it there. The chapter is the last one whose heading the piece shows on or before the page's end; with none, the last one that starts before the page ends, by the measured starts, which may be a page early or late; with no measure (above 8 MiB), the page names no chapter and the place stays in the chapter it was in.
+- **A screen made again** (the phone turned, the process killed) opens the file at the chapter being read. Not covered by an automatic test.
+- **The question of a changed file** is kept only when a read mark could pass. Applying marks the chapters of the same title, one mark each; the place never passes. The backup does not carry an open question: the previous editions go in it, the question does not.
+- **A file the folder cannot read** when its contents are wanted keeps the chapters it had, or stays whole; the reader says what is wrong when it opens.
+- **In Scroll, the end block** comes from the Next page button on the last screen: scrolling by hand to the end of the file does not show it.
+- **The table of contents is read by the app's own small XML reader.** A name the fork does not turn into a character (`&eacute;` and the like) fails the document, as it does in the fork when the XML parser has no DTD: such a file falls back to its NCX, or stays whole. Only real books will say how often.
