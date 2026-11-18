@@ -1,7 +1,7 @@
 // What the page tells the app about where the reader is, run by Node in the CI.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { contentsOf, navigationQueue, relocatedMessage } from '../main/assets/reader/messages.js'
+import { chapterFraction, chapterOf, contentsOf, navigationQueue, orderedSender, relocatedMessage } from '../main/assets/reader/messages.js'
 
 const detail = fraction => ({ section: { current: 2, total: 3 }, cfi: 'epubcfi(/6/6!/4/2)', fraction })
 
@@ -84,4 +84,57 @@ test('dado um sumário enorme ou profundo então o trabalho fica limitado', () =
     let toc = [{ label: 'x', href: 'a.xhtml' }]
     for (let i = 0; i < 40; i++) toc = [{ label: 'x', href: 'a.xhtml', subitems: toc }]
     assert.equal(contentsOf(toc).length, 17)
+})
+
+// Milestone B7: reading crosses the chapters of a split file.
+test('dado o item do sumário que o leitor diz, então o capítulo é o que o app deu a esse item', () => {
+    const ofItem = [0, 0, 1, 2, 3, 3, 4, 4]
+    assert.equal(chapterOf(ofItem, { id: 4 }), 3)
+    assert.equal(chapterOf(ofItem, { id: 7 }), 4)
+})
+
+test('dado uma página antes do primeiro item, ou um item que o app não conhece, então é o primeiro capítulo', () => {
+    assert.equal(chapterOf([2, 3], null), 0)
+    assert.equal(chapterOf([2, 3], undefined), 0)
+    assert.equal(chapterOf([2, 3], { id: 9 }), 0)
+    assert.equal(chapterOf(undefined, { id: 0 }), 0)
+})
+
+test('dado a fração do livro no meio do capítulo, então a fração do capítulo é a parte dele já passada', () => {
+    assert.equal(chapterFraction(0.5, 0.4, 0.8), 0.25)
+    assert.equal(chapterFraction(0.8, 0.4, 0.8), 1)
+})
+
+test('dado uma página que começa antes ou acaba depois do capítulo, então a fração fica entre 0 e 1', () => {
+    assert.equal(chapterFraction(0.39, 0.4, 0.8), 0)
+    assert.equal(chapterFraction(0.81, 0.4, 0.8), 1)
+})
+
+test('dado um começo ou um fim de capítulo que a página não mede, então a fração é desconhecida, não zero', () => {
+    assert.equal(chapterFraction(0.5, null, 0.8), null)
+    assert.equal(chapterFraction(0.5, 0.4, undefined), null)
+    assert.equal(chapterFraction(NaN, 0.4, 0.8), null)
+    assert.equal(chapterFraction(0.5, 0.4, 0.4), null)
+})
+
+test('dado uma mensagem que demora a ficar pronta e outra imediata, então elas saem na ordem em que foram pedidas', async () => {
+    const sent = []
+    const post = orderedSender(message => sent.push(message))
+    let finish
+    const slow = new Promise(resolve => { finish = resolve })
+    post(async () => { await slow; return 'relocated' })
+    const last = post(() => 'end')
+    await Promise.resolve()
+    assert.deepEqual(sent, [])
+    finish()
+    await last
+    assert.deepEqual(sent, ['relocated', 'end'])
+})
+
+test('dado uma mensagem que falha ao ser feita, então as seguintes ainda saem', async () => {
+    const sent = []
+    const post = orderedSender(message => sent.push(message))
+    post(() => { throw new Error('quebrou') })
+    await post(() => 'end')
+    assert.deepEqual(sent, ['end'])
 })

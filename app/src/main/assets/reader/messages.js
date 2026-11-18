@@ -54,3 +54,14 @@ export const navigationQueue = () => {
         return task
     }
 }
+
+// Milestone B7: in a file split by its table of contents, the chapter a page is in. The fork says
+// which item of the contents the page is under, and the app says which chapter each item leads to.
+export const chapterOf = (ofItem, item) => 0
+
+// How far into its chapter a page goes, from the book's fraction and the fractions where the chapter
+// starts and ends; null when one of them is not known.
+export const chapterFraction = (fraction, start, end) => null
+
+// Messages leave in the order they were made, even when making one has to wait.
+export const orderedSender = send => make => { make(); return Promise.resolve() }

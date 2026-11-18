@@ -48,6 +48,20 @@ class ReaderBookIndexTest {
         )
     }
 
+    // Milestone B7: a split file opens at a chapter, and the page learns the chapters to say where it is.
+    @Test
+    fun `dado um arquivo dividido aberto num capítulo nunca lido, então o destino dele e os capítulos vão no índice`() {
+        assertEquals(
+            """{"entries":[],"position":null,"flow":"scrolled","start":"OEBPS/v1.xhtml#cap-2",""" +
+                """"chapters":{"keys":["OEBPS/v1.xhtml#cap-1","OEBPS/v1.xhtml#cap-2"],"ofItem":[0,0,1]}}""",
+            ReaderBookIndex.json(
+                emptyMap(), position = null, ReaderFlow.SCROLL,
+                start = "OEBPS/v1.xhtml#cap-2",
+                chapters = ReaderChapters(listOf("OEBPS/v1.xhtml#cap-1", "OEBPS/v1.xhtml#cap-2"), ofItem = listOf(0, 0, 1)),
+            ),
+        )
+    }
+
     @Test
     fun `dado um nome com aspas, então o JSON continua válido`() {
         assertEquals(
