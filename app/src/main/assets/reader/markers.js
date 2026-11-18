@@ -13,6 +13,47 @@ const STEP = /\/([a-z][a-z0-9-]*)\[([0-9]+)\]/g
 const own = el => Array.prototype.filter.call(el.children, child => !child.hasAttribute('cfi-inert'))
 
 /** The marker of the element where [range] starts, or null when there is none to name. */
-export const markerOf = range => null
+export const markerOf = range => {
+    const container = range?.startContainer
+    if (!container) return null
+    let el = container.nodeType === 1 ? container.childNodes?.[range.startOffset] ?? container : container.parentElement
+    if (el && el.nodeType !== 1) el = el.parentElement
+    const body = el?.ownerDocument?.body
+    if (!body) return null
+    let steps = []
+    while (el && el !== body) {
+        const parent = el.parentElement
+        if (!parent) return null
+        // A node the reader added, or a tag the form cannot write (a prefix, capitals): the place
+        // becomes its parent, the nearest element both sides can name.
+        if (el.hasAttribute('cfi-inert') || !TAG.test(el.localName)) {
+            steps = []
+        } else {
+            const same = own(parent).filter(child => child.localName === el.localName)
+            const index = same.indexOf(el)
+            if (index < 0) steps = []
+            else steps.unshift(`${el.localName}[${index + 1}]`)
+        }
+        el = parent
+    }
+    if (el !== body) return null
+    return ['//body', ...steps].join('/')
+}
 
-export const elementOf = (doc, marker) => null
+/**
+ * The element [marker] names in [doc], or null for a form this reader does not know, which opens
+ * the section at its start. A path that stops short returns the deepest element it reached: a
+ * chunk's outline holds only the section's top-level elements, and that is enough to find the chunk.
+ */
+export const elementOf = (doc, marker) => {
+    const match = typeof marker === 'string' ? FORM.exec(marker) : null
+    if (!match || !doc?.body) return null
+    let el = match[1] != null ? doc.getElementById(match[1]) : doc.body
+    if (!el) return null
+    for (const [, tag, n] of match[2].matchAll(STEP)) {
+        const next = own(el).filter(child => child.localName === tag)[Number(n) - 1]
+        if (!next) return el
+        el = next
+    }
+    return el
+}
