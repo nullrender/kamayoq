@@ -42,10 +42,44 @@ CREATE UNIQUE INDEX chapter_current_path ON chapter (version_id, path, toc_href)
 
 -- As versionsOfSource: the current edition of each place of a version.
 currentOfVersion:
-SELECT id, present, stamp, content_hash, needs_check, path, toc_href, name
+SELECT id, present, stamp, content_hash, needs_check, path, toc_href, name, sort_index
 FROM chapter
 WHERE version_id = ? AND replaced_by IS NULL
 ORDER BY sort_index, rowid;
+
+-- The chapters of a split file change together (rule E1 for the whole file).
+moveKey:
+UPDATE chapter SET toc_href = ? WHERE id = ?;
+
+-- Makes or closes room in a work's order when a file's chapters are counted again as it opens.
+shiftAfter:
+UPDATE chapter SET sort_index = sort_index + ? WHERE version_id = ? AND sort_index > ?;
+
+confirmFile:
+UPDATE chapter SET content_hash = ?, needs_check = 0 WHERE version_id = ? AND path = ? AND replaced_by IS NULL;
+
+-- The chapters of the edition a file had just before its current one, in the order of its contents.
+previousOfFile:
+SELECT previous.id, previous.name
+FROM chapter AS previous
+JOIN chapter AS current ON current.id = previous.replaced_by
+WHERE previous.version_id = ? AND previous.path = ? AND current.replaced_by IS NULL
+ORDER BY previous.sort_index, previous.rowid;
+
+-- What a reading of the folder may reuse instead of opening each EPUB again.
+splitOfSource:
+SELECT chapter.path, chapter.name, chapter.toc_href, chapter.stamp
+FROM chapter
+JOIN work_version ON work_version.id = chapter.version_id
+WHERE work_version.origin = 'local' AND work_version.source = ? AND work_version.present = 1
+    AND chapter.replaced_by IS NULL AND chapter.present = 1 AND chapter.format = 'EPUB'
+ORDER BY work_version.sort_index, chapter.sort_index, chapter.rowid;
+
+placeOfChapter:
+SELECT work_version.work_id, chapter.version_id, chapter.path
+FROM chapter
+JOIN work_version ON work_version.id = chapter.version_id
+WHERE chapter.id = ?;
 
 remoteOfVersion:
 SELECT id, present, stamp, content_hash, needs_check, path, number, page_count, remote_file

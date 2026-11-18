@@ -22,6 +22,7 @@ import app.kamayoq.core.library.ContentCheck
 import app.kamayoq.core.library.FileStamp
 import app.kamayoq.core.library.LocalLibrary
 import app.kamayoq.core.library.ReadingUnit
+import app.kamayoq.core.library.SplitFiles
 import app.kamayoq.core.library.UnitContent
 import app.kamayoq.core.library.UnitKind
 import app.kamayoq.core.library.Work
@@ -357,13 +358,29 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
                 // place inside it, or a new file could take an old one's identity. A chapter gone
                 // meanwhile keeps the older letter case, of the same length. Inside a split file the
                 // place is the path and the chapter's key.
+                val pathNow = { stored: CurrentOfVersion -> work.path + stored.path.drop(work.path.length) }
+                val current = database.chapterQueries.currentOfVersion(versionId).executeAsList()
+                // The chapters of a split file are compared as a whole, not one by one (rule E1).
+                val splitUnits = work.units.withIndex().filter { it.value.content == UnitContent.SplitEpub }.groupBy { it.value.path }
+                val incomingPaths = work.units.map { it.path }.toSet()
+                val storedByPath = current.groupBy(pathNow)
+                val storedOfSplit = splitUnits.keys.associateWith { path ->
+                    storedByPath[path]
+                        ?: storedByPath.entries.firstOrNull { (stored, _) -> stored !in incomingPaths && stored.equals(path, ignoreCase = true) }?.value
+                        ?: emptyList()
+                }
+                val inSplitFiles = storedOfSplit.values.flatten().map { it.id }.toSet()
                 val findChapter = PathMatch(
-                    database.chapterQueries.currentOfVersion(versionId).executeAsList(),
-                    work.units.map { place(it.path, it.tocKey) },
-                ) { place(work.path + it.path.drop(work.path.length), it.toc_href) }
+                    current.filter { it.id !in inSplitFiles },
+                    work.units.filter { it.content != UnitContent.SplitEpub }.map { place(it.path, it.tocKey) },
+                ) { place(pathNow(it), it.toc_href) }
                 val chapterIds = work.units.mapIndexed { unitIndex, unit ->
+                    if (unit.content == UnitContent.SplitEpub) return@mapIndexed null
                     val stamp = ContentCheck.stampOf(unit, stamps)
                     storeChapter(versionId, unit, unitIndex.toLong(), stamp, workCameBack, findChapter.of(place(unit.path, unit.tocKey)))
+                }.filterNotNull() + splitUnits.flatMap { (path, units) ->
+                    val stamp = ContentCheck.stampOf(units.first().value, stamps)
+                    storeSplitFile(versionId, units.map { it.index.toLong() to it.value }, stamp, workCameBack, storedOfSplit.getValue(path))
                 }
                 database.chapterQueries.markAbsentExcept(versionId, chapterIds)
                 versionId
@@ -372,26 +389,112 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         }
     }
 
+    /**
+     * Brings the chapters of one split file in line with its [units], each with its place in the
+     * work's order. Rule E1 for the whole file: the same titles in the same order keep every
+     * chapter, with its reading, and only move the keys; any other contents is another edition, whose
+     * chapters start with no reading, while the previous ones stay stored out of the lists. Then the
+     * Work screen asks before any read mark passes, if there is one to pass. Returns the current
+     * chapters, in order.
+     */
+    private fun storeSplitFile(
+        versionId: String,
+        units: List<Pair<Long, ReadingUnit>>,
+        stamp: String,
+        workCameBack: Boolean,
+        stored: List<CurrentOfVersion>,
+    ): List<String> {
+        if (stored.isEmpty() || stored.map { it.name } == units.map { it.second.name }) {
+            val moving = stored.zip(units).filter { (row, unit) -> row.toc_href != unit.second.tocKey }
+            // In two steps, so a key on its way never meets the same key still on another chapter.
+            for ((row, _) in moving) database.chapterQueries.moveKey("\u0000${row.id}", row.id)
+            for ((row, unit) in moving) database.chapterQueries.moveKey(unit.second.tocKey, row.id)
+            return units.mapIndexed { index, (sortIndex, unit) ->
+                storeChapter(versionId, unit, sortIndex, stamp, workCameBack, stored.getOrNull(index))
+            }
+        }
+        val ids = units.map { newId() }
+        val hadReadMark = stored.any { progress(it.id).readMark != null }
+        for ((index, row) in stored.withIndex()) {
+            // The chapter at the same destination takes its place; without one, the one at the same position.
+            val sameKey = units.indexOfFirst { it.second.tocKey == row.toc_href }
+            database.chapterQueries.replace(ids[if (sameKey >= 0) sameKey else minOf(index, ids.lastIndex)], row.id)
+        }
+        for ((id, entry) in ids.zip(units)) {
+            val (sortIndex, unit) = entry
+            database.chapterQueries.insert(
+                id, versionId, unit.path, unit.name, unit.kind.name, unit.number, formatOf(unit.content).name, sortIndex, stamp, unit.tocKey,
+            )
+        }
+        if (hadReadMark) database.editionOfferQueries.offer(versionId, units.first().second.path)
+        return ids
+    }
+
     /** The split files of [source] as stored, by path, for a reading of the folder to reuse. */
-    fun splitFiles(source: String): Map<String, StoredSplit> = emptyMap()
+    fun splitFiles(source: String): Map<String, StoredSplit> =
+        database.chapterQueries.splitOfSource(source).executeAsList().groupBy { it.path }.mapValues { (_, rows) ->
+            // A file kept whole has one chapter with no key: it carries no division.
+            StoredSplit(rows.first().stamp, rows.filter { it.toc_href.isNotEmpty() }.map { ContentsChapter(it.name, it.toc_href, volume = null) })
+        }
 
     /** The current chapters of the file [chapterId] is in, in the order of its contents. */
-    fun fileChapters(chapterId: String): List<StoredChapter> = emptyList()
+    fun fileChapters(chapterId: String): List<StoredChapter> = database.transactionWithResult {
+        val place = database.chapterQueries.placeOfChapter(currentEdition(chapterId)).executeAsOneOrNull()
+            ?: return@transactionWithResult emptyList()
+        chapters(place.work_id).filter { it.path == place.path }
+    }
 
     /**
      * Brings the chapters of the file [chapterId] is in in line with [chapters], read from the file
      * as it opens, by the same rule as the import. Returns the chapter that stands for [chapterId].
      */
-    fun resplit(chapterId: String, chapters: List<ContentsChapter>): String = chapterId
+    fun resplit(chapterId: String, chapters: List<ContentsChapter>): String = database.transactionWithResult {
+        val asked = currentEdition(chapterId)
+        val place = database.chapterQueries.placeOfChapter(asked).executeAsOne()
+        val stored = database.chapterQueries.currentOfVersion(place.version_id).executeAsList().filter { it.path == place.path }
+        val stem = place.path.substringAfterLast('/').substringBeforeLast('.')
+        val whole = ReadingUnit(place.path, stem, UnitKind.CHAPTER, null, UnitContent.SplitEpub)
+        val units = SplitFiles.expand(LocalLibrary(listOf(Work(place.path, stem, null, WorkType.NOVELS, null, listOf(whole))), emptyList())) { chapters }
+            .works.single().units
+        // In the place the file has in the work: what comes after it moves by the difference.
+        val first = stored.first().sort_index
+        database.chapterQueries.shiftAfter((units.size - stored.size).toLong(), place.version_id, stored.last().sort_index)
+        storeSplitFile(place.version_id, units.mapIndexed { index, unit -> first + index to unit }, stored.first().stamp, workCameBack = false, stored)
+        currentEdition(asked)
+    }
 
     /** The questions a work's changed files ask (rule E1). */
-    fun editionOffers(workId: String): List<EditionOffer> = emptyList()
+    fun editionOffers(workId: String): List<EditionOffer> = database.transactionWithResult {
+        database.editionOfferQueries.ofWork(workId).executeAsList().map { offer ->
+            val lastRead = database.chapterQueries.previousOfFile(offer.version_id, offer.path).executeAsList()
+                .lastOrNull { progress(it.id).readMark != null }
+            EditionOffer(offer.path, lastRead?.name)
+        }
+    }
 
     /** Marks read, in the new edition of the file at [path], the chapters read in the previous one, by title. */
-    fun applyPreviousEdition(workId: String, path: String) = Unit
+    fun applyPreviousEdition(workId: String, path: String) = database.transaction {
+        for (offer in database.editionOfferQueries.ofWork(workId).executeAsList().filter { it.path == path }) {
+            val current = database.chapterQueries.currentOfVersion(offer.version_id).executeAsList().filter { it.path == path }.toMutableList()
+            for (previous in database.chapterQueries.previousOfFile(offer.version_id, path).executeAsList()) {
+                val readMark = progress(previous.id).readMark ?: continue
+                // Each chapter of the new edition takes one mark, so two chapters of the same title keep their order.
+                val target = current.firstOrNull { it.name == previous.name } ?: continue
+                current.remove(target)
+                val before = progress(target.id)
+                // The place does not pass: it points into the other edition's text.
+                if (before.readMark == null) writeProgress(target.id, before.copy(readMark = readMark))
+            }
+            database.editionOfferQueries.settle(offer.version_id, path)
+        }
+    }
 
     /** Ends the question without applying anything; the previous edition stays stored. */
-    fun dismissEdition(workId: String, path: String) = Unit
+    fun dismissEdition(workId: String, path: String) = database.transaction {
+        for (offer in database.editionOfferQueries.ofWork(workId).executeAsList().filter { it.path == path }) {
+            database.editionOfferQueries.settle(offer.version_id, path)
+        }
+    }
 
     /**
      * Brings the stored works of [server] in line with [works], everything its marked libraries hold
@@ -682,6 +785,12 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         // edition, which is the one to compare with.
         val current = currentEdition(chapterId)
         val chapter = database.chapterQueries.byId(current).executeAsOne()
+        if (chapter.toc_href.isNotEmpty()) {
+            // A chapter of a split file: what tells its editions apart is the file's contents, at the
+            // import, never the hash. The hash is of the whole file, so it confirms every chapter.
+            database.chapterQueries.confirmFile(hash, chapter.version_id, chapter.path)
+            return@transactionWithResult current
+        }
         val sameContent = chapter.content_hash == hash
         // Never hashed and never read: nothing to tell apart, so this content is its first one. A
         // Kavita chapter may have a position from the server before it first opens here.
