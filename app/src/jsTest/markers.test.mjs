@@ -69,6 +69,17 @@ test('dado uma página que começa no branco entre dois blocos, então o marcado
     assert.equal(markerOf(at(doc.body.childNodes[1])), '//body/p[2]')
 })
 
+// From the independent review of milestone C (18/11): a message has 8 KiB, and a marker past the
+// length Kotlin accepts would cost the whole place, not only the marker.
+test('dado um elemento fundo demais para um marcador, então não há marcador', () => {
+    let deep = ['p', {}, 'Fundo']
+    for (let level = 0; level < 200; level++) deep = ['div', {}, deep]
+    const doc = build(['html', {}, ['body', {}, deep]])
+    let el = doc.body
+    while (el.children.length) el = el.children[0]
+    assert.equal(markerOf(at(el)), null)
+})
+
 test('dado nada onde começar, então não há marcador', () => {
     assert.equal(markerOf(null), null)
     assert.equal(markerOf({ startContainer: null, startOffset: 0 }), null)

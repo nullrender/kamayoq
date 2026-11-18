@@ -67,10 +67,13 @@ class KavitaTextTest {
         )
     }
 
+    // From the independent review of milestone C (18/11): the marker comes from the reader, already
+    // in a known form, or is the one agreed with Kavita, which must stay as Kavita has it, or the next
+    // sync takes the server's own marker for news.
     @Test
-    fun `dado um marcador de forma desconhecida, quando converto, então vai a seção sem marcador`() {
+    fun `dado o marcador acordado com o Kavita numa forma que o leitor não acha, quando converto, então ele vai como está`() {
         assertEquals(
-            KavitaPlace(2, null),
+            KavitaPlace(2, "idx:12"),
             KavitaText.toRemote(place(2, 5), read = false, marker = "idx:12", pageCount = 5, remoteHasRecord = true),
         )
     }

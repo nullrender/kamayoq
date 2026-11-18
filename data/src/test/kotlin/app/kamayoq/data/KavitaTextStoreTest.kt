@@ -8,6 +8,8 @@ import app.kamayoq.core.library.UnitKind
 import app.kamayoq.core.library.WorkType
 import app.kamayoq.core.progress.BasisPoints
 import app.kamayoq.core.progress.ChapterProgress
+import app.kamayoq.core.progress.ReadMark
+import app.kamayoq.core.progress.ReadMarkSource
 import app.kamayoq.core.progress.StripPosition
 import app.kamayoq.core.progress.TextPosition
 import java.time.Instant
@@ -51,6 +53,30 @@ class KavitaTextStoreTest {
         assertEquals(true, item.isText)
         assertEquals(Triple("TO_SEND", "//body/p[2]", place.cfi), Triple(item.outboxState, item.outboxMarker, item.outboxCfi))
         assertEquals(1, item.outboxPage)
+    }
+
+    // From the independent review of milestone C (18/11): only the end block's save makes the queued
+    // place the book read (decision C-3), not the read mark, which stays through a reread.
+    @Test
+    fun `dado o bloco de fim num livro do Kavita, quando gravo, então a fila guarda o livro lido`() {
+        val (_, book) = work()
+        val last = place.copy(section = 2)
+
+        store.saveProgress(book, ChapterProgress(ReadMark(Instant.EPOCH, ReadMarkSource.READ_TO_END), last, 1), marker = "//body/p[2]")
+
+        assertEquals(3, checkNotNull(store.syncItem(book)).outboxPage)
+    }
+
+    @Test
+    fun `dado uma releitura na última seção de um livro já lido, quando gravo, então a fila guarda a seção`() {
+        val (_, book) = work()
+        val last = place.copy(section = 2)
+        val read = ChapterProgress(ReadMark(Instant.EPOCH, ReadMarkSource.READ_TO_END), last, 1)
+        store.saveProgress(book, read, marker = "//body/p[2]")
+
+        store.saveProgress(book, read.copy(position = last.copy(cfi = "epubcfi(/6/8!/4/4/1:0)")), marker = "//body/p[3]")
+
+        assertEquals(2, checkNotNull(store.syncItem(book)).outboxPage)
     }
 
     @Test

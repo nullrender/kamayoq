@@ -78,15 +78,22 @@ class KavitaProgressSyncTest {
 
     private fun hasRecord(title: String) = KavitaServer.progress(remoteBookChapter(title)).getValue("volumeId").jsonPrimitive.int != 0
 
-    private fun readText(chapter: StoredChapter, section: Int, marker: String?, sections: Int = 3, ended: Boolean = false) = store.saveProgress(
-        chapter.id,
-        ChapterProgress(
-            if (ended) ReadMark(Instant.EPOCH, ReadMarkSource.READ_TO_END) else null,
-            TextPosition(section, sections, "epubcfi(/6/${(section + 1) * 2}!/4/2/1:${marker?.length ?: 0})", checkNotNull(BasisPoints.fromFraction(0.5)), Instant.EPOCH, "phone-a"),
-            0,
-        ),
-        marker,
-    )
+    /**
+     * Saves as the text reader does: [ended] is the save of the end block, which keeps the first read
+     * mark and counts one more complete read (TextReading.ended); any other save keeps both.
+     */
+    private fun readText(chapter: StoredChapter, section: Int, marker: String?, sections: Int = 3, ended: Boolean = false) {
+        val before = store.progress(chapter.id)
+        store.saveProgress(
+            chapter.id,
+            ChapterProgress(
+                before.readMark ?: ReadMark(Instant.EPOCH, ReadMarkSource.READ_TO_END).takeIf { ended },
+                TextPosition(section, sections, "epubcfi(/6/${(section + 1) * 2}!/4/2/1:${marker?.length ?: 0})", checkNotNull(BasisPoints.fromFraction(0.5)), Instant.EPOCH, "phone-a"),
+                before.completeReads + if (ended) 1 else 0,
+            ),
+            marker,
+        )
+    }
 
     @Test
     fun `dado a seção 2 lida aqui com marcador, quando sincronizo duas vezes, então o Kavita guarda a página 2 com o marcador e a fila esvazia`() {
@@ -159,6 +166,49 @@ class KavitaProgressSyncTest {
         assertEquals(KavitaSyncOutcome.Settled, sync.chapter(address, key, item(chapter)))
 
         assertEquals(1 to """id("x")""", remotePlace("Marker Book"))
+    }
+
+    // From the independent review of milestone C (18/11): the read mark stays during a reread, and it
+    // alone used to make any place in the last section go as the book read.
+    @Test
+    fun `dado um livro lido e relido até a última seção sem o bloco de fim, quando sincronizo, então o Kavita guarda a seção, não o lido`() {
+        val chapter = book("Reread Book")
+        readText(chapter, 2, "//body/p[1]", ended = true)
+        sync.chapter(address, key, item(chapter))
+        readText(chapter, 0, "//body/p[2]")
+        sync.chapter(address, key, item(chapter))
+        readText(chapter, 2, "//body/p[2]")
+
+        sync.chapter(address, key, item(chapter))
+
+        assertEquals(2 to "//body/p[2]", remotePlace("Reread Book"))
+    }
+
+    // From the same review: the place adopted kept only the marker this app can find, and the next
+    // sync took Kavita's own marker for news again.
+    @Test
+    fun `dado um marcador do Kavita de forma desconhecida, quando sincronizo duas vezes, então a segunda não adota de novo`() {
+        val chapter = book("Odd Marker Book")
+        KavitaServer.saveProgress(remoteBook("Odd Marker Book"), remoteBookChapter("Odd Marker Book"), page = 1, bookScrollId = "idx:12")
+        assertEquals(KavitaSyncOutcome.Adopted, sync.chapter(address, key, item(chapter)))
+
+        assertEquals(KavitaSyncOutcome.Settled, sync.chapter(address, key, item(chapter)))
+    }
+
+    // From the same review: keeping this device's place cleared the queue, and its marker with it.
+    @Test
+    fun `dado um conflito num livro resolvido ficando aqui, quando sincronizo, então vai o lugar daqui com o marcador`() {
+        val chapter = book("Kept Here Book")
+        readText(chapter, 1, "//body/p[1]")
+        sync.chapter(address, key, item(chapter))
+        KavitaServer.saveProgress(remoteBook("Kept Here Book"), remoteBookChapter("Kept Here Book"), page = 2, bookScrollId = "//body/p[2]")
+        readText(chapter, 0, "//body/p[3]")
+        val conflict = assertIs<KavitaSyncOutcome.Conflict>(sync.chapter(address, key, item(chapter)))
+
+        store.keepLocalText(chapter.id, app.kamayoq.core.kavita.KavitaPlace(conflict.remotePage, conflict.remoteMarker), conflict.serverAt)
+        sync.chapter(address, key, item(chapter))
+
+        assertEquals(0 to "//body/p[3]", remotePlace("Kept Here Book"))
     }
 
     @Test
