@@ -125,14 +125,14 @@ class SchemaMigrationTest {
 
         assertEquals(4, LibraryStore.schema.version)
         assertEquals(before, everyRow(columns))
-        assertEquals(listOf(""), rows("SELECT DISTINCT toc_key FROM chapter").map { it.single() })
+        assertEquals(listOf(""), rows("SELECT DISTINCT toc_href FROM chapter").map { it.single() })
         assertEquals("0", rows("SELECT count(*) FROM edition_offer").single().single())
     }
 
     @Test
     fun `dado um banco migrado para a 4, quando dois capítulos do mesmo arquivo têm chaves diferentes, então convivem, e com a mesma chave o banco recusa`() {
         migrated()
-        val insert = "INSERT INTO chapter (id, version_id, path, name, kind, format, sort_index, present, stamp, needs_check, toc_key) VALUES "
+        val insert = "INSERT INTO chapter (id, version_id, path, name, kind, format, sort_index, present, stamp, needs_check, toc_href) VALUES "
 
         execute("$insert ('toc-1', 'version-dom', 'Novels/X/X.epub', 'Cap. 1', 'CHAPTER', 'EPUB', 20, 1, 's', 0, 'OEBPS/c1.xhtml')")
         execute("$insert ('toc-2', 'version-dom', 'Novels/X/X.epub', 'Cap. 2', 'CHAPTER', 'EPUB', 21, 1, 's', 0, 'OEBPS/c2.xhtml')")

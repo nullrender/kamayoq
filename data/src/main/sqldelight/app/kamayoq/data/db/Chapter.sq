@@ -28,18 +28,24 @@ CREATE TABLE chapter (
     page_count INTEGER CHECK (page_count >= 0),
     remote_file TEXT,
     remote_volume_id INTEGER,
+    -- Where the chapter starts inside a file split by its table of contents: the item's destination
+    -- (docs/decisions/novel-chapters-2026-11-18.md). Empty for a chapter that is the whole file.
+    -- Last, where the migration can put it: a fresh install must match a migrated one.
+    toc_href TEXT NOT NULL DEFAULT '',
     -- Lets work_resume require a chapter of its own version.
     UNIQUE (version_id, id)
 );
 
--- One current chapter per path; previous editions at the same path are kept beside it.
-CREATE UNIQUE INDEX chapter_current_path ON chapter (version_id, path) WHERE replaced_by IS NULL;
+-- One current chapter per place, a path and inside a split file a key; previous editions at the
+-- same place are kept beside it.
+CREATE UNIQUE INDEX chapter_current_path ON chapter (version_id, path, toc_href) WHERE replaced_by IS NULL;
 
--- As versionsOfSource: the current edition of each path of a version.
+-- As versionsOfSource: the current edition of each place of a version.
 currentOfVersion:
-SELECT id, present, stamp, content_hash, needs_check, path
+SELECT id, present, stamp, content_hash, needs_check, path, toc_href, name
 FROM chapter
-WHERE version_id = ? AND replaced_by IS NULL;
+WHERE version_id = ? AND replaced_by IS NULL
+ORDER BY sort_index, rowid;
 
 remoteOfVersion:
 SELECT id, present, stamp, content_hash, needs_check, path, number, page_count, remote_file
@@ -50,8 +56,8 @@ movePath:
 UPDATE chapter SET path = ? WHERE id = ?;
 
 insert:
-INSERT INTO chapter (id, version_id, path, name, kind, number, format, sort_index, present, stamp, content_hash, needs_check)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, NULL, 0);
+INSERT INTO chapter (id, version_id, path, name, kind, number, format, sort_index, present, stamp, content_hash, needs_check, toc_href)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, NULL, 0, ?);
 
 insertRemote:
 INSERT INTO chapter (id, version_id, path, name, kind, number, format, sort_index, present, stamp, content_hash,
@@ -90,9 +96,9 @@ UPDATE chapter SET replaced_by = ?, present = 0 WHERE id = ?;
 insertEdition:
 INSERT INTO chapter
     (id, version_id, path, name, kind, number, format, sort_index, present, stamp, content_hash, needs_check,
-    page_count, remote_file, remote_volume_id)
+    page_count, remote_file, remote_volume_id, toc_href)
 SELECT ?, version_id, path, name, kind, number, format, sort_index, ?, stamp, ?, 0,
-    page_count, remote_file, remote_volume_id
+    page_count, remote_file, remote_volume_id, toc_href
 FROM chapter
 WHERE id = ?;
 
@@ -100,7 +106,7 @@ presentOfWork:
 SELECT chapter.id, work_version.work_id, chapter.path, chapter.name, chapter.kind, chapter.number, chapter.format,
     CASE WHEN chapter.present = 1 AND work_version.present = 1 THEN 1 ELSE 0 END AS present,
     CASE WHEN chapter.needs_check = 1 OR chapter.content_hash IS NULL THEN 1 ELSE 0 END AS needs_content_check,
-    work_version.origin
+    work_version.origin, chapter.toc_href
 FROM chapter
 JOIN work_version ON work_version.id = chapter.version_id
 -- A chapter of a work whose folder is gone is not in the folder either.
@@ -116,7 +122,7 @@ SELECT version_id FROM chapter WHERE id = ?;
 allOfVersion:
 SELECT chapter.id, chapter.replaced_by, chapter.path, chapter.name, chapter.kind, chapter.number,
     chapter.format, chapter.content_hash, chapter.present, chapter.page_count, chapter.remote_file,
-    chapter.remote_volume_id
+    chapter.remote_volume_id, chapter.toc_href
 FROM chapter
 WHERE chapter.version_id = ?
 -- Editions at one path keep the order they were found in: the rowid grows with each insert.

@@ -1,0 +1,20 @@
+-- A split file whose table of contents changed while its chapters had progress: the Work screen
+-- asks before anything of the previous edition applies to the new one (rule E1).
+CREATE TABLE edition_offer (
+    version_id TEXT NOT NULL REFERENCES work_version(id),
+    path TEXT NOT NULL,
+    PRIMARY KEY (version_id, path)
+);
+
+offer:
+INSERT OR IGNORE INTO edition_offer (version_id, path) VALUES (?, ?);
+
+settle:
+DELETE FROM edition_offer WHERE version_id = ? AND path = ?;
+
+ofWork:
+SELECT edition_offer.version_id, edition_offer.path
+FROM edition_offer
+JOIN work_version ON work_version.id = edition_offer.version_id
+WHERE work_version.work_id = ?
+ORDER BY edition_offer.path;

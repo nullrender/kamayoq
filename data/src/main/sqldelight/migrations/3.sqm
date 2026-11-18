@@ -1,0 +1,16 @@
+-- From version 3 to 4: only adds, so every work, chapter and position stays as it was. A compiled
+-- novel is one file with a chapter per item of its table of contents (step 4, milestone B): each
+-- chapter keeps where it starts in the file. Every chapter stored so far is a whole file.
+ALTER TABLE chapter ADD COLUMN toc_href TEXT NOT NULL DEFAULT '';
+
+-- One current chapter per place: a path, and inside a split file a key.
+DROP INDEX chapter_current_path;
+CREATE UNIQUE INDEX chapter_current_path ON chapter (version_id, path, toc_href) WHERE replaced_by IS NULL;
+
+-- A split file whose table of contents changed while its chapters had progress: the Work screen
+-- asks before anything of the previous edition applies to the new one (rule E1).
+CREATE TABLE edition_offer (
+    version_id TEXT NOT NULL REFERENCES work_version(id),
+    path TEXT NOT NULL,
+    PRIMARY KEY (version_id, path)
+);

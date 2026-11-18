@@ -345,14 +345,15 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
                 val (versionId, workCameBack) = storeWork(source, work, index.toLong(), version)
                 // A work renamed in letter case moves all its chapters: they are compared by their
                 // place inside it, or a new file could take an old one's identity. A chapter gone
-                // meanwhile keeps the older letter case, of the same length.
+                // meanwhile keeps the older letter case, of the same length. Inside a split file the
+                // place is the path and the chapter's key.
                 val findChapter = PathMatch(
                     database.chapterQueries.currentOfVersion(versionId).executeAsList(),
-                    work.units.map { it.path },
-                ) { work.path + it.path.drop(work.path.length) }
+                    work.units.map { place(it.path, it.tocKey) },
+                ) { place(work.path + it.path.drop(work.path.length), it.toc_href) }
                 val chapterIds = work.units.mapIndexed { unitIndex, unit ->
                     val stamp = ContentCheck.stampOf(unit, stamps)
-                    storeChapter(versionId, unit, unitIndex.toLong(), stamp, workCameBack, findChapter.of(unit.path))
+                    storeChapter(versionId, unit, unitIndex.toLong(), stamp, workCameBack, findChapter.of(place(unit.path, unit.tocKey)))
                 }
                 database.chapterQueries.markAbsentExcept(versionId, chapterIds)
                 versionId
@@ -536,7 +537,7 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         if (existing == null) {
             val id = newId()
             database.chapterQueries.insert(
-                id, versionId, unit.path, unit.name, kind, unit.number, format, sortIndex, stamp,
+                id, versionId, unit.path, unit.name, kind, unit.number, format, sortIndex, stamp, unit.tocKey,
             )
             return id
         }
@@ -831,11 +832,16 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
             present: Long,
             needsContentCheck: Long,
             origin: String,
+            tocKey: String,
         ) = StoredChapter(
             id, workId, path, name, UnitKind.valueOf(kind), number, ChapterFormat.valueOf(format),
             present = present == 1L,
             needsContentCheck = needsContentCheck == 1L,
             origin = origin,
+            tocKey = tocKey,
         )
+
+        // A path never holds a NUL, so a path and a key cannot run into each other.
+        private fun place(path: String, tocKey: String) = if (tocKey.isEmpty()) path else "$path\u0000$tocKey"
     }
 }
