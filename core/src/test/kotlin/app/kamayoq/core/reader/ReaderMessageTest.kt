@@ -18,6 +18,52 @@ class ReaderMessageTest {
     private fun relocatedWithMarker(marker: String) =
         """{"type":"relocated","section":1,"sections":3,"cfi":"epubcfi(/6/4!/4/2)","fraction":0.5,"reason":"page","marker":$marker}"""
 
+    private fun relocatedInChapter(chapter: String, chapterFraction: String) =
+        """{"type":"relocated","section":1,"sections":3,"cfi":"epubcfi(/6/4!/4/2)","fraction":0.5,"reason":"page","chapter":$chapter,"chapterFraction":$chapterFraction}"""
+
+    // Milestone B7 of step 4: in a split file the page says which chapter it is in and how far into it.
+    @Test
+    fun `dado relocated com o capítulo e a fração dele, então os dois vêm com o lugar`() {
+        val message = assertIs<ReaderMessage.Relocated>(ReaderMessage.parse(relocatedInChapter("4", "0.25")))
+
+        assertEquals(4, message.chapter)
+        assertEquals(2_500, message.chapterPosition?.value)
+    }
+
+    @Test
+    fun `dado relocated com o capítulo e sem medir a fração dele, então o capítulo vem e a fração fica desconhecida`() {
+        val message = assertIs<ReaderMessage.Relocated>(ReaderMessage.parse(relocatedInChapter("0", "null")))
+
+        assertEquals(0, message.chapter)
+        assertEquals(null, message.chapterPosition)
+    }
+
+    @Test
+    fun `dado relocated sem capítulo, então é um livro inteiro e o lugar vale como antes`() {
+        val message = assertIs<ReaderMessage.Relocated>(ReaderMessage.parse(relocated()))
+
+        assertEquals(null, message.chapter)
+        assertEquals(null, message.chapterPosition)
+    }
+
+    @Test
+    fun `dado relocated com capítulo ou fração de capítulo inválidos, então a mensagem é recusada, não vira zero`() {
+        for (chapter in listOf("-1", "1.5", "\"2\"", "{}", "100001")) {
+            assertIs<ReaderMessage.Refused>(ReaderMessage.parse(relocatedInChapter(chapter, "0.25")), chapter)
+        }
+        for (fraction in listOf("1.01", "-0.1", "\"0.5\"", "[]")) {
+            assertIs<ReaderMessage.Refused>(ReaderMessage.parse(relocatedInChapter("4", fraction)), fraction)
+        }
+    }
+
+    @Test
+    fun `dado cada motivo do paginator, então só virar a página, soltar o arrasto e rolar levam de um capítulo ao seguinte`() {
+        assertEquals(
+            setOf(RelocateReason.PAGE, RelocateReason.SNAP, RelocateReason.SCROLL),
+            RelocateReason.entries.filter { it.turns }.toSet(),
+        )
+    }
+
     // Milestone C2 of step 4: the page names the element it starts at, in Kavita's form.
     @Test
     fun `dado relocated com o marcador do Kavita, então o marcador vem com o lugar`() {

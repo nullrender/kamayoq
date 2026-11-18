@@ -24,6 +24,13 @@ sealed interface ReaderMessage {
         val reason: RelocateReason,
         /** Kavita's marker of the element the page starts at, taken on the rendered section (milestone C2). */
         val marker: String? = null,
+        /**
+         * In a file split by its table of contents, the chapter the page is in, counted from 0 in the
+         * chapters the app handed the page, and how far into that chapter the page goes; the second
+         * is null when the page cannot measure it (milestone B7).
+         */
+        val chapter: Int? = null,
+        val chapterPosition: BasisPoints? = null,
     ) : ReaderMessage
 
     /**
@@ -67,7 +74,8 @@ sealed interface ReaderMessage {
 
         private fun relocated(message: JsonObject): ReaderMessage {
             val fields = setOf("type", "section", "sections", "cfi", "fraction", "reason")
-            if (message.keys != fields && message.keys != fields + "marker") return Refused("unexpected fields")
+            val optional = setOf("marker", "chapter", "chapterFraction")
+            if (!message.keys.containsAll(fields) || !(fields + optional).containsAll(message.keys)) return Refused("unexpected fields")
             val section = message.int("section")
             val sections = message.int("sections")
             if (section == null || sections == null || section !in 0 until sections) return Refused("section outside the book")
@@ -114,5 +122,11 @@ enum class RelocateReason(val wire: String, val byPerson: Boolean) {
     NAVIGATION("navigation", true),
     SELECTION("selection", true),
     ANCHOR("anchor", false),
-    CONTAINER_SCROLL("container-scroll", false),
+    CONTAINER_SCROLL("container-scroll", false);
+
+    /**
+     * Reading on, page after page or by scrolling: what takes the person from a chapter into the
+     * next. A jump by the contents or by a link moves without reading what is in between.
+     */
+    val turns: Boolean get() = this == PAGE || this == SNAP || this == SCROLL
 }
