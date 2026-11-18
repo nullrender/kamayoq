@@ -79,6 +79,10 @@ class TextReaderKavitaTest {
         throw AssertionError("Reader did not restore")
     }
 
+    // The reader keeps its state for the same book while it stays on screen: a new opening needs the
+    // old screen gone first, as TextReaderSavingTest does.
+    private fun hide() = checkNotNull(scenario).onActivity { it.setContentView(View(it)) }
+
     private fun View.findWebView(): WebView? = when (this) {
         is WebView -> this
         is ViewGroup -> (0 until childCount).firstNotNullOfOrNull { getChildAt(it).findWebView() }
@@ -183,12 +187,14 @@ class TextReaderKavitaTest {
         open(EpubFixtures.positions())
         val losses = mutableListOf<Int>()
         for (pages in 1..4) {
+            hide()
             show(TextReading(null as TextPosition?, "emulator"))
             move("document.querySelector('foliate-view').goTo('OEBPS/s2.xhtml#parte-2-1')")
             var place = move("kamayoqReader.next()")
             repeat(pages - 1) { place = move("kamayoqReader.next()") }
             val (before, numberBefore) = firstWord()
             val marker = checkNotNull(place.marker) { "No marker at $before" }
+            hide()
 
             show(fromKavita(page = place.section, sections = place.sections, marker = marker))
 
