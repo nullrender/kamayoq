@@ -148,7 +148,8 @@ fun TextReader(
                             val book = ReaderBook(
                                 archive, token, position = cfi, flow = flow, section = section, marker = marker,
                                 sections = session.startSections.takeIf { cfi == null },
-                                start = session.startHref.takeIf { cfi == null },
+                                // Also with a CFI: when the file no longer resolves it, the chapter opens at its own start.
+                                start = session.startHref,
                                 chapters = session.chapters,
                             )
                             val client = ReaderClient(viewContext.assets, book) {

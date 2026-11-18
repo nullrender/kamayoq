@@ -81,14 +81,15 @@ const open = async token => {
 // their destinations and the chapter each item of the contents leads to.
 const chapterMeter = chapters => {
     const sectionStarts = view.getSectionFractions()
-    const targets = chapters.keys.map(key => ({ key, section: view.resolveNavigation(key)?.index }))
+    const targets = chapters.keys.map((key, chapter) => ({ key, chapter, section: view.resolveNavigation(key)?.index }))
+    const sizeOf = section => view.book.sections[section]?.size
     const measured = new Map()
-    // One parse of a section measures every chapter that starts inside it, and the document goes.
-    // A section the paginator itself splits is too large to parse again: its chapters stay unmeasured.
+    // One parse of a section measures every chapter that starts inside it, and the document goes. A
+    // section too large to parse again leaves its chapters unmeasured.
     const measure = section => {
         if (!measured.has(section)) measured.set(section, (async () => {
             const inside = new Map()
-            if (!(view.book.sections[section]?.size <= 512 * 1024)) return inside
+            if (!(sizeOf(section) <= MEASURED_SECTION)) return inside
             const doc = await view.book.sections[section].createDocument()
             for (const { key } of targets.filter(target => target.section === section && target.key.includes('#'))) {
                 const element = view.book.getTOCFragment(doc, key.slice(key.indexOf('#') + 1))
@@ -108,12 +109,47 @@ const chapterMeter = chapters => {
         const inside = (await measure(section)).get(key)
         return inside === undefined ? null : from + inside * (to - from)
     }
+    // A section the paginator shows in pieces: a piece holds only its own headings, and for a page
+    // past the last of them the fork names the last item of the whole section (emulator, 18/11/2026).
+    // There the chapter is the last one whose heading this piece shows on or before the page's end;
+    // with none in the piece, the last one that starts before the page ends, by the measured starts.
+    // Null when neither says: the app then keeps the chapter it was in.
+    const inPieces = async (location, section) => {
+        const here = targets.filter(target => target.section === section)
+        const range = location.range
+        const doc = range?.startContainer?.getRootNode()
+        let shown = null
+        for (const { key, chapter } of here) {
+            const element = doc && key.includes('#') ? view.book.getTOCFragment(doc, key.slice(key.indexOf('#') + 1)) : null
+            if (!element) continue
+            if (range.comparePoint(element, 0) > 0) break
+            shown = chapter
+        }
+        if (shown !== null) return shown
+        let started = null
+        for (const { chapter } of here) {
+            const start = await startOf(chapter)
+            if (start === null) return null
+            if (start <= location.fraction) started = chapter
+        }
+        // Before the first chapter that starts in this section: still in the one before it.
+        return started ?? Math.max(here[0].chapter - 1, 0)
+    }
     return async location => {
-        const chapter = chapterOf(chapters.ofItem, location?.tocItem)
+        const section = location?.section?.current
+        const pieces = sizeOf(section) > PIECES_ABOVE && targets.some(target => target.section === section)
+        const chapter = pieces ? await inPieces(location, section) : chapterOf(chapters.ofItem, location?.tocItem)
+        if (chapter === null) return {}
         const [start, end] = await Promise.all([startOf(chapter), startOf(chapter + 1)])
         return { chapter, chapterFraction: chapterFraction(location?.fraction, start, end) }
     }
 }
+
+// The paginator shows a section above this size in pieces (CHUNK_THRESHOLD in paginator.js).
+const PIECES_ABOVE = 512 * 1024
+// Above this a section is not parsed a second time to place its chapters: the fraction of a chapter
+// inside it stays unknown, and so does the chapter of a page whose piece shows no heading.
+const MEASURED_SECTION = 8 * 1024 * 1024
 
 // How much of a document's text comes before an element, from 0 to 1.
 const textBefore = (doc, element) => {
