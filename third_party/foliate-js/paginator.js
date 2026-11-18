@@ -1915,6 +1915,10 @@ export class Paginator extends HTMLElement {
     get primaryIndex() {
         return this.#spineOf(this.#primaryIndex)
     }
+    // Kamayoq: the place of the page's unit in `sections`, which counts chunks; primaryIndex is its section
+    get primaryUnitIndex() {
+        return this.#primaryIndex
+    }
     setAttribute(name, value) {
         // The scrolled-mode scroll handler is debounced, so #anchor and
         // #primaryIndex can lag behind the user's actual viewport by up to
