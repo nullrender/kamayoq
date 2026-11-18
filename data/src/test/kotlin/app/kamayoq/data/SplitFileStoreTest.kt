@@ -412,6 +412,25 @@ class SplitOpeningTest {
         assertEquals(listOf(""), chapters().map { it.tocKey })
     }
 
+    // Found by the Gemini review of milestone B: the opening compared only the destinations, so an
+    // edition with the same destinations and other titles was read under the chapters of the old one.
+    @Test
+    fun `dado um arquivo com outros títulos nos mesmos destinos desde a leitura da pasta, quando o leitor o abre, então os capítulos passam a ser os do arquivo, numa edição nova`() {
+        import("c1.xhtml", "c2.xhtml")
+        val before = chapters().map { it.id }
+        val retitled = BookContents(
+            entries = emptyList(),
+            chapters = listOf(ContentsChapter("Prefácio", "c1.xhtml", volume = null), ContentsChapter("Capítulo 1", "c2.xhtml", volume = null)),
+            chapterOfItem = listOf(0, 0, 1),
+        )
+
+        val opening = store.splitOpening(before[1], retitled) as? SplitOpening
+
+        assertEquals(listOf("Prefácio", "Capítulo 1"), chapters().map { it.name })
+        assertEquals(chapters().map { it.id }, opening?.chapterIds)
+        assertEquals(emptyList(), opening?.chapterIds.orEmpty().filter { it in before })
+    }
+
     // Found by the independent review of 18/11/2026: the reader went on saving into the chapter the
     // file no longer had.
     @Test
