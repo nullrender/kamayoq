@@ -22,4 +22,5 @@ data class RemoteChapter(
 )
 
 /** A chapter's record in the server. [at] is its own text, null when there is no record. */
-data class RemoteProgress(val page: Int, val at: String?)
+/** [marker] is the book's `bookScrollId`, null when Kavita has none. */
+data class RemoteProgress(val page: Int, val at: String?, val marker: String? = null)

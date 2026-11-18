@@ -19,4 +19,8 @@ DELETE FROM progress_agreement WHERE chapter_id = ?;
 
 agree:
 INSERT OR REPLACE INTO progress_agreement (chapter_id, page, book_scroll_id, server_at, own_reread, local_cfi)
-VALUES (?, ?, NULL, ?, ?, NULL);
+VALUES (?, ?, ?, ?, ?, ?);
+
+-- The same agreed content, now read at another CFI here: the marker still matches it.
+moveLocalCfi:
+UPDATE progress_agreement SET local_cfi = ? WHERE chapter_id = ?;

@@ -14,7 +14,7 @@ SELECT * FROM progress_outbox WHERE chapter_id = ?;
 
 queue:
 INSERT OR REPLACE INTO progress_outbox (chapter_id, page, book_scroll_id, local_cfi, state, queued_at)
-VALUES (?, ?, NULL, NULL, ?, ?);
+VALUES (?, ?, ?, ?, ?, ?);
 
 clear:
 DELETE FROM progress_outbox WHERE chapter_id = ?;

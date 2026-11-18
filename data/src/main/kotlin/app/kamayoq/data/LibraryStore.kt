@@ -13,7 +13,9 @@ import app.kamayoq.core.backup.BackupWork
 import app.kamayoq.core.kavita.ImportedChapter
 import app.kamayoq.core.kavita.ImportedWork
 import app.kamayoq.core.kavita.KavitaProgress
+import app.kamayoq.core.kavita.KavitaPlace
 import app.kamayoq.core.kavita.KavitaRelink
+import app.kamayoq.core.kavita.KavitaText
 import app.kamayoq.core.library.ChapterFormat
 import app.kamayoq.core.library.ComicsSubtype
 import app.kamayoq.core.library.ContentCheck
@@ -100,6 +102,12 @@ data class SyncItem(
     val outboxPage: Int?,
     /** Took the place of another edition: whatever the server has belongs to that content. */
     val isEdition: Boolean,
+    /** A book: its page is a section, and a marker and a local CFI go with it (step 4, C2). */
+    val isText: Boolean = false,
+    val agreedMarker: String? = null,
+    val agreedCfi: String? = null,
+    val outboxMarker: String? = null,
+    val outboxCfi: String? = null,
 )
 
 /** A position kept aside: the one not chosen in a conflict, or the one before the server's news. */
@@ -137,11 +145,32 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
     fun syncItem(chapterId: String): SyncItem? =
         database.chapterQueries.syncItem(chapterId, ::syncItem).executeAsOneOrNull()
 
-    /** The server has this page too: the chapter leaves the queue. [ownReread] is rule C1. */
-    fun agree(chapterId: String, page: Int, serverAt: String?, ownReread: Boolean) = database.transaction {
-        database.progressAgreementQueries.agree(chapterId, page.toLong(), serverAt, if (ownReread) 1L else 0L)
+    /**
+     * The server has this page too: the chapter leaves the queue. [ownReread] is rule C1. A book
+     * also agrees on its [marker], and keeps the [localCfi] here that the agreed content stands for:
+     * Kavita gives no CFI back.
+     */
+    fun agree(
+        chapterId: String,
+        page: Int,
+        serverAt: String?,
+        ownReread: Boolean,
+        marker: String? = null,
+        localCfi: String? = null,
+    ) = database.transaction {
+        database.progressAgreementQueries.agree(chapterId, page.toLong(), marker, serverAt, if (ownReread) 1L else 0L, localCfi)
         database.progressOutboxQueries.clear(chapterId)
     }
+
+    /** The book is read at [localCfi] now, and its place there is still what was agreed. */
+    fun moveAgreedCfi(chapterId: String, localCfi: String) = database.transaction {
+        database.progressAgreementQueries.moveLocalCfi(localCfi, chapterId)
+        database.progressOutboxQueries.clear(chapterId)
+    }
+
+    /** The marker agreed with Kavita, for a book that opens at a place from there. */
+    fun agreedMarker(chapterId: String): String? =
+        database.progressAgreementQueries.ofChapter(chapterId).executeAsOneOrNull()?.book_scroll_id
 
     /** Both sides are where they were: whatever was on its way no longer matters. */
     fun clearQueue(chapterId: String) {
@@ -149,16 +178,40 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
     }
 
     /** Waiting for the network. What was sent and not confirmed stays as it was: rereading settles it. */
-    fun queueProgress(chapterId: String, page: Int, at: Instant) = database.transaction {
+    fun queueProgress(chapterId: String, page: Int, at: Instant, marker: String? = null, localCfi: String? = null) = database.transaction {
         val queued = database.progressOutboxQueries.ofChapter(chapterId).executeAsOneOrNull()
         if (queued?.state != SENT_UNCONFIRMED) {
-            database.progressOutboxQueries.queue(chapterId, page.toLong(), TO_SEND, at.toEpochMilli())
+            database.progressOutboxQueries.queue(chapterId, page.toLong(), marker, localCfi, TO_SEND, at.toEpochMilli())
         }
     }
 
     /** Written before the request: a process that dies after it must reread, not send again. */
-    fun markSending(chapterId: String, page: Int, at: Instant) {
-        database.progressOutboxQueries.queue(chapterId, page.toLong(), SENT_UNCONFIRMED, at.toEpochMilli())
+    fun markSending(chapterId: String, page: Int, at: Instant, marker: String? = null, localCfi: String? = null) {
+        database.progressOutboxQueries.queue(chapterId, page.toLong(), marker, localCfi, SENT_UNCONFIRMED, at.toEpochMilli())
+    }
+
+    /**
+     * Kavita's place of a book from there, as the server has it (decision C-2): the book reopens at
+     * [place]'s marker, a read one stays read, and nothing unmarks (C1). A book's place is not kept
+     * aside: the positions kept aside count images only.
+     */
+    fun adoptRemoteText(
+        chapterId: String,
+        place: KavitaPlace,
+        pageCount: Int,
+        serverAt: String?,
+        at: Instant,
+        moveResume: Boolean = true,
+    ) {
+        val remote = KavitaText.fromRemote(place, pageCount, at) ?: return
+        database.transaction {
+            val before = progress(chapterId)
+            val mark = before.readMark ?: ReadMark(at, ReadMarkSource.KAVITA).takeIf { remote.read }
+            writeProgress(chapterId, before.copy(readMark = mark, position = remote.position))
+            val versionId = database.chapterQueries.versionOfChapter(chapterId).executeAsOne()
+            if (moveResume) database.workResumeQueries.save(versionId, chapterId)
+            agree(chapterId, place.page, serverAt, ownReread = false, remote.marker, remote.position.cfi)
+        }
     }
 
     /**
@@ -205,6 +258,7 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         // Reopening where it already did is no news, unless a reading here elsewhere makes it a choice.
         if (!localMoved && before?.chapterId == chapterId) return@transaction
         if (localMoved) {
+            // A book's place is not kept aside: the positions kept aside count images only.
             progress(chapterId).position?.strip()?.let { keepAside(versionId, CONFLICT, chapterId, it) }
         } else {
             before?.position?.strip()?.takeIf { it.page > 0 }?.let { keepAside(versionId, PREVIOUS, before.chapterId, it) }
@@ -215,6 +269,14 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
     /** The copy read now may not be the newest: the next opening with a server must compare again. */
     fun doubtContent(chapterId: String) {
         database.chapterQueries.doubt(chapterId)
+    }
+
+    /**
+     * A conflict in a book settled for this device: the server's place becomes the agreement, so the
+     * place read here goes next. Not kept aside: the positions kept aside count images only.
+     */
+    fun keepLocalText(chapterId: String, place: KavitaPlace, serverAt: String?) {
+        agree(chapterId, place.page, serverAt, ownReread = false, place.marker, localCfi = null)
     }
 
     /** A conflict settled for this device: the server's position stays aside, and sending is free. */
@@ -395,7 +457,7 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
             if (relinked != null) {
                 database.chapterQueries.movePath(chapter.path, relinked.id)
                 // The new id starts with no record in the server (KavitaFactsTest): that is the base now.
-                database.progressAgreementQueries.agree(relinked.id, 0L, null, 0L)
+                database.progressAgreementQueries.agree(relinked.id, 0L, null, null, 0L, null)
             }
             storeRemoteChapter(versionId, chapter, index.toLong(), existing, workCameBack || relinked != null)
         }
@@ -528,7 +590,12 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         }.executeAsOneOrNull() ?: ChapterProgress.NEVER_OPENED
 
     /** Saves the reading of a chapter; that chapter becomes where its work reopens. */
-    fun saveProgress(chapterId: String, progress: ChapterProgress) {
+    /**
+     * [marker] is Kavita's name of the element a book's page starts at. Kavita gives no CFI back, so
+     * a book from there keeps the marker of each place in the queue, beside its CFI: the next sync
+     * sends that pair (step 4, C2).
+     */
+    fun saveProgress(chapterId: String, progress: ChapterProgress, marker: String? = null) {
         database.transaction {
             writeProgress(chapterId, progress)
             val versionId = database.chapterQueries.versionOfChapter(chapterId).executeAsOne()
@@ -728,11 +795,16 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
             serverAt: String?,
             outboxState: String?,
             outboxPage: Long?,
+            format: String,
+            agreedMarker: String?,
+            agreedCfi: String?,
+            outboxMarker: String?,
+            outboxCfi: String?,
             isEdition: Boolean,
         ) = SyncItem(
             id, path.toInt(), checkNotNull(volume).toInt(), series.toInt(), checkNotNull(library).toInt(),
             checkNotNull(pages).toInt(), agreedPage?.toInt(), serverAt, outboxState, outboxPage?.toInt(),
-            isEdition,
+            isEdition, ChapterFormat.valueOf(format) == ChapterFormat.EPUB, agreedMarker, agreedCfi, outboxMarker, outboxCfi,
         )
 
         private fun storedChapter(

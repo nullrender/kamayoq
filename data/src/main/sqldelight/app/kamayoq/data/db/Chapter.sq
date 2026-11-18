@@ -122,11 +122,13 @@ WHERE chapter.version_id = ?
 -- Editions at one path keep the order they were found in: the rowid grows with each insert.
 ORDER BY chapter.sort_index, chapter.rowid;
 
--- The Kavita chapters whose position goes back and forth; text ones wait for the EPUB reader.
+-- The Kavita chapters whose position goes back and forth: CBZ chapters and books (step 4, C2).
 syncItems:
 SELECT chapter.id, chapter.path, chapter.remote_volume_id, chapter.page_count, work_version.path AS series,
     work_version.remote_library_id, progress_agreement.page AS agreed_page, progress_agreement.server_at,
     progress_outbox.state AS outbox_state, progress_outbox.page AS outbox_page,
+    chapter.format, progress_agreement.book_scroll_id AS agreed_marker, progress_agreement.local_cfi AS agreed_cfi,
+    progress_outbox.book_scroll_id AS outbox_marker, progress_outbox.local_cfi AS outbox_cfi,
     EXISTS (SELECT 1 FROM chapter AS previous WHERE previous.replaced_by = chapter.id) AS is_edition
 FROM chapter
 JOIN work_version ON work_version.id = chapter.version_id
@@ -142,6 +144,8 @@ syncItem:
 SELECT chapter.id, chapter.path, chapter.remote_volume_id, chapter.page_count, work_version.path AS series,
     work_version.remote_library_id, progress_agreement.page AS agreed_page, progress_agreement.server_at,
     progress_outbox.state AS outbox_state, progress_outbox.page AS outbox_page,
+    chapter.format, progress_agreement.book_scroll_id AS agreed_marker, progress_agreement.local_cfi AS agreed_cfi,
+    progress_outbox.book_scroll_id AS outbox_marker, progress_outbox.local_cfi AS outbox_cfi,
     EXISTS (SELECT 1 FROM chapter AS previous WHERE previous.replaced_by = chapter.id) AS is_edition
 FROM chapter
 JOIN work_version ON work_version.id = chapter.version_id

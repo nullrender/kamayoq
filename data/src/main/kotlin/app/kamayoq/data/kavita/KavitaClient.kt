@@ -138,17 +138,20 @@ open class KavitaClient(
             val record = answer.body.jsonObject
             // With no record the server invents an answer with no volume (KavitaFactsTest).
             val exists = record.int("volumeId") != 0
-            RemoteProgress(record.int("pageNum"), if (exists) record.text("lastModifiedUtc") else null)
+            val marker = (record["bookScrollId"] as? JsonPrimitive)?.takeIf { it.isString }?.content
+            RemoteProgress(record.int("pageNum"), if (exists) record.text("lastModifiedUtc") else null, marker)
         }
     }
 
-    open fun saveProgress(address: String, key: String, item: SyncItem, page: Int) {
+    /** [marker] goes as the `bookScrollId` of a book; an image chapter has none. */
+    open fun saveProgress(address: String, key: String, item: SyncItem, page: Int, marker: String? = null) {
         val progress = buildJsonObject {
             put("volumeId", item.volumeId)
             put("chapterId", item.remoteId)
             put("pageNum", page)
             put("seriesId", item.seriesId)
             put("libraryId", item.libraryId)
+            marker?.let { put("bookScrollId", it) }
         }
         fetch(address, key, "/api/Reader/progress", progress, parsed = false)
     }

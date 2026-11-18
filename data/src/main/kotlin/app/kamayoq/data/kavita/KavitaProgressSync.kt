@@ -1,6 +1,9 @@
 package app.kamayoq.data.kavita
 
+import app.kamayoq.core.kavita.KavitaPlace
 import app.kamayoq.core.kavita.KavitaProgress
+import app.kamayoq.core.kavita.KavitaText
+import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.progress.strip
 import app.kamayoq.data.LibraryStore
 import app.kamayoq.data.StoredResume
@@ -17,8 +20,16 @@ sealed interface KavitaSyncOutcome {
     /** The chapter took the server's position. */
     data object Adopted : KavitaSyncOutcome
 
-    /** Both sides changed and disagree: nothing was sent, and only the person can choose. */
-    data class Conflict(val remotePage: Int, val serverAt: String?, val pageCount: Int) : KavitaSyncOutcome
+    /**
+     * Both sides changed and disagree: nothing was sent, and only the person can choose. In a book
+     * the page is a section, and [remoteMarker] the place in it.
+     */
+    data class Conflict(
+        val remotePage: Int,
+        val serverAt: String?,
+        val pageCount: Int,
+        val remoteMarker: String? = null,
+    ) : KavitaSyncOutcome
 }
 
 /** The position going back and forth, chapter by chapter (progress contract, section 2d). */
@@ -44,6 +55,7 @@ class KavitaProgressSync(
     @Synchronized
     fun chapter(address: String, key: String, known: SyncItem, moveResume: Boolean = true): KavitaSyncOutcome {
         val item = store.syncItem(known.chapterId) ?: return KavitaSyncOutcome.Settled
+        if (item.isText) return text(address, key, item, moveResume)
         val progress = store.progress(item.chapterId)
         val local = KavitaProgress.toRemote(progress.position?.strip(), item.pageCount)
         val remote = client.progress(address, key, item.remoteId)
@@ -72,12 +84,70 @@ class KavitaProgressSync(
         return KavitaSyncOutcome.Settled
     }
 
+    // A book's place: section and marker against the agreement (step 4, C2). Each place read here is
+    // already in the queue with its marker and CFI (LibraryStore.saveProgress).
+    private fun text(address: String, key: String, item: SyncItem, moveResume: Boolean): KavitaSyncOutcome {
+        val progress = store.progress(item.chapterId)
+        val position = progress.position as? TextPosition
+        val remote = client.progress(address, key, item.remoteId)
+        val there = KavitaPlace(remote.page, remote.marker)
+        if (item.isEdition && item.agreedPage == null) {
+            store.agree(item.chapterId, remote.page, remote.at, ownReread = false, remote.marker)
+            return chapter(address, key, item)
+        }
+        // Kavita counts other sections than the reader: no place means the same on both sides, so
+        // neither goes anywhere and the place here stays.
+        if (position != null && position.sections != item.pageCount) return KavitaSyncOutcome.Settled
+        val local = KavitaText.toRemote(position, progress.readMark != null, markerHere(item, position), item.pageCount, remote.at != null)
+        val arrived = item.outboxState == SENT_UNCONFIRMED && item.outboxPage == remote.page && item.outboxMarker == remote.marker
+        if (arrived) store.agree(item.chapterId, remote.page, remote.at, ownReread = false, remote.marker, item.outboxCfi)
+        val agreed = if (arrived) there else item.agreedPage?.let { KavitaPlace(it, item.agreedMarker) }
+        when (KavitaText.decide(local, agreed, there)) {
+            // The same place, maybe at another CFI here: the queue keeps a place that stays here (C-1).
+            KavitaProgress.Decision.IN_SYNC -> if (local != null && position != null && item.outboxState != null) {
+                store.moveAgreedCfi(item.chapterId, position.cfi)
+            }
+            KavitaProgress.Decision.AGREE ->
+                store.agree(item.chapterId, remote.page, remote.at, ownReread = false, remote.marker, position?.cfi)
+            KavitaProgress.Decision.SEND -> sendText(
+                address, key, item, checkNotNull(local) { "Nothing to send" }, checkNotNull(position).cfi, progress.readMark != null,
+            )
+            KavitaProgress.Decision.ADOPT -> {
+                store.adoptRemoteText(item.chapterId, there, item.pageCount, remote.at, now(), moveResume)
+                return KavitaSyncOutcome.Adopted
+            }
+            KavitaProgress.Decision.CONFLICT ->
+                return KavitaSyncOutcome.Conflict(remote.page, remote.at, item.pageCount, remote.marker)
+        }
+        return KavitaSyncOutcome.Settled
+    }
+
+    // Kavita gives no CFI back: a marker is known only for the CFI it was taken or agreed with.
+    private fun markerHere(item: SyncItem, position: TextPosition?): String? = when (position?.cfi) {
+        null -> null
+        item.outboxCfi -> item.outboxMarker
+        item.agreedCfi -> item.agreedMarker
+        else -> null
+    }
+
+    private fun sendText(address: String, key: String, item: SyncItem, place: KavitaPlace, cfi: String, wasRead: Boolean) {
+        store.markSending(item.chapterId, place.page, now(), place.marker, cfi)
+        client.saveProgress(address, key, item, place.page, place.marker)
+        val after = client.progress(address, key, item.remoteId)
+        // Equal is page and marker, never the date (D2); anything else waits in the queue.
+        if (after.page == place.page && after.marker == place.marker) {
+            store.agree(item.chapterId, place.page, after.at, ownReread = wasRead && place.page < item.pageCount, place.marker, cfi)
+        }
+    }
+
     /** After the reader closes. With no server, the position waits in the queue. */
     fun afterReading(address: String, key: String, chapterId: String) {
         val item = store.syncItem(chapterId) ?: return
         try {
             ifClosed(address, key, item)
         } catch (_: IOException) {
+            // A book's place is in the queue since it was saved.
+            if (item.isText) return
             val page = KavitaProgress.toRemote(store.progress(chapterId).position?.strip(), item.pageCount) ?: return
             store.queueProgress(chapterId, page, now())
         }
@@ -177,6 +247,8 @@ class KavitaProgressSync(
     private fun readingNow(): String? = reading?.let(store::currentEdition)
 
     private fun changedHere(item: SyncItem): Boolean {
+        // Every place read here in a book goes to the queue when saved.
+        if (item.isText) return item.outboxState != null
         val local = KavitaProgress.toRemote(store.progress(item.chapterId).position?.strip(), item.pageCount)
         return local != null && local != (item.agreedPage ?: 0)
     }

@@ -56,25 +56,149 @@ class KavitaProgressSyncTest {
 
     private fun item(chapter: StoredChapter) = checkNotNull(store.syncItem(chapter.id))
 
-    // Milestone C1 of step 4: a book from Kavita opens in the text reader, and its place stays here
-    // until the conversion of C2 exists.
-    @Test
-    fun `dado um capítulo de texto do Kavita lido aqui, quando sincronizo, então nada é enviado`() {
+    // Step 4, milestone C2: a book's place goes as its section and marker. Each test reads a book of
+    // its own, of three sections (KavitaFixtures.writeEpub).
+    private fun book(title: String): StoredChapter {
         store.linkKavita(address, "0.9.1.4", accountId = 1)
         store.markLibraries(checkNotNull(store.kavitaServer()).id, listOf(KavitaServer.bookLibraryId))
-        val pagesRead = KavitaImport(client, store).run(key)
-        val work = store.works().single { it.title == "Read Here Book" }
-        val chapter = store.chapters(work.id).single()
-        val place = TextPosition(2, 3, "epubcfi(/6/8!/4/2/1:0)", checkNotNull(BasisPoints.fromFraction(0.9)), Instant.EPOCH, "phone-a")
-        store.saveProgress(chapter.id, ChapterProgress(null, place, 0))
+        KavitaImport(client, store).run(key)
+        return store.chapters(store.works().single { it.title == title }.id).single()
+    }
 
-        sync.all(address, key, pagesRead)
+    private fun remoteBook(title: String) = KavitaServer.works(KavitaServer.bookLibraryId).single { it.name == title }
+
+    private fun remoteBookChapter(title: String) = KavitaServer.chapters(remoteBook(title).id).single()
+
+    /** Page and marker as the server has them now. */
+    private fun remotePlace(title: String): Pair<Int, String?> {
+        val progress = KavitaServer.progress(remoteBookChapter(title))
+        val marker = (progress["bookScrollId"] as? kotlinx.serialization.json.JsonPrimitive)?.takeIf { it.isString }?.content
+        return progress.getValue("pageNum").jsonPrimitive.int to marker
+    }
+
+    private fun hasRecord(title: String) = KavitaServer.progress(remoteBookChapter(title)).getValue("volumeId").jsonPrimitive.int != 0
+
+    private fun readText(chapter: StoredChapter, section: Int, marker: String?, sections: Int = 3, ended: Boolean = false) = store.saveProgress(
+        chapter.id,
+        ChapterProgress(
+            if (ended) ReadMark(Instant.EPOCH, ReadMarkSource.READ_TO_END) else null,
+            TextPosition(section, sections, "epubcfi(/6/${(section + 1) * 2}!/4/2/1:${marker?.length ?: 0})", checkNotNull(BasisPoints.fromFraction(0.5)), Instant.EPOCH, "phone-a"),
+            0,
+        ),
+        marker,
+    )
+
+    @Test
+    fun `dado a seção 2 lida aqui com marcador, quando sincronizo duas vezes, então o Kavita guarda a página 2 com o marcador e a fila esvazia`() {
+        val chapter = book("Read Here Book")
+        readText(chapter, 2, "//body/p[2]")
+
+        assertEquals(KavitaSyncOutcome.Settled, sync.chapter(address, key, item(chapter)))
+        assertEquals(KavitaSyncOutcome.Settled, sync.chapter(address, key, item(chapter)))
+
+        assertEquals(2 to "//body/p[2]", remotePlace("Read Here Book"))
+        assertEquals(2 to "//body/p[2]", item(chapter).agreedPage to item(chapter).agreedMarker)
+        assertNull(item(chapter).outboxState)
+    }
+
+    @Test
+    fun `dado a primeira seção lida aqui e nenhum registro no Kavita, quando sincronizo, então nada é enviado e o lugar fica aqui`() {
+        val chapter = book("First Section Book")
+        readText(chapter, 0, "//body/p[2]")
+
+        sync.chapter(address, key, item(chapter))
+
+        assertEquals(false, hasRecord("First Section Book"))
+        assertEquals(0, (store.progress(chapter.id).position as TextPosition).section)
+    }
+
+    @Test
+    fun `dado o livro lido até o fim aqui, quando sincronizo, então o Kavita marca o livro lido`() {
+        val chapter = book("Ended Book")
+        readText(chapter, 2, "//body/p[1]", ended = true)
+
+        sync.chapter(address, key, item(chapter))
+
+        val after = remoteBookChapter("Ended Book")
+        assertEquals(after.pages, after.pagesRead)
+    }
+
+    @Test
+    fun `dado outro aparelho na seção 1 com marcador, quando sincronizo, então adoto a seção 1 e o marcador fica para o leitor`() {
+        val chapter = book("Adopted Book")
+        KavitaServer.saveProgress(remoteBook("Adopted Book"), remoteBookChapter("Adopted Book"), page = 1, bookScrollId = "//body/p[2]")
+
+        assertEquals(KavitaSyncOutcome.Adopted, sync.chapter(address, key, item(chapter)))
+
+        val position = store.progress(chapter.id).position as TextPosition
+        assertEquals(1 to "kavita", position.section to position.device)
+        assertEquals("//body/p[2]", store.agreedMarker(chapter.id))
+    }
+
+    @Test
+    fun `dado o lido do Kavita num EPUB, quando sincronizo, então o livro fica lido aqui e reabre na última seção`() {
+        val chapter = book("Read There Book")
+        KavitaServer.saveProgress(remoteBook("Read There Book"), remoteBookChapter("Read There Book"), page = 3, bookScrollId = "//body/p[1]")
+
+        sync.chapter(address, key, item(chapter))
+
+        val progress = store.progress(chapter.id)
+        assertEquals(ReadMarkSource.KAVITA, progress.readMark?.source)
+        assertEquals(2, (progress.position as TextPosition).section)
+        assertEquals("//body/p[1]", store.agreedMarker(chapter.id))
+    }
+
+    @Test
+    fun `dado só o marcador mudado nos dois lados na mesma seção, quando sincronizo, então não é conflito e vai o daqui`() {
+        val chapter = book("Marker Book")
+        readText(chapter, 1, "//body/p[1]")
+        sync.chapter(address, key, item(chapter))
+        KavitaServer.saveProgress(remoteBook("Marker Book"), remoteBookChapter("Marker Book"), page = 1, bookScrollId = "//body/p[2]")
+        readText(chapter, 1, """id("x")""")
+
+        assertEquals(KavitaSyncOutcome.Settled, sync.chapter(address, key, item(chapter)))
+
+        assertEquals(1 to """id("x")""", remotePlace("Marker Book"))
+    }
+
+    @Test
+    fun `dado seções diferentes nos dois lados, quando sincronizo, então é conflito e nada é enviado`() {
+        val chapter = book("Crossed Book")
+        readText(chapter, 1, "//body/p[1]")
+        sync.chapter(address, key, item(chapter))
+        KavitaServer.saveProgress(remoteBook("Crossed Book"), remoteBookChapter("Crossed Book"), page = 2, bookScrollId = "//body/p[2]")
+        readText(chapter, 0, "//body/p[2]")
+
+        val outcome = assertIs<KavitaSyncOutcome.Conflict>(sync.chapter(address, key, item(chapter)))
+
+        assertEquals(2 to "//body/p[2]", outcome.remotePage to outcome.remoteMarker)
+        assertEquals(2 to "//body/p[2]", remotePlace("Crossed Book"))
+    }
+
+    @Test
+    fun `dado um livro que o Kavita conta com outras seções, quando sincronizo, então nada é enviado e o lugar fica aqui`() {
+        val chapter = book("Recounted Book")
+        readText(chapter, 1, "//body/p[1]", sections = 4)
+
+        sync.chapter(address, key, item(chapter))
+
+        assertEquals(false, hasRecord("Recounted Book"))
+        assertEquals(4, (store.progress(chapter.id).position as TextPosition).sections)
+    }
+
+    @Test
+    fun `dado o Kavita inacessível, quando leio duas vezes, então só o último lugar com o marcador vai quando a rede volta`() {
+        val chapter = book("Offline Book")
+        readText(chapter, 1, "//body/p[1]")
+        sync.afterReading("http://localhost:1", key, chapter.id)
+        readText(chapter, 2, "//body/p[2]")
+        sync.afterReading("http://localhost:1", key, chapter.id)
+        assertEquals("TO_SEND" to "//body/p[2]", item(chapter).outboxState to item(chapter).outboxMarker)
+
         sync.afterReading(address, key, chapter.id)
 
-        val remote = KavitaServer.chapters(KavitaServer.works(KavitaServer.bookLibraryId).single { it.name == "Read Here Book" }.id).single()
-        // With no record the server invents one with no volume: nothing reached it.
-        assertEquals(0, KavitaServer.progress(remote).getValue("volumeId").jsonPrimitive.int)
-        assertEquals(place, store.progress(chapter.id).position)
+        assertEquals(2 to "//body/p[2]", remotePlace("Offline Book"))
+        assertNull(item(chapter).outboxState)
     }
 
     @Test
@@ -158,9 +282,9 @@ class KavitaProgressSyncTest {
         val chapter = chapter(9.0)
         read(chapter, 3)
         val between = object : KavitaClient() {
-            override fun saveProgress(address: String, key: String, item: SyncItem, page: Int) {
+            override fun saveProgress(address: String, key: String, item: SyncItem, page: Int, marker: String?) {
                 KavitaServer.saveProgress(remoteWork, remote(chapter), page = 11)
-                super.saveProgress(address, key, item, page)
+                super.saveProgress(address, key, item, page, marker)
             }
         }
 
@@ -176,9 +300,9 @@ class KavitaProgressSyncTest {
         var sends = 0
         var failing = true
         val flaky = object : KavitaClient() {
-            override fun saveProgress(address: String, key: String, item: SyncItem, page: Int) {
+            override fun saveProgress(address: String, key: String, item: SyncItem, page: Int, marker: String?) {
                 sends++
-                super.saveProgress(address, key, item, page)
+                super.saveProgress(address, key, item, page, marker)
             }
 
             override fun progress(address: String, key: String, chapterId: Int): RemoteProgress {
@@ -414,7 +538,7 @@ class KavitaProgressSyncTest {
         read(here, 3)
         KavitaServer.saveProgress(remoteOne, KavitaServer.chapters(remoteOne.id).single { it.id.toString() == there.path }, page = 8)
         val failing = object : KavitaClient() {
-            override fun saveProgress(address: String, key: String, item: SyncItem, page: Int) {
+            override fun saveProgress(address: String, key: String, item: SyncItem, page: Int, marker: String?) {
                 throw IOException("The network dropped")
             }
         }
