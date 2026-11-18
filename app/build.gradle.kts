@@ -84,7 +84,12 @@ android {
             isIncludeAndroidResources = true
             // Robolectric reaches FileDescriptor internals through jdk.internal.access, which Java 21
             // closes; Robolectric 4.17 opens it for its own tests (build-logic TestTaskConfiguration.kt).
-            all { it.jvmArgs("--add-opens=java.base/jdk.internal.access=ALL-UNNAMED") }
+            all {
+                it.jvmArgs("--add-opens=java.base/jdk.internal.access=ALL-UNNAMED")
+                // Each test's name when it starts: a run that hangs then shows which test it was in
+                // (run 44209406155 hung with no output at all).
+                it.testLogging { events("started", "failed") }
+            }
         }
     }
 
