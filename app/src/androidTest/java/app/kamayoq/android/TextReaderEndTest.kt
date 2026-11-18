@@ -154,6 +154,16 @@ class TextReaderEndTest {
         assertEquals(1, read.completeReads)
     }
 
+    // Found by the Codex review of 18/11: a page under the block must take no touch and no TalkBack focus.
+    @Test
+    fun `dado o bloco de fim então a página de baixo fica escondida dos toques e do TalkBack`() {
+        readToTheEnd()
+
+        var visibility = View.VISIBLE
+        compose.runOnUiThread { visibility = checkNotNull(compose.activity.window.decorView.findWebView()).visibility }
+        assertEquals("The page under the end block is still shown", View.INVISIBLE, visibility)
+    }
+
     @Test
     fun `dado o bloco de fim quando volto e avanço de novo então as leituras não somam outra vez`() {
         readToTheEnd()
