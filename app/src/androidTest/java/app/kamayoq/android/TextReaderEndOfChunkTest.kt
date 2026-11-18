@@ -81,7 +81,7 @@ class TextReaderEndOfChunkTest {
     /** The paginator's own view of where it is, for a failure to explain itself. */
     private fun paginator(): String = evaluate(
         "(() => { const r = document.querySelector('foliate-view').renderer; " +
-            "return JSON.stringify({ units: r.sections.length, primary: r.primaryIndex, " +
+            "return JSON.stringify({ units: r.sections.length, primary: r.primaryIndex, unit: r.primaryUnitIndex, " +
             "loaded: r.getContents().map(c => c.index), page: r.page, pages: r.pages, atEnd: r.atEnd }) })()",
     )
 
@@ -101,10 +101,16 @@ class TextReaderEndOfChunkTest {
             "document.querySelector('foliate-view').renderer.getContents()[0].doc.querySelectorAll('[$CHUNK]').length",
         ).toInt()
         assertTrue("The book is not cut into chunks, so this test proves nothing", placeholders > 0)
-        evaluate(
-            "document.querySelector('foliate-view').renderer.goTo({ index: 0, anchor: doc => " +
-                "[...doc.querySelectorAll('p')].filter(p => !p.hasAttribute('$CHUNK') && p.textContent.trim()).at(-1) }); null",
-        )
+        // The fork finds an anchor first in its outline of chunks, where every paragraph is an empty
+        // placeholder at the same place: picking the paragraph by its text found nothing there, and the
+        // fork then took the last paragraph of the whole section, at the end of the book. Its place among
+        // all the paragraphs is the same in every document of the section.
+        val place = evaluate(
+            "[...document.querySelector('foliate-view').renderer.getContents()[0].doc.querySelectorAll('p')]" +
+                ".findLastIndex(p => !p.hasAttribute('$CHUNK') && p.textContent.trim())",
+        ).toInt()
+        assertTrue("No paragraph of the first chunk found", place >= 0)
+        evaluate("document.querySelector('foliate-view').renderer.goTo({ index: 0, anchor: doc => doc.querySelectorAll('p')[$place] }); null")
         Thread.sleep(2_000)
 
         val states = mutableListOf<String>()
