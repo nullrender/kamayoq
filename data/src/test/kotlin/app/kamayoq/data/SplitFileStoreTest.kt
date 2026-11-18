@@ -97,4 +97,13 @@ class SplitFileStoreTest {
 
         assertEquals(listOf(""), chapters().map { it.tocKey })
     }
+
+    @Test
+    fun `dado dois capítulos do mesmo arquivo, quando faço a cópia de segurança, então cada um leva a sua chave`() {
+        import(chapter(1), chapter(2))
+
+        val backup = store.backup("r480", Instant.parse("2026-11-18T22:30:00Z"))
+
+        assertEquals(listOf("OEBPS/c1.xhtml", "OEBPS/c2.xhtml"), backup.works.single().chapters.map { it.tocKey })
+    }
 }
