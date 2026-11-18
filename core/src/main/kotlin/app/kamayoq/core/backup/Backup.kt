@@ -181,11 +181,15 @@ object BackupFormat {
         return JsonObject(this + fields)
     }
 
-    private fun JsonObject.withWorks(change: (JsonObject) -> JsonObject) =
-        JsonObject(this + ("works" to JsonArray(getValue("works").jsonArray.map { change(it.jsonObject) })))
+    private fun JsonObject.withWorks(change: (JsonObject) -> JsonObject) = changingEach("works", change)
 
-    private fun JsonObject.withChapters(change: (JsonObject) -> JsonObject) =
-        JsonObject(this + ("chapters" to JsonArray(getValue("chapters").jsonArray.map { change(it.jsonObject) })))
+    private fun JsonObject.withChapters(change: (JsonObject) -> JsonObject) = changingEach("chapters", change)
+
+    // A list missing here is a file this version cannot read, said the same way as any other.
+    private fun JsonObject.changingEach(list: String, change: (JsonObject) -> JsonObject): JsonObject {
+        val items = requireNotNull(this[list]) { "The backup has no \"$list\"" }.jsonArray
+        return JsonObject(this + (list to JsonArray(items.map { change(it.jsonObject) })))
+    }
 
     /** `kamayoq_<yyyy-mm-dd_hh-mm>.json`, in the person's time. */
     fun fileName(at: Instant, zone: ZoneId): String = "kamayoq_${fileTime.format(at.atZone(zone))}.json"
