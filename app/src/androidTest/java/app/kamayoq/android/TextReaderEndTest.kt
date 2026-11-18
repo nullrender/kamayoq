@@ -89,7 +89,10 @@ class TextReaderEndTest {
             checkNotNull(compose.activity.window.decorView.findWebView()).evaluateJavascript(
                 "(() => { const v = document.querySelector('foliate-view'); const l = v.lastLocation; " +
                     "return JSON.stringify({ cfi: l?.cfi, section: l?.section, fraction: l?.fraction, atEnd: v.renderer.atEnd, " +
-                    "sections: v.book.sections.map(s => s.linear ?? 'yes') }) })()",
+                    "sections: v.book.sections.map(s => s.linear ?? 'yes'), " +
+                    "after: (() => { const r = l?.range; if (!r) return null; const d = r.endContainer.ownerDocument; " +
+                    "const rest = d.createRange(); rest.setStart(r.endContainer, r.endOffset); " +
+                    "rest.setEnd(d.body, d.body.childNodes.length); return rest.toString().trim().slice(0, 120) })() }) })()",
                 answer::complete,
             )
         }
