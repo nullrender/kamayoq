@@ -374,7 +374,20 @@ class LibraryAppTest {
             ReadingUnit(compiledNovel, title, UnitKind.CHAPTER, null, UnitContent.SplitEpub, tocKey = if (titles.size == 1) "" else "OEBPS/c$index.xhtml")
         }
         val work = Work("Novels/Romance", "Romance", null, WorkType.NOVELS, null, units)
-        app.store.importLocal("content://test/tree/other", LocalLibrary(listOf(work), emptyList()), mapOf(compiledNovel to FileStamp(10, modified)))
+        app.store.importLocal("content://test/tree/primary%3AKamayoq", LocalLibrary(listOf(work), emptyList()), mapOf(compiledNovel to FileStamp(10, modified)))
+    }
+
+    /**
+     * Shows the Library on the folder that holds the novel stored by [importNovel], with the stamp
+     * it was stored with: the reading of the folder finds the file unchanged and keeps what is stored.
+     * Local works only show with a folder chosen.
+     */
+    private fun showNovelFolder(modified: Long = 1) {
+        val folder = FolderInMemory(app, emptyList()).apply {
+            novels = listOf("Romance")
+            novelsModified = modified
+        }
+        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device") }
     }
 
     @Test
@@ -400,7 +413,7 @@ class LibraryAppTest {
         val read = ChapterProgress(ReadMark(Instant.parse("2026-11-18T12:00:00Z"), ReadMarkSource.READ_TO_END), null, 1)
         app.store.saveProgress(app.store.chapters(app.store.works().single().id).first().id, read)
         importNovel(listOf("Prefácio", "Capítulo 1", "Capítulo 2"), modified = 2)
-        showWithoutFolder()
+        showNovelFolder(modified = 2)
         waitFor("Romance")
         compose.onNodeWithText("Romance").performClick()
         val question = app.getString(R.string.edition_changed, "Capítulo 1")
@@ -422,7 +435,7 @@ class LibraryAppTest {
         val read = ChapterProgress(ReadMark(Instant.parse("2026-11-18T12:00:00Z"), ReadMarkSource.READ_TO_END), null, 1)
         app.store.saveProgress(app.store.chapters(app.store.works().single().id).first().id, read)
         importNovel(listOf("Prefácio", "Capítulo 1", "Capítulo 2"), modified = 2)
-        showWithoutFolder()
+        showNovelFolder(modified = 2)
         waitFor("Romance")
         compose.onNodeWithText("Romance").performClick()
         val question = app.getString(R.string.edition_changed, "Capítulo 1")
@@ -437,7 +450,7 @@ class LibraryAppTest {
     @Test
     fun `dado um romance compilado cujo arquivo não traz sumário, quando abro a obra, então ela avisa que o arquivo não traz a divisão`() {
         importNovel(listOf("Romance"))
-        showWithoutFolder()
+        showNovelFolder()
         waitFor("Romance")
 
         compose.onNodeWithText("Romance").performClick()
