@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import app.kamayoq.core.library.WorkType
 import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.reader.EpubArchive
 import app.kamayoq.core.reader.ReaderEngine
@@ -52,7 +53,7 @@ import app.kamayoq.core.reader.ReaderMessage as PageMessage
 
 /**
  * Shows a book in the reader's page, from where [reading] starts; [onSave] gets the progress to keep.
- * [onMessage] hears every message of the page, for the tests.
+ * [onMessage] hears every message of the page, for the tests. The work's [type] chooses the flow.
  */
 @Composable
 fun TextReader(
@@ -62,6 +63,7 @@ fun TextReader(
     onSave: (ChapterProgress) -> Unit,
     onBack: () -> Unit,
     onMessage: (PageMessage) -> Unit = {},
+    type: WorkType = WorkType.BOOKS,
 ) {
     val context = LocalContext.current
     // Checked before any WebView is made: below the floor the fork fails later, with no clear reason.
@@ -75,7 +77,7 @@ fun TextReader(
     // A dead renderer leaves a WebView that cannot be used again: a new number makes a new one.
     var renderer by remember(archive) { mutableIntStateOf(0) }
     val touchExploration = touchExplorationEnabled()
-    val flow = ReaderFlow.forAccessibility(touchExploration)
+    val flow = ReaderFlow.of(type, touchExploration)
     var webView by remember(archive) { mutableStateOf<WebView?>(null) }
     var ready by remember(archive) { mutableStateOf(false) }
     var contents by remember(archive) { mutableStateOf<List<ReaderContentsItem>?>(null) }

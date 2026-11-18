@@ -31,6 +31,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.kamayoq.core.kavita.KavitaProgress
 import app.kamayoq.core.library.ChapterFormat
+import app.kamayoq.core.library.WorkType
 import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.progress.strip
@@ -71,6 +72,7 @@ private sealed interface Opening {
         val round: Long,
         val turn: Long?,
         val marker: String?,
+        val type: WorkType,
     ) : Opening
 
     /** In a book, [sections] says the pages are sections. */
@@ -250,7 +252,7 @@ fun ReaderHost(
         is Opening.ReadyText -> {
             val reading = remember(current) { TextReading(current.progress, deviceId, current.marker) }
             val save = remember(current) { textSaving(store, opening.turns, current.round, current.text.chapterId) { reading.marker } }
-            TextReader(current.text.archive, current.title, reading, onSave = save, onBack = onBack)
+            TextReader(current.text.archive, current.title, reading, onSave = save, onBack = onBack, type = current.type)
         }
         is Opening.Conflict -> {
             ConflictScreen(
@@ -460,14 +462,15 @@ private fun openText(
 ): Opening {
     val text = opening.openText(tree, chapter, stillWanted)
     try {
-        val work = store.works().firstOrNull { it.id == workId }?.title
+        val stored = store.works().firstOrNull { it.id == workId }
+        val work = stored?.title
         // A loose book is a work of one volume with the same name: the name once is enough.
         val title = listOfNotNull(work, chapter.name.takeIf { it != work }).joinToString(" · ")
         val progress = store.progress(text.chapterId)
         // The marker known for the saved place, queued here or agreed with Kavita: it opens a place
         // from Kavita, and goes with the place when the end block saves it with no move first.
         val marker = turn?.let { store.syncItem(text.chapterId)?.knownPlace(progress.position as? TextPosition)?.marker }
-        return Opening.ReadyText(text, title, progress, round, turn, marker)
+        return Opening.ReadyText(text, title, progress, round, turn, marker, stored?.type ?: WorkType.BOOKS)
     } catch (e: Exception) {
         text.release()
         throw e

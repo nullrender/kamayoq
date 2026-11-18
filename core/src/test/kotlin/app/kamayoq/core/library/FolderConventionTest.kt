@@ -364,17 +364,52 @@ class FolderConventionTest {
     }
 
     @Test
-    fun `dado um EPUB em Novels, por ora, então ele aparece como ignorado e não some calado`() {
+    fun `dado Cap 0928 epub na pasta de um romance, então é o capítulo 928 de uma obra de Romances`() {
+        val library = read(
+            "Novels/Jeonjijeok Dokja Sijeom (Omniscient Reader's Viewpoint)/Cap. 0929.epub",
+            "Novels/Jeonjijeok Dokja Sijeom (Omniscient Reader's Viewpoint)/Cap. 0928.epub",
+        )
+
+        val work = library.works.single()
+        assertEquals("Jeonjijeok Dokja Sijeom", work.title)
+        assertEquals("Omniscient Reader's Viewpoint", work.alternativeTitle)
+        assertEquals(WorkType.NOVELS, work.type)
+        val folder = "Novels/Jeonjijeok Dokja Sijeom (Omniscient Reader's Viewpoint)"
+        assertEquals(
+            listOf(
+                ReadingUnit("$folder/Cap. 0928.epub", "Cap. 0928", UnitKind.CHAPTER, 928.0, UnitContent.Epub),
+                ReadingUnit("$folder/Cap. 0929.epub", "Cap. 0929", UnitKind.CHAPTER, 929.0, UnitContent.Epub),
+            ),
+            work.units,
+        )
+        assertEquals(emptyList(), library.ignored)
+    }
+
+    @Test
+    fun `dado um EPUB de romance só com o número no nome, então ele é o capítulo desse número`() {
+        val library = read("Novels/Release That Witch/0003.epub")
+
+        assertEquals(listOf(3.0), library.works.single().numbers())
+        assertEquals(emptyList(), library.ignored)
+    }
+
+    @Test
+    fun `dado um EPUB de romance com Vol ou sem número no nome, por ora, então ele aparece como ignorado e não some calado`() {
         val library = read(
             "Novels/Release That Witch/Release That Witch.epub",
+            "Novels/Release That Witch/Vol. 1.epub",
+            "Novels/Lord of the Mysteries.epub",
+            // Loose in the type folder, the file is the whole work, whatever its name says.
             "Novels/Cap. 0928.epub",
         )
 
         assertEquals(emptyList(), library.works)
         assertEquals(
             listOf(
+                IgnoredFile("Novels/Lord of the Mysteries.epub", IgnoreReason.UNSUPPORTED_FORMAT),
                 IgnoredFile("Novels/Cap. 0928.epub", IgnoreReason.UNSUPPORTED_FORMAT),
                 IgnoredFile("Novels/Release That Witch/Release That Witch.epub", IgnoreReason.UNSUPPORTED_FORMAT),
+                IgnoredFile("Novels/Release That Witch/Vol. 1.epub", IgnoreReason.UNSUPPORTED_FORMAT),
             ),
             library.ignored,
         )
