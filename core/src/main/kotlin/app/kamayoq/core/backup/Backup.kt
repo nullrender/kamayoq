@@ -173,13 +173,19 @@ object BackupFormat {
     private fun toFormat3(file: JsonObject): JsonObject =
         file.withWorks { work -> work.withChapters { it.adding("textPosition" to JsonNull) } }
 
-    private fun JsonObject.adding(vararg fields: Pair<String, JsonElement>) = JsonObject(this + fields)
+    // A field the declared format could not have was not written by it: replacing it would drop it
+    // without a word, so the file is refused instead.
+    private fun JsonObject.adding(vararg fields: Pair<String, JsonElement>): JsonObject {
+        val later = fields.map { it.first }.filter { it in this }
+        require(later.isEmpty()) { "An earlier backup format has fields of a later one: $later" }
+        return JsonObject(this + fields)
+    }
 
     private fun JsonObject.withWorks(change: (JsonObject) -> JsonObject) =
-        adding("works" to JsonArray(getValue("works").jsonArray.map { change(it.jsonObject) }))
+        JsonObject(this + ("works" to JsonArray(getValue("works").jsonArray.map { change(it.jsonObject) })))
 
     private fun JsonObject.withChapters(change: (JsonObject) -> JsonObject) =
-        adding("chapters" to JsonArray(getValue("chapters").jsonArray.map { change(it.jsonObject) }))
+        JsonObject(this + ("chapters" to JsonArray(getValue("chapters").jsonArray.map { change(it.jsonObject) })))
 
     /** `kamayoq_<yyyy-mm-dd_hh-mm>.json`, in the person's time. */
     fun fileName(at: Instant, zone: ZoneId): String = "kamayoq_${fileTime.format(at.atZone(zone))}.json"
