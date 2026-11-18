@@ -42,6 +42,7 @@
     <string name="reader_show_controls">Mostrar controles</string>
     <string name="reader_hide_controls">Esconder controles</string>
     <string name="reader_save_failed">Não foi possível guardar onde você parou. A leitura continua.</string>
+    <string name="end_of_book">Fim do livro</string>
     <string name="end_of_chapter">Fim do capítulo</string>
     <string name="next_chapter">Próximo: %s</string>
     <string name="no_next_chapter">Este é o último capítulo da pasta.</string>

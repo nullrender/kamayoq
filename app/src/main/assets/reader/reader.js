@@ -74,7 +74,8 @@ const startOf = index => {
 }
 
 globalThis.kamayoqReader = {
-    next: () => navigate(() => view.next()),
+    // Past the last page there is no page to turn to: the app shows its end block (piece 23).
+    next: () => navigate(() => view.renderer.atEnd ? send({ type: 'end' }) : view.next()),
     previous: () => navigate(() => view.prev()),
     contents: () => contents.map(({ index, title, depth }) => ({ index, title, depth })),
 }

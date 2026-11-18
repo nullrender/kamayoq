@@ -8,6 +8,8 @@ import android.view.accessibility.AccessibilityManager
 import android.webkit.WebView
 import android.widget.Toast
 import androidx.annotation.StringRes
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -80,6 +82,8 @@ fun TextReader(
     // Where a new page of this screen opens (a crash, a change of mode): the last place kept.
     var cfi by remember(archive) { mutableStateOf(reading.start) }
     var section by remember(archive) { mutableStateOf(reading.position?.section) }
+    // The end block shows over the last page until Previous page or another move leaves it.
+    var atEnd by remember(archive) { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -94,11 +98,12 @@ fun TextReader(
                 style = MaterialTheme.typography.bodyLarge,
             )
         } else {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             key(renderer, flow) {
                 // New at each page, so an address from an earlier page stops answering.
                 val token = remember { UUID.randomUUID().toString().replace("-", "") }
                 AndroidView(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    modifier = Modifier.fillMaxSize(),
                     factory = { viewContext ->
                         WebView(viewContext).apply {
                             webView = this
@@ -124,10 +129,15 @@ fun TextReader(
                                     // the guard already left its own opening behind.
                                     is PageMessage.Relocated -> if (ready) {
                                         reading.relocated(message, Instant.now())?.let { place ->
+                                            atEnd = false
                                             cfi = place.cfi
                                             section = place.section
                                             onSave(reading.progress)
                                         }
+                                    }
+                                    PageMessage.End -> if (ready) {
+                                        atEnd = true
+                                        reading.ended(Instant.now())?.let(onSave)
                                     }
                                     is PageMessage.Failed -> problem = failureText(message.code)
                                     is PageMessage.Link ->
@@ -146,11 +156,14 @@ fun TextReader(
                     },
                 )
             }
+            if (atEnd) EndOfBook()
+            }
             TextReaderControls(
                 enabled = ready,
-                onPrevious = { webView?.goToPreviousPage() },
+                // From the end block, Previous page goes back to the last page, which is still there.
+                onPrevious = { if (atEnd) atEnd = false else webView?.goToPreviousPage() },
                 onContents = { contentsOpen = true },
-                onNext = { webView?.goToNextPage() },
+                onNext = { if (!atEnd) webView?.goToNextPage() },
             )
         }
     }
@@ -186,6 +199,21 @@ fun TextReader(
             dismissButton = {
                 TextButton(onClick = { leaving = null }) { Text(stringResource(R.string.reader_link_stay)) }
             },
+        )
+    }
+}
+
+/** The end-of-book block, over the last page (decision 9), in its minimal first version. */
+@Composable
+private fun EndOfBook() {
+    Box(
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            stringResource(R.string.end_of_book),
+            modifier = Modifier.padding(24.dp).announced(),
+            style = MaterialTheme.typography.titleMedium,
         )
     }
 }

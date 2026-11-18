@@ -1,6 +1,8 @@
 package app.kamayoq.core.reader
 
 import app.kamayoq.core.progress.ChapterProgress
+import app.kamayoq.core.progress.ReadMark
+import app.kamayoq.core.progress.ReadMarkSource
 import app.kamayoq.core.progress.TextPosition
 import java.time.Instant
 
@@ -41,9 +43,21 @@ class TextReading(saved: ChapterProgress, private val device: String) {
         return position
     }
 
+    // Lives with the opening, as in the Strip: a new opening may count a new complete read.
+    private var endCounted = false
+
     /**
      * The person went past the last page and the end block shows (decision 9): returns the progress
-     * to save, or null when this changes nothing.
+     * to save, or null when this changes nothing. Only this marks the book read, never the fraction,
+     * and only once per opening; a book read before keeps its first mark.
      */
-    fun ended(at: Instant): ChapterProgress? = null
+    fun ended(at: Instant): ChapterProgress? {
+        if (phase == Phase.OPENING || endCounted) return null
+        endCounted = true
+        progress = progress.copy(
+            readMark = progress.readMark ?: ReadMark(at, ReadMarkSource.READ_TO_END),
+            completeReads = progress.completeReads + 1,
+        )
+        return progress
+    }
 }

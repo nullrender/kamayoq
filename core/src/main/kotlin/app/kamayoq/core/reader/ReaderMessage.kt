@@ -56,6 +56,7 @@ sealed interface ReaderMessage {
                 "relocated" -> relocated(message)
                 "failed" -> failed(message)
                 "link" -> link(message)
+                "end" -> if (message.keys == setOf("type")) End else Refused("unexpected fields")
                 else -> Refused("unknown type")
             }
         }

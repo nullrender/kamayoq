@@ -70,6 +70,7 @@
     <!-- When the reading position could not be saved; the reading goes on and the next image tries again. -->
     <string name="reader_save_failed">Couldn\'t save where you stopped. You can keep reading.</string>
     <!-- Title of the block after the last image of a chapter. -->
+    <string name="end_of_book">End of the book</string>
     <string name="end_of_chapter">End of the chapter</string>
     <!-- End-of-chapter block: button that opens the next chapter. %s is its name. -->
     <string name="next_chapter">Next: %s</string>
