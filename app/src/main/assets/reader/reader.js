@@ -1,10 +1,12 @@
 import './foliate-js/view.js'
 import { EPUB } from './foliate-js/epub.js'
 import { neutralizeRefresh } from './sections.js'
-import { relocatedMessage, contentsOf, navigationQueue } from './messages.js'
+import { relocatedMessage, contentsOf, navigationQueue, chapterOf, chapterFraction, orderedSender } from './messages.js'
 import { elementOf, markerOf } from './markers.js'
 
 const send = message => kamayoqBridge.postMessage(JSON.stringify(message))
+// What tells where the reader is leaves in order: a place may wait for its chapter to be measured.
+const post = orderedSender(send)
 
 const view = document.createElement('foliate-view')
 document.body.append(view)
@@ -52,10 +54,15 @@ const open = async token => {
     `, ''])
     for (const side of ['top', 'bottom', 'left', 'right'])
         view.renderer.setAttribute(`margin-${side}`, '24px')
+    const inChapter = index.chapters ? chapterMeter(index.chapters) : null
     // The view handles the paginator's event first and keeps the result in lastLocation; the
-    // paginator's event is the one that says why it moved.
-    view.renderer.addEventListener('relocate', ({ detail }) =>
-        send(relocatedMessage(view.lastLocation, detail.reason, markerOf(view.lastLocation?.range))))
+    // paginator's event is the one that says why it moved. The marker is taken now, while the range
+    // is the one on screen.
+    view.renderer.addEventListener('relocate', ({ detail }) => {
+        const location = view.lastLocation
+        const message = relocatedMessage(location, detail.reason, markerOf(location?.range))
+        post(async () => inChapter ? { ...message, ...await inChapter(location) } : message)
+    })
     // Before the restore: changing the flow of an open book lands on another place.
     view.renderer.setAttribute('flow', index.flow)
     const start = startOf(index)
@@ -66,7 +73,58 @@ const open = async token => {
         await view.renderer.goTo(start)
         view.history.pushState(start.index)
     } else await view.init({ lastLocation: start })
-    send({ type: 'restored' })
+    post(() => ({ type: 'restored' }))
+}
+
+// Milestone B7, for a file split by its table of contents: tells, for a place the fork reports, the
+// chapter it is in and how far into that chapter the page goes. The chapters come from the app, as
+// their destinations and the chapter each item of the contents leads to.
+const chapterMeter = chapters => {
+    const sectionStarts = view.getSectionFractions()
+    const targets = chapters.keys.map(key => ({ key, section: view.resolveNavigation(key)?.index }))
+    const measured = new Map()
+    // One parse of a section measures every chapter that starts inside it, and the document goes.
+    // A section the paginator itself splits is too large to parse again: its chapters stay unmeasured.
+    const measure = section => {
+        if (!measured.has(section)) measured.set(section, (async () => {
+            const inside = new Map()
+            if (!(view.book.sections[section]?.size <= 512 * 1024)) return inside
+            const doc = await view.book.sections[section].createDocument()
+            for (const { key } of targets.filter(target => target.section === section && target.key.includes('#'))) {
+                const element = view.book.getTOCFragment(doc, key.slice(key.indexOf('#') + 1))
+                if (element) inside.set(key, textBefore(doc, element))
+            }
+            return inside
+        })().catch(() => new Map()))
+        return measured.get(section)
+    }
+    // The fraction of the book where a chapter starts: 1 past the last one, null when not known.
+    const startOf = async chapter => {
+        if (chapter >= targets.length) return 1
+        const { key, section } = targets[chapter]
+        const from = sectionStarts[section], to = sectionStarts[section + 1]
+        if (!Number.isFinite(from) || !Number.isFinite(to)) return null
+        if (!key.includes('#')) return from
+        const inside = (await measure(section)).get(key)
+        return inside === undefined ? null : from + inside * (to - from)
+    }
+    return async location => {
+        const chapter = chapterOf(chapters.ofItem, location?.tocItem)
+        const [start, end] = await Promise.all([startOf(chapter), startOf(chapter + 1)])
+        return { chapter, chapterFraction: chapterFraction(location?.fraction, start, end) }
+    }
+}
+
+// How much of a document's text comes before an element, from 0 to 1.
+const textBefore = (doc, element) => {
+    const walker = doc.createTreeWalker(doc.body ?? doc.documentElement, NodeFilter.SHOW_TEXT)
+    let before = 0, total = 0
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const length = node.nodeValue.length
+        if (element.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_PRECEDING) before += length
+        total += length
+    }
+    return total > 0 ? before / total : 0
 }
 
 // A CFI whose spine item is gone (another edition of the book) makes the fork open the book's start,
@@ -84,6 +142,8 @@ const startOf = index => {
     if (typeof index.marker === 'string' && Number.isInteger(index.section) && inBook(index.section))
         return { index: index.section, anchor: doc => elementOf(doc, index.marker) ?? 0 }
     if (index.position && inBook(index.position)) return index.position
+    // A chapter of a split file with no place yet, or whose place is gone: its own start (milestone B7).
+    if (typeof index.start === 'string' && inBook(index.start)) return index.start
     if (Number.isInteger(index.section) && inBook(index.section)) return index.section
     return null
 }
@@ -99,7 +159,7 @@ const atLastPage = () => {
 
 globalThis.kamayoqReader = {
     // Past the last page there is no page to turn to: the app shows its end block (piece 23).
-    next: () => navigate(() => atLastPage() ? send({ type: 'end' }) : view.next()),
+    next: () => navigate(() => atLastPage() ? post(() => ({ type: 'end' })) : view.next()),
     previous: () => navigate(() => view.prev()),
     contents: () => contents.map(({ index, title, depth }) => ({ index, title, depth })),
 }
