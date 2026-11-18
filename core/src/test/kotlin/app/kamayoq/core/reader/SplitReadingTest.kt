@@ -108,6 +108,35 @@ class SplitReadingTest {
         assertEquals(9_800, reading.progressOf(1).place().points())
     }
 
+    // Found by the Gemini review of milestone B: a screen made again started a new reading at the
+    // chapter being read, so a look back before it became a reading, and a complete read counted twice.
+    private fun SplitReading.madeAgain() =
+        SplitReading(List(5) { progressOf(it) }, opened = current, "phone-a", readingFrom, countedChapters).apply { restored() }
+
+    @Test
+    fun `dado um olhar para trás e a tela recriada, quando avanço de novo, então o capítulo de trás não fica lido`() {
+        val first = reading(never(5), opened = 2)
+        first.relocated(page(chapter = 1, fraction = 9_800), now)
+
+        val again = first.madeAgain()
+        val saves = again.relocated(page(chapter = 2, fraction = 300), later)
+
+        assertEquals(listOf(2), saves.map { it.chapter })
+        assertNull(again.progressOf(1).readMark)
+    }
+
+    @Test
+    fun `dado uma leitura completa já contada nesta abertura e a tela recriada, quando passo pelo capítulo de novo, então ela não soma outra vez`() {
+        val first = reading(never(5), opened = 2)
+        first.relocated(page(chapter = 3, fraction = 100), now)
+        first.relocated(page(chapter = 2, fraction = 100, reason = RelocateReason.NAVIGATION), now)
+
+        val again = first.madeAgain()
+        again.relocated(page(chapter = 3, fraction = 100), later)
+
+        assertEquals(1, again.progressOf(2).completeReads)
+    }
+
     @Test
     fun `dado um capítulo já lido, quando passo por ele de novo, então a primeira marca fica e as leituras somam uma vez por abertura`() {
         val first = ReadMark(Instant.parse("2026-11-01T10:00:00Z"), ReadMarkSource.PERSON)

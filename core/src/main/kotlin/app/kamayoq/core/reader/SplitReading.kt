@@ -12,9 +12,16 @@ import java.time.Instant
  * (`docs/decisions/novel-chapters-2026-11-18.md`, section 3). [saved] is the progress of each chapter
  * of the file, in the order of the contents, and [opened] the one the person chose. As in
  * [TextReading], nothing is accepted before the restore is confirmed, and after that only the
- * person's moves.
+ * person's moves. A screen made again goes on with the same opening: [readFrom] and [counted] are
+ * what the reading before it had, by [readingFrom] and [countedChapters].
  */
-class SplitReading(saved: List<ChapterProgress>, opened: Int, private val device: String) {
+class SplitReading(
+    saved: List<ChapterProgress>,
+    opened: Int,
+    private val device: String,
+    readFrom: Int = opened,
+    counted: Set<Int> = emptySet(),
+) {
     init {
         require(opened in saved.indices) { "Chapter $opened is outside the file's ${saved.size}" }
     }
@@ -36,6 +43,12 @@ class SplitReading(saved: List<ChapterProgress>, opened: Int, private val device
     // The chapter the person chose to read from, by opening it or by a jump. Paging back into the
     // end of an earlier one and forward again is a look, not a reading: it finishes nothing.
     private var readFrom = opened
+
+    /** The chapter the reading is counted from, for a screen made again. */
+    val readingFrom: Int get() = readFrom
+
+    /** The chapters whose complete read this opening already counted, for a screen made again. */
+    val countedChapters: Set<Int> get() = counted.indices.filter { counted[it] }.toSet()
 
     private val openedAt = (saved[opened].position as? TextPosition)?.takeIf { it.fraction.value < BasisPoints.END }
 
