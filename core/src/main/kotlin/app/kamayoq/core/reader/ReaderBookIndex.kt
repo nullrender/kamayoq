@@ -1,9 +1,11 @@
 package app.kamayoq.core.reader
 
+import kotlinx.serialization.json.add
 import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
 
 /**
  * The chapters of a file split by its table of contents, as the page needs them: the [keys] of the
@@ -42,5 +44,12 @@ object ReaderBookIndex {
         section?.let { put("section", it) }
         marker?.let { put("marker", it) }
         sections?.let { put("sections", it) }
+        start?.let { put("start", it) }
+        chapters?.let {
+            putJsonObject("chapters") {
+                putJsonArray("keys") { for (key in it.keys) add(key) }
+                putJsonArray("ofItem") { for (chapter in it.ofItem) add(chapter) }
+            }
+        }
     }.toString()
 }

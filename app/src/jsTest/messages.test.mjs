@@ -101,7 +101,7 @@ test('dado uma página antes do primeiro item, ou um item que o app não conhece
 })
 
 test('dado a fração do livro no meio do capítulo, então a fração do capítulo é a parte dele já passada', () => {
-    assert.equal(chapterFraction(0.5, 0.4, 0.8), 0.25)
+    assert.equal(chapterFraction(0.375, 0.25, 0.75), 0.25)
     assert.equal(chapterFraction(0.8, 0.4, 0.8), 1)
 })
 

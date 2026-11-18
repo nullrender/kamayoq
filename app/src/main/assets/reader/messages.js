@@ -57,11 +57,26 @@ export const navigationQueue = () => {
 
 // Milestone B7: in a file split by its table of contents, the chapter a page is in. The fork says
 // which item of the contents the page is under, and the app says which chapter each item leads to.
-export const chapterOf = (ofItem, item) => 0
+// A page before the first item has none, and belongs to the first chapter.
+export const chapterOf = (ofItem, item) => {
+    const chapter = Array.isArray(ofItem) ? ofItem[item?.id] : undefined
+    return Number.isInteger(chapter) ? chapter : 0
+}
 
 // How far into its chapter a page goes, from the book's fraction and the fractions where the chapter
-// starts and ends; null when one of them is not known.
-export const chapterFraction = (fraction, start, end) => null
+// starts and ends; null when one of them is not known. The book's fraction is of the end of the page,
+// so the last page of a chapter reaches 1.
+export const chapterFraction = (fraction, start, end) =>
+    [fraction, start, end].every(Number.isFinite) && end > start
+        ? bounded((fraction - start) / (end - start))
+        : null
 
-// Messages leave in the order they were made, even when making one has to wait.
-export const orderedSender = send => make => { make(); return Promise.resolve() }
+// Messages leave in the order they were made, even when making one has to wait. One that fails to
+// be made is left out and said in the console; the ones after it still leave.
+export const orderedSender = send => {
+    let last = Promise.resolve()
+    return make => {
+        last = last.then(make).then(send).catch(error => console.error(error))
+        return last
+    }
+}
