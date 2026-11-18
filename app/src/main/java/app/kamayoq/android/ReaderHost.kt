@@ -229,20 +229,8 @@ fun ReaderHost(
         is Opening.TooLarge -> ReaderMessage(stringResource(R.string.reader_too_large, current.maxBytes / (1024 * 1024)), onBack)
         is Opening.ReadyText -> {
             val reading = remember(current) { TextReading(current.progress, deviceId) }
-            val saving = remember(store) { ProgressSaving(store) }
-            TextReader(
-                current.text.archive,
-                current.title,
-                reading,
-                // In the same line as the Strip's saves, so leaving never drops the last place.
-                onSave = { progress ->
-                    opening.turns.inLine(current.round) {
-                        saving.save(current.text.chapterId, progress)
-                            ?.let { Log.e("Kamayoq", "Saving the reading position failed", it) }
-                    }
-                },
-                onBack = onBack,
-            )
+            val save = remember(current) { textSaving(store, opening.turns, current.round, current.text.chapterId) }
+            TextReader(current.text.archive, current.title, reading, onSave = save, onBack = onBack)
         }
         is Opening.Conflict -> {
             ConflictScreen(
@@ -281,6 +269,20 @@ fun ReaderHost(
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * Saves each progress the text reader hands out for [chapterId], in the same line as the Strip's
+ * saves, so leaving never drops the last place and a late save never lands on a newer opening. A
+ * failed save is logged and the reading goes on. Shared with the test that kills the process.
+ */
+internal fun textSaving(store: LibraryStore, turns: OpeningTurns, round: Long, chapterId: String): (ChapterProgress) -> Unit {
+    val saving = ProgressSaving(store)
+    return { progress ->
+        turns.inLine(round) {
+            saving.save(chapterId, progress)?.let { Log.e("Kamayoq", "Saving the reading position failed", it) }
         }
     }
 }
