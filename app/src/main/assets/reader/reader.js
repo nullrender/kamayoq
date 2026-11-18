@@ -74,8 +74,16 @@ const startOf = index => {
 }
 
 globalThis.kamayoqReader = {
-    // Past the last page there is no page to turn to: the app shows its end block (piece 23).
-    next: () => navigate(() => view.renderer.atEnd ? send({ type: 'end' }) : view.next()),
+    // Past the last page there is no page to turn to: the app shows its end block (piece 23). The
+    // paginator's atEnd stayed false on the real last page in the emulator (run 44308361429), so
+    // the end is a turn that leaves the place where it was. Moves wait in line, so no lock is held.
+    next: () => navigate(async () => {
+        const before = view.lastLocation?.cfi
+        await view.next()
+        // Only in the last section read in order: a turn dropped elsewhere must not mark the book read.
+        const last = view.book.sections.findLastIndex(section => section.linear !== 'no')
+        if (view.lastLocation?.cfi === before && view.lastLocation?.section?.current === last) send({ type: 'end' })
+    }),
     previous: () => navigate(() => view.prev()),
     contents: () => contents.map(({ index, title, depth }) => ({ index, title, depth })),
 }
