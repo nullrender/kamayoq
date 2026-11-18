@@ -13,7 +13,9 @@ import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.ReadMark
 import app.kamayoq.core.progress.ReadMarkSource
 import app.kamayoq.core.progress.TextPosition
+import app.kamayoq.core.reader.BookContents
 import app.kamayoq.core.reader.ContentsChapter
+import app.kamayoq.core.reader.ReaderChapters
 import java.io.File
 import java.time.Instant
 import java.util.Properties
@@ -303,5 +305,88 @@ class SplitFileStoreTest {
         val backup = store.backup("r480", Instant.parse("2026-11-18T22:30:00Z"))
 
         assertEquals(listOf("OEBPS/c1.xhtml", "OEBPS/c2.xhtml"), backup.works.single().chapters.map { it.tocKey })
+    }
+}
+
+// Step 4, piece B7: what the reader gets to read a file across its chapters.
+class SplitOpeningTest {
+    private val source = "content://com.android.externalstorage.documents/tree/primary%3AKamayoq"
+    private val file: File = File.createTempFile("kamayoq-split-opening", ".db").also { it.delete() }
+    private val driver = JdbcSqliteDriver("jdbc:sqlite:${file.path}", Properties().apply { put("foreign_keys", "true") }, LibraryStore.schema)
+    private val store = LibraryStore(driver)
+    private val novel = "Novels/Release That Witch/Release That Witch.epub"
+
+    @AfterTest
+    fun cleanUp() {
+        driver.close()
+        file.delete()
+    }
+
+    private fun contents(vararg keys: String) = BookContents(
+        entries = emptyList(),
+        chapters = keys.mapIndexed { index, key -> ContentsChapter("Capítulo ${index + 1}", key, volume = null) },
+        // A volume's title page first, leading into the first chapter, then one item per chapter.
+        chapterOfItem = listOf(0) + keys.indices,
+    )
+
+    private fun import(vararg keys: String) {
+        val units = keys.mapIndexed { index, key ->
+            ReadingUnit(novel, if (key.isEmpty()) "Release That Witch" else "Capítulo ${index + 1}", UnitKind.CHAPTER, null, UnitContent.SplitEpub, tocKey = key)
+        }
+        val work = Work("Novels/Release That Witch", "Release That Witch", null, WorkType.NOVELS, null, units)
+        store.importLocal(source, LocalLibrary(listOf(work), emptyList()), mapOf(novel to FileStamp(1_000, 1_761_400_000_000)))
+    }
+
+    private fun chapters() = store.chapters(store.works().single().id)
+
+    private val halfway = ChapterProgress(
+        readMark = null,
+        position = TextPosition(1, 3, "epubcfi(/6/4!/4/8)", BasisPoints.fromStored(4_000), Instant.parse("2026-11-18T12:00:00Z"), "phone-a"),
+        completeReads = 0,
+    )
+
+    @Test
+    fun `dado o segundo capítulo de um arquivo dividido, quando o leitor o abre, então recebe os capítulos do arquivo, o lugar de cada um e qual foi aberto`() {
+        import("c1.xhtml", "c2.xhtml", "c3.xhtml")
+        val rows = chapters()
+        store.saveProgress(rows[2].id, halfway)
+
+        val opening = store.splitOpening(rows[1].id, contents("c1.xhtml", "c2.xhtml", "c3.xhtml"))
+
+        assertEquals(rows.map { it.id }, opening?.chapterIds)
+        assertEquals(1, opening?.opened)
+        assertEquals(listOf(ChapterProgress.NEVER_OPENED, ChapterProgress.NEVER_OPENED, halfway), opening?.saved)
+        assertEquals(ReaderChapters(listOf("c1.xhtml", "c2.xhtml", "c3.xhtml"), ofItem = listOf(0, 0, 1, 2)), opening?.chapters)
+    }
+
+    @Test
+    fun `dado um arquivo cujo sumário mudou desde a leitura da pasta, quando o leitor o abre, então os capítulos passam a ser os do arquivo`() {
+        import("c1.xhtml", "c2.xhtml")
+        val asked = chapters()[1].id
+
+        val opening = store.splitOpening(asked, contents("p.xhtml", "c1.xhtml", "c2.xhtml"))
+
+        assertEquals(listOf("p.xhtml", "c1.xhtml", "c2.xhtml"), chapters().map { it.tocKey })
+        assertEquals(chapters().map { it.id }, opening?.chapterIds)
+        // The chapter asked for is the one at the same destination now.
+        assertEquals(2, opening?.opened)
+    }
+
+    @Test
+    fun `dado um arquivo guardado inteiro que agora traz sumário, quando o leitor o abre, então ele passa a ter os capítulos`() {
+        import("")
+
+        val opening = store.splitOpening(chapters().single().id, contents("c1.xhtml", "c2.xhtml"))
+
+        assertEquals(listOf("c1.xhtml", "c2.xhtml"), chapters().map { it.tocKey })
+        assertEquals(0, opening?.opened)
+    }
+
+    @Test
+    fun `dado um arquivo que não traz a divisão, quando o leitor o abre, então ele é lido inteiro`() {
+        import("")
+
+        assertEquals(null, store.splitOpening(chapters().single().id, BookContents.UNDIVIDED))
+        assertEquals(listOf(""), chapters().map { it.tocKey })
     }
 }
