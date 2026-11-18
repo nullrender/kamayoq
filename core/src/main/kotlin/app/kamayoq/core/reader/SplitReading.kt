@@ -70,7 +70,9 @@ class SplitReading(saved: List<ChapterProgress>, opened: Int, private val device
         if (!message.reason.turns) readFrom = chapter
         current = chapter
         // A file whose chapter fractions the page cannot measure keeps the start; the CFI is the place.
-        val fraction = message.chapterPosition ?: BasisPoints.fromStored(BasisPoints.START)
+        // The end is kept for a chapter left behind or finished: the last page of a chapter measures
+        // the end too, and a place kept there must reopen on that page, not at the chapter's start.
+        val fraction = BasisPoints.fromStored(minOf(message.chapterPosition?.value ?: BasisPoints.START, BasisPoints.END - 1))
         progress[chapter] = progress[chapter].copy(position = place(message, fraction, at))
         saves += Saved(chapter, progress[chapter])
         return saves

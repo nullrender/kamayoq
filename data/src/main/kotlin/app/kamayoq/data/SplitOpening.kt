@@ -30,7 +30,9 @@ fun LibraryStore.splitOpening(chapterId: String, contents: BookContents): FileOp
     var asked = currentEdition(chapterId)
     // The reading of the folder may be from before the file changed: the file itself says its chapters.
     if (fileChapters(asked).map { it.tocKey }.filter { it.isNotEmpty() } != keys) asked = resplit(asked, contents.chapters)
-    if (keys.isEmpty()) return WholeOpening(chapterId)
+    // The chapter that stands for the one asked for now: bringing the chapters in line may have
+    // given its place to another.
+    if (keys.isEmpty()) return WholeOpening(asked)
     val rows = fileChapters(asked)
     return SplitOpening(
         chapterIds = rows.map { it.id },

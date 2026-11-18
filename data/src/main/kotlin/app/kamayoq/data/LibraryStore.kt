@@ -409,7 +409,10 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         val path = units.first().second.path
         // A question still open goes with the file when its path changes.
         if (stored.isNotEmpty() && stored.first().path != path) database.editionOfferQueries.movePath(path, versionId, stored.first().path)
-        if (stored.isEmpty() || stored.map { it.name } == units.map { it.second.name }) {
+        // A file kept whole is one chapter named after the file: renamed, it is still that chapter,
+        // as any chapter whose path changes only in letter case.
+        val stillWhole = stored.size == 1 && units.size == 1 && stored[0].toc_href.isEmpty() && units[0].second.tocKey.isEmpty()
+        if (stored.isEmpty() || stillWhole || stored.map { it.name } == units.map { it.second.name }) {
             val moving = stored.zip(units).filter { (row, unit) -> row.toc_href != unit.second.tocKey }
             // In two steps, so a key on its way never meets the same key still on another chapter.
             for ((row, _) in moving) database.chapterQueries.moveKey("\u0000${row.id}", row.id)
