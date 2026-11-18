@@ -49,9 +49,11 @@ class SplitFileStoreTest {
 
     private fun workId() = store.works().single().id
 
-    private fun import(vararg units: ReadingUnit, stamp: FileStamp = FileStamp(1_000, 1_761_400_000_000)) {
-        val work = Work("Novels/Release That Witch", "Release That Witch", null, WorkType.NOVELS, null, units.toList())
-        store.importLocal(source, LocalLibrary(listOf(work), emptyList()), units.map { it.path }.distinct().associateWith { stamp })
+    private fun import(vararg units: ReadingUnit, stamp: FileStamp = FileStamp(1_000, 1_761_400_000_000), folder: String = "Novels/Release That Witch") {
+        // The same units under another spelling of the work's folder, when [folder] says so.
+        val placed = units.map { it.copy(path = folder + it.path.removePrefix("Novels/Release That Witch")) }
+        val work = Work(folder, "Release That Witch", null, WorkType.NOVELS, null, placed)
+        store.importLocal(source, LocalLibrary(listOf(work), emptyList()), placed.map { it.path }.distinct().associateWith { stamp })
     }
 
     private fun chapters() = store.chapters(store.works().single().id)
@@ -234,6 +236,64 @@ class SplitFileStoreTest {
         // The chapter asked for is now the one at the same destination in the new edition.
         assertEquals(chapters()[2].id, current)
         assertEquals(listOf(EditionOffer(novel, lastRead = "Capítulo 1")), store.editionOffers(workId()))
+    }
+
+    // Found by the independent review of 18/11/2026, before the code reached the CI.
+
+    private val renamed = "Novels/release that witch"
+
+    @Test
+    fun `dado a pasta da obra renomeada só na caixa das letras junto com a edição nova, quando importo, então a pergunta ainda acha o que foi lido`() {
+        import(chapter(1), chapter(2))
+        store.saveProgress(chapters()[0].id, reading(10_000).copy(readMark = readMark))
+
+        import(preface, chapter(1), chapter(2), stamp = changed, folder = renamed)
+
+        val path = "$renamed/Release That Witch.epub"
+        assertEquals(listOf(EditionOffer(path, lastRead = "Capítulo 1")), store.editionOffers(workId()))
+        store.applyPreviousEdition(workId(), path)
+        assertEquals(listOf(null, readMark, null), chapters().map { store.progress(it.id).readMark })
+    }
+
+    @Test
+    fun `dado a pergunta ainda aberta, quando a pasta da obra é renomeada só na caixa das letras, então a pergunta acompanha o arquivo`() {
+        import(chapter(1), chapter(2))
+        store.saveProgress(chapters()[0].id, reading(10_000).copy(readMark = readMark))
+        import(preface, chapter(1), chapter(2), stamp = changed)
+
+        import(preface, chapter(1), chapter(2), stamp = changed, folder = renamed)
+
+        val path = "$renamed/Release That Witch.epub"
+        assertEquals(listOf(EditionOffer(path, lastRead = "Capítulo 1")), store.editionOffers(workId()))
+        store.applyPreviousEdition(workId(), path)
+        assertEquals(listOf(null, readMark, null), chapters().map { store.progress(it.id).readMark })
+    }
+
+    @Test
+    fun `dado a pergunta ainda aberta, quando o arquivo muda de edição outra vez, então a pergunta continua valendo para o que foi lido`() {
+        import(chapter(1), chapter(2))
+        store.saveProgress(chapters()[0].id, reading(10_000).copy(readMark = readMark))
+        import(preface, chapter(1), chapter(2), stamp = changed)
+
+        import(preface, chapter(1), chapter(2), chapter(3), stamp = FileStamp(1_300, 1_761_600_000_000))
+
+        assertEquals(listOf(EditionOffer(novel, lastRead = "Capítulo 1")), store.editionOffers(workId()))
+        store.applyPreviousEdition(workId(), novel)
+        assertEquals(listOf(null, readMark, null, null), chapters().map { store.progress(it.id).readMark })
+    }
+
+    @Test
+    fun `dado um arquivo dividido e dois arquivos novos cujo nome só difere dele na caixa das letras, quando importo, então cada arquivo fica com os seus capítulos`() {
+        import(chapter(1), chapter(2))
+        val upper = "Novels/Release That Witch/RELEASE THAT WITCH.epub"
+        val lower = "Novels/Release That Witch/release that witch.epub"
+        val units = listOf(upper, lower).flatMap { path -> listOf(chapter(1).copy(path = path), chapter(2).copy(path = path)) }
+        val work = Work("Novels/Release That Witch", "Release That Witch", null, WorkType.NOVELS, null, units)
+
+        store.importLocal(source, LocalLibrary(listOf(work), emptyList()), mapOf(upper to changed, lower to changed))
+
+        assertEquals(listOf(upper, upper, lower, lower), chapters().map { it.path })
+        assertEquals(4, chapters().map { it.id }.toSet().size)
     }
 
     @Test
