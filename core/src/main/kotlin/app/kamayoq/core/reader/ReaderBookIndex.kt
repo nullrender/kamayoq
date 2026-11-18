@@ -7,7 +7,8 @@ import kotlinx.serialization.json.putJsonArray
 
 /** What the page learns about the open book. The position travels here, never inside a script. */
 object ReaderBookIndex {
-    fun json(entries: Map<String, Long>, position: String?, flow: ReaderFlow): String = buildJsonObject {
+    /** [section] is where the saved place was, for a [position] the book no longer resolves. */
+    fun json(entries: Map<String, Long>, position: String?, flow: ReaderFlow, section: Int? = null): String = buildJsonObject {
         putJsonArray("entries") {
             for ((name, size) in entries) {
                 addJsonObject {

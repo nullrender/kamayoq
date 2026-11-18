@@ -30,6 +30,15 @@ class ReaderBookIndexTest {
         )
     }
 
+    // Piece 21: a CFI that no longer resolves opens at the start of its section, not of the book.
+    @Test
+    fun `dado uma posição salva com a seção, então a seção vai no índice com ela`() {
+        assertEquals(
+            """{"entries":[],"position":"epubcfi(/6/4!/4/2)","flow":"paginated","section":2}""",
+            ReaderBookIndex.json(emptyMap(), position = "epubcfi(/6/4!/4/2)", ReaderFlow.PAGES, section = 2),
+        )
+    }
+
     @Test
     fun `dado um nome com aspas, então o JSON continua válido`() {
         assertEquals(

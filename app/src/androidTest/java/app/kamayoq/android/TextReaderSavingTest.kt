@@ -175,7 +175,34 @@ class TextReaderSavingTest {
         assertTrue("A place before the restore was kept: $early", early.none { it.section < saved.section })
     }
 
+    // A changed edition can drop the spine item the CFI names: the fork then opens the book at its
+    // start, and the saved section is the nearest place the person was.
+    @Test
+    fun `dado um CFI cuja seção não existe mais quando reabro então o livro abre no começo da seção gravada`() {
+        val (saved, _) = readToAPlace()
+        hide()
+
+        show(saved.copy(cfi = "epubcfi(/6/99!/4/2/1:0)"))
+
+        assertShows(SECTION_3_START)
+    }
+
+    // Measured, not built: the fork turns a path it cannot find inside the section into the start of
+    // that section (epubcfi.js, toRange returns null; paginator.js, anchor ?? 0).
+    @Test
+    fun `dado um CFI cujo trecho sumiu da seção quando reabro então o livro abre no começo da seção gravada`() {
+        val (saved, _) = readToAPlace()
+        hide()
+
+        show(saved.copy(cfi = saved.cfi.substringBefore('!') + "!/4/999/1:0)"))
+
+        assertShows(SECTION_3_START)
+    }
+
     private companion object {
         val WORD = Regex("(?<![\\w])m\\d+n\\d+(?![\\w])")
+
+        /** The first word of the third section of the positions book. */
+        const val SECTION_3_START = "m3n1"
     }
 }

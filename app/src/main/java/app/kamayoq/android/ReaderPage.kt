@@ -45,8 +45,17 @@ private const val READER_PAGE = "${ReaderPolicy.ORIGIN}/reader/index.html"
 /** The name the page sees; the same in `errors.js` and `reader.js`. */
 private const val BRIDGE = "kamayoqBridge"
 
-/** The book the page may read; [token] goes in its addresses, new at each opening. */
-class ReaderBook(val archive: EpubArchive, val token: String, val position: String?, val flow: ReaderFlow = ReaderFlow.PAGES)
+/**
+ * The book the page may read; [token] goes in its addresses, new at each opening. [section] is the
+ * saved place's section, where the book opens when [position] no longer resolves.
+ */
+class ReaderBook(
+    val archive: EpubArchive,
+    val token: String,
+    val position: String?,
+    val flow: ReaderFlow = ReaderFlow.PAGES,
+    val section: Int? = null,
+)
 
 /**
  * Answers every request of the page, so none of them ever falls through to the network. Open only so
