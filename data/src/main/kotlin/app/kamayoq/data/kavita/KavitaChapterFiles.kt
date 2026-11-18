@@ -1,5 +1,6 @@
 package app.kamayoq.data.kavita
 
+import app.kamayoq.core.library.ChapterFormat
 import app.kamayoq.data.StoredChapter
 import java.io.File
 import java.io.IOException
@@ -31,12 +32,15 @@ class KavitaChapterFiles(private val client: KavitaClient, private val folder: F
      * [IOException] when there is neither. A download stops when [stillWanted] says no.
      */
     fun file(chapter: StoredChapter, stillWanted: () -> Boolean, server: () -> Pair<String, String>): KavitaChapterFile {
-        val kept = File(folder, "${chapter.path}.cbz")
+        val kept = File(folder, "${chapter.path}.${extensionOf(chapter.format)}")
         if (kept.exists() && !chapter.needsContentCheck) return KavitaChapterFile(kept, outdated = false)
         // One at a time per chapter: leaving and opening again may start a second one, and the older
         // answer must not land on top of the newer.
         return synchronized(locks.computeIfAbsent(chapter.path) { Any() }) { download(chapter, kept, stillWanted, server) }
     }
+
+    // Only Kavita's CBZ chapters and books reach here: the reader stops the other formats first.
+    private fun extensionOf(format: ChapterFormat) = if (format == ChapterFormat.EPUB) "epub" else "cbz"
 
     private fun download(
         chapter: StoredChapter,

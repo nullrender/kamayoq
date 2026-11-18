@@ -87,9 +87,13 @@ class ChapterOpening(
         }
     }
 
-    /** A local EPUB: copied to the app's cache, with a ceiling, and read from the copy (rule E1). */
-    fun openText(tree: Uri?, chapter: StoredChapter): OpenedText {
+    /**
+     * An EPUB, local or Kavita's: copied to the app's cache, with a ceiling, and read from the copy
+     * (rule E1). [stillWanted] stops a download when the screen that asked left.
+     */
+    fun openText(tree: Uri?, chapter: StoredChapter, stillWanted: () -> Boolean): OpenedText {
         val request = archives.begin()
+        if (chapter.origin == LibraryStore.KAVITA) return openKavitaText(request, chapter, stillWanted)
         val library = tree?.let(folder::libraryId) ?: throw ChapterMissingException()
         val entry = FolderWalk.find(library, chapter.path) { folder.children(tree, it) }
             ?: throw ChapterMissingException()
@@ -99,6 +103,20 @@ class ChapterOpening(
         return OpenedText(opened.chapterId, opened.archive) { archives.release(opened) }
     }
 
+    private fun openKavitaText(request: Long, chapter: StoredChapter, stillWanted: () -> Boolean): OpenedText {
+        val kept = keptFile(chapter, stillWanted)
+        val opened = archives.openBook(request, chapter, kept.file.inputStream(), bookLimits)
+        if (kept.outdated) store.doubtContent(opened.chapterId)
+        return OpenedText(opened.chapterId, opened.archive) { archives.release(opened) }
+    }
+
+    private fun keptFile(chapter: StoredChapter, stillWanted: () -> Boolean): KavitaChapterFile =
+        try {
+            kavitaFile(chapter, stillWanted)
+        } catch (e: IOException) {
+            throw ChapterDownloadException(e)
+        }
+
     private fun openArchive(request: Long, tree: Uri, chapter: StoredChapter, entry: FolderEntry): OpenedChapter {
         val uri = DocumentsContract.buildDocumentUriUsingTree(tree, entry.id)
         val input = checkNotNull(resolver.openInputStream(uri)) { "The folder provider gave no stream" }
@@ -106,11 +124,7 @@ class ChapterOpening(
     }
 
     private fun openKavita(request: Long, chapter: StoredChapter, stillWanted: () -> Boolean): OpenedChapter {
-        val kept = try {
-            kavitaFile(chapter, stillWanted)
-        } catch (e: IOException) {
-            throw ChapterDownloadException(e)
-        }
+        val kept = keptFile(chapter, stillWanted)
         val opened = openStream(request, chapter, kept.file.inputStream())
         // Its hash may match what is stored: the newer file still has to come when there is a server.
         if (kept.outdated) store.doubtContent(opened.chapterId)

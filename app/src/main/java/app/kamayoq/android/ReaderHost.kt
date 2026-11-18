@@ -58,7 +58,6 @@ private sealed interface Opening {
     data object Missing : Opening
     data object Failed : Opening
     data object DownloadFailed : Opening
-    data object EpubNotYet : Opening
     data object FormatNotYet : Opening
     class TooLarge(val maxBytes: Long) : Opening
     class ReadyText(val text: OpenedText, val title: String, val progress: ChapterProgress, val round: Long) : Opening
@@ -224,7 +223,6 @@ fun ReaderHost(
         Opening.Missing -> ReaderMessage(stringResource(R.string.reader_missing), onBack)
         Opening.Failed -> ReaderMessage(stringResource(R.string.reader_failed), onBack)
         Opening.DownloadFailed -> ReaderMessage(stringResource(R.string.reader_download_failed), onBack)
-        Opening.EpubNotYet -> ReaderMessage(stringResource(R.string.reader_epub_not_yet), onBack)
         Opening.FormatNotYet -> ReaderMessage(stringResource(R.string.reader_format_not_yet), onBack)
         is Opening.TooLarge -> ReaderMessage(stringResource(R.string.reader_too_large, current.maxBytes / (1024 * 1024)), onBack)
         is Opening.ReadyText -> {
@@ -345,12 +343,8 @@ private fun openChapter(
     val (current, chapters) = store.openingOf(workId, chapterId)
     val chapter = chapters.firstOrNull { it.id == current } ?: return Opening.Missing
     when (chapter.format) {
-        // Kavita's books wait for milestone C of step 4: their position does not travel yet.
-        ChapterFormat.EPUB -> return if (chapter.origin == LibraryStore.KAVITA) {
-            Opening.EpubNotYet
-        } else {
-            openText(store, opening, tree, workId, chapter, round)
-        }
+        // A Kavita book's place stays on this device until milestone C2 of step 4 converts it.
+        ChapterFormat.EPUB -> return openText(store, opening, tree, workId, chapter, round, stillWanted)
         ChapterFormat.PDF, ChapterFormat.OTHER_ARCHIVE -> return Opening.FormatNotYet
         ChapterFormat.ARCHIVE, ChapterFormat.IMAGE_FOLDER -> Unit
     }
@@ -383,8 +377,16 @@ private fun openChapter(
     }
 }
 
-private fun openText(store: LibraryStore, opening: ChapterOpening, tree: Uri?, workId: String, chapter: StoredChapter, round: Long): Opening {
-    val text = opening.openText(tree, chapter)
+private fun openText(
+    store: LibraryStore,
+    opening: ChapterOpening,
+    tree: Uri?,
+    workId: String,
+    chapter: StoredChapter,
+    round: Long,
+    stillWanted: () -> Boolean,
+): Opening {
+    val text = opening.openText(tree, chapter, stillWanted)
     try {
         val work = store.works().firstOrNull { it.id == workId }?.title
         // A loose book is a work of one volume with the same name: the name once is enough.

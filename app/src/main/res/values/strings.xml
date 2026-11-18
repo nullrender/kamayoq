@@ -123,7 +123,6 @@
     <string name="kavita_libraries_failed">Couldn\'t read the libraries from Kavita. Check the connection and try again.</string>
     <string name="kavita_read_failed">Couldn\'t reach Kavita. The works below are from the last reading that worked.</string>
     <string name="reader_download_failed">Couldn\'t download this chapter from Kavita. Check the connection and try again.</string>
-    <string name="reader_epub_not_yet">Kamayoq doesn\'t open EPUB books from Kavita yet.</string>
     <string name="reader_too_large">This book is larger than Kamayoq opens: up to %1$d MB.</string>
     <string name="reader_webview_old">This device\'s WebView is too old to show books. Update Android System WebView to version 117 or newer.</string>
     <string name="reader_fixed_layout">Kamayoq doesn\'t open fixed-layout books yet.</string>
