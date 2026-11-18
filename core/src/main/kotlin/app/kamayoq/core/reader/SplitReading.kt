@@ -80,10 +80,10 @@ class SplitReading(saved: List<ChapterProgress>, opened: Int, private val device
 
     /**
      * The person went past the last page of the file and the end block shows: the chapter being read
-     * is finished. Null when this changes nothing.
+     * is finished. What to save, in order; empty when this changes nothing.
      */
-    fun ended(at: Instant): Saved? {
-        if (phase == TextReading.Phase.OPENING || counted[current]) return null
+    fun ended(at: Instant): List<Saved> {
+        if (phase == TextReading.Phase.OPENING || counted[current]) return emptyList()
         val before = progress[current]
         val end = (before.position as? TextPosition)?.copy(fraction = BasisPoints.fromStored(BasisPoints.END), at = at, device = device)
         counted[current] = true
@@ -92,7 +92,7 @@ class SplitReading(saved: List<ChapterProgress>, opened: Int, private val device
             position = end ?: before.position,
             completeReads = before.completeReads + 1,
         )
-        return Saved(current, progress[current])
+        return listOf(Saved(current, progress[current]))
     }
 
     /** Left forward: read, at its end, with the place of the first page past it. Counted once per opening. */

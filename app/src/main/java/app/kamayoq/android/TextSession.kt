@@ -81,6 +81,7 @@ class SplitText(
     }
 
     override fun ended(at: Instant) {
-        reading.ended(at)?.let { onSave(listOf(it)) }
+        val saves = reading.ended(at)
+        if (saves.isNotEmpty()) onSave(saves)
     }
 }

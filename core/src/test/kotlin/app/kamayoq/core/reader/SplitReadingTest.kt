@@ -128,13 +128,28 @@ class SplitReadingTest {
         val reading = reading(never(3), opened = 2)
         reading.relocated(page(chapter = 2, fraction = 9_900), now)
 
-        val saved = reading.ended(later)
+        val saved = reading.ended(later).single()
 
-        assertEquals(2, saved?.chapter)
-        assertEquals(ReadMark(later, ReadMarkSource.READ_TO_END), saved?.progress?.readMark)
-        assertEquals(1, saved?.progress?.completeReads)
-        assertEquals(BasisPoints.END, saved?.progress?.place().points())
-        assertNull(reading.ended(later))
+        assertEquals(2, saved.chapter)
+        assertEquals(ReadMark(later, ReadMarkSource.READ_TO_END), saved.progress.readMark)
+        assertEquals(1, saved.progress.completeReads)
+        assertEquals(BasisPoints.END, saved.progress.place().points())
+        assertEquals(emptyList(), reading.ended(later))
+    }
+
+    // Found by the Gemini review of milestone B: a short last chapter that shares the file's last
+    // screen with the one before it was never read, the end block finishing only the one being read.
+    @Test
+    fun `dado o penúltimo capítulo e um último curto na mesma tela final, quando o bloco de fim aparece, então os dois ficam lidos e a obra reabre no último`() {
+        val reading = reading(never(3), opened = 1)
+        reading.relocated(page(chapter = 1, fraction = 9_000), now)
+
+        val saves = reading.ended(later)
+
+        assertEquals(listOf(1, 2), saves.map { it.chapter })
+        assertEquals(listOf(ReadMarkSource.READ_TO_END, ReadMarkSource.READ_TO_END), saves.map { it.progress.readMark?.source })
+        assertEquals(listOf(1, 1), saves.map { it.progress.completeReads })
+        assertEquals(2, reading.current)
     }
 
     @Test
@@ -142,7 +157,7 @@ class SplitReadingTest {
         val reading = SplitReading(never(3), opened = 1, device = "phone-a")
 
         assertEquals(emptyList(), reading.relocated(page(chapter = 2, fraction = 100), now))
-        assertNull(reading.ended(now))
+        assertEquals(emptyList(), reading.ended(now))
         assertEquals(1, reading.current)
     }
 
