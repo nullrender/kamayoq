@@ -357,6 +357,34 @@ class BackupFormatTest {
         assertFailsWith<IllegalArgumentException> { BackupFormat.read(text) }
     }
 
+    // An earlier file is brought up to this format by adding the fields it could not have: a field
+    // already there was not written by that format, and replacing it would drop it without a word.
+    @Test
+    fun `dado um arquivo que diz formato 2 mas traz lugar de livro, quando lido, então recusa em vez de apagar o lugar`() {
+        val place = ChapterProgress(
+            readMark = null,
+            position = TextPosition(2, 148, "epubcfi(/6/6!/4/2[cap-2]/10/1:42)", BasisPoints.fromStored(137), stoppedAt, "phone-a"),
+            completeReads = 0,
+        )
+        val text = BackupFormat.write(backup(work(chapters = listOf(chapter("Books/Dom Casmurro.epub", place, format = ChapterFormat.EPUB)))))
+            .replaceFirst("\"formatVersion\": 3", "\"formatVersion\": 2")
+
+        assertTrue("\"formatVersion\": 2" in text && "\"section\": 2" in text, text)
+        assertFailsWith<IllegalArgumentException> { BackupFormat.read(text) }
+    }
+
+    @Test
+    fun `dado um arquivo que diz formato 1 mas traz servidores, quando lido, então recusa em vez de apagá-los`() {
+        val text = format1.replaceFirst(
+            "\"works\": [",
+            "\"servers\": [ { \"id\": \"server-1\", \"address\": \"http://kavita.example:5000\", \"lastVersion\": null, " +
+                "\"accountId\": 1, \"libraries\": [2] } ],\n    \"works\": [",
+        )
+
+        assertTrue("\"servers\"" in text, text)
+        assertFailsWith<IllegalArgumentException> { BackupFormat.read(text) }
+    }
+
     @Test
     fun `dado 28 de outubro às 18h48 em São Paulo, então o arquivo se chama kamayoq_2026-10-28_18-48`() {
         val at = Instant.parse("2026-10-28T21:48:30Z")
