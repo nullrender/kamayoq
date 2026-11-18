@@ -79,6 +79,7 @@ fun TextReader(
     var contentsOpen by remember(archive) { mutableStateOf(false) }
     // Where a new page of this screen opens (a crash, a change of mode): the last place kept.
     var cfi by remember(archive) { mutableStateOf(reading.start) }
+    var section by remember(archive) { mutableStateOf(reading.position?.section) }
 
     Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -105,7 +106,7 @@ fun TextReader(
                             // AndroidView leaves a view in wrap-content height, and a WebView in that
                             // mode gives the page a viewport of height 0: the book became a white strip.
                             layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-                            val client = ReaderClient(viewContext.assets, ReaderBook(archive, token, position = cfi, flow = flow)) {
+                            val client = ReaderClient(viewContext.assets, ReaderBook(archive, token, position = cfi, flow = flow, section = section)) {
                                 when (crashes.afterCrash()) {
                                     RendererCrashes.Decision.REOPEN -> renderer++
                                     RendererCrashes.Decision.STOP -> problem = R.string.reader_renderer_gone
@@ -124,6 +125,7 @@ fun TextReader(
                                     is PageMessage.Relocated -> if (ready) {
                                         reading.relocated(message, Instant.now())?.let { place ->
                                             cfi = place.cfi
+                                            section = place.section
                                             onSave(place)
                                         }
                                     }

@@ -19,5 +19,6 @@ object ReaderBookIndex {
         }
         put("position", position)
         put("flow", flow.wire)
+        section?.let { put("section", it) }
     }.toString()
 }

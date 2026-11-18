@@ -56,8 +56,21 @@ const open = async token => {
     view.renderer.addEventListener('relocate', ({ detail }) => send(relocatedMessage(view.lastLocation, detail.reason)))
     // Before the restore: changing the flow of an open book lands on another place.
     view.renderer.setAttribute('flow', index.flow)
-    await view.init({ lastLocation: index.position })
+    await view.init({ lastLocation: startOf(index) })
     send({ type: 'restored' })
+}
+
+// A CFI whose spine item is gone (another edition of the book) makes the fork open the book's start,
+// or nothing at all: the saved section is the nearest place the person was. A CFI that finds its
+// section but not its path inside it already opens at the section's start (toRange gives null).
+const startOf = index => {
+    const inBook = target => {
+        const found = view.resolveNavigation(target)
+        return found != null && found.index >= 0 && found.index < view.book.sections.length
+    }
+    if (index.position && inBook(index.position)) return index.position
+    if (Number.isInteger(index.section) && inBook(index.section)) return index.section
+    return null
 }
 
 globalThis.kamayoqReader = {

@@ -129,7 +129,7 @@ open class ReaderClient(
     private fun typeOf(path: String) = if (path.endsWith(".html")) "text/html" else "text/javascript"
 
     private fun indexOf(book: ReaderBook) =
-        ReaderBookIndex.json(book.archive.names.associateWith(book.archive::sizeOf), book.position, book.flow)
+        ReaderBookIndex.json(book.archive.names.associateWith(book.archive::sizeOf), book.position, book.flow, book.section)
 
     // Never a type a browser would run: a `<script src>` to a book file fails here too.
     private fun bookFile(content: InputStream) = WebResourceResponse(
