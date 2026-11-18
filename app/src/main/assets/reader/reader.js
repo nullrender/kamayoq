@@ -73,11 +73,18 @@ const startOf = index => {
     return null
 }
 
+// The paginator's atEnd, checked against its own units: on the emulator it said true at the end of
+// the first of three chunks of a large section (run 44336477967), so no later unit may hold anything.
+// A chunk known to be empty reads as linear 'no' once split, so it does not hold the end back.
+const atLastPage = () => {
+    const renderer = view.renderer
+    if (!renderer.atEnd) return false
+    return !renderer.sections.slice(renderer.primaryIndex + 1).some(unit => unit.linear !== 'no')
+}
+
 globalThis.kamayoqReader = {
-    // Past the last page there is no page to turn to: the app shows its end block (piece 23). The
-    // paginator's own atEnd knows the chunks of a large section and the sections read out of order;
-    // reading the text left in the loaded document did not (Codex review of 18/11).
-    next: () => navigate(() => view.renderer.atEnd ? send({ type: 'end' }) : view.next()),
+    // Past the last page there is no page to turn to: the app shows its end block (piece 23).
+    next: () => navigate(() => atLastPage() ? send({ type: 'end' }) : view.next()),
     previous: () => navigate(() => view.prev()),
     contents: () => contents.map(({ index, title, depth }) => ({ index, title, depth })),
 }
