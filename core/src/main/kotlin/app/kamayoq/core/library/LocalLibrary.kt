@@ -28,15 +28,20 @@ sealed interface UnitContent {
  */
 enum class ChapterFormat { ARCHIVE, IMAGE_FOLDER, EPUB, PDF, OTHER_ARCHIVE }
 
-/** One reading unit (rule 3): a file or a folder of images. */
+/** One reading unit (rule 3): a file, a folder of images, or an item of a file's table of contents. */
 data class ReadingUnit(
     val path: String,
-    /** The file or folder name without the extension, as the list shows it. */
+    /** The file or folder name without the extension, or the item's title, as the list shows it. */
     val name: String,
     val kind: UnitKind,
     /** Unknown is null, never zero: unnumbered units go after the numbered ones (rule E3). */
     val number: Double?,
     val content: UnitContent,
+    /**
+     * Where the chapter starts inside a file split by its table of contents: the item's destination
+     * (`docs/decisions/novel-chapters-2026-11-18.md`). Empty for a unit that is the whole file.
+     */
+    val tocKey: String = "",
 )
 
 data class Work(

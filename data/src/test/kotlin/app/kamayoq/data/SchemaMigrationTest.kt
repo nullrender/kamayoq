@@ -105,13 +105,52 @@ class SchemaMigrationTest {
 
         LibraryStore.schema.migrate(driver, 2, 3)
 
-        assertEquals(3, LibraryStore.schema.version)
         assertEquals(before, everyRow(columns))
         assertEquals(
             "0",
             rows("SELECT count(*) FROM chapter_progress WHERE position_fraction IS NOT NULL OR position_cfi IS NOT NULL")
                 .single().single(),
         )
+    }
+
+    @Test
+    fun `dado um banco da versão 3 com obras e um livro pela metade, quando migro para a 4, então cada linha continua igual e todo capítulo é o arquivo inteiro`() {
+        version1()
+        LibraryStore.schema.migrate(driver, 1, 3)
+        execute("UPDATE chapter_progress SET position_fraction = 137, position_cfi = 'epubcfi(/6/6!)' WHERE chapter_id = 'chapter-2'")
+        val columns = columnsNow()
+        val before = everyRow(columns)
+
+        LibraryStore.schema.migrate(driver, 3, 4)
+
+        assertEquals(4, LibraryStore.schema.version)
+        assertEquals(before, everyRow(columns))
+        assertEquals(listOf(""), rows("SELECT DISTINCT toc_key FROM chapter").map { it.single() })
+        assertEquals("0", rows("SELECT count(*) FROM edition_offer").single().single())
+    }
+
+    @Test
+    fun `dado um banco migrado para a 4, quando dois capítulos do mesmo arquivo têm chaves diferentes, então convivem, e com a mesma chave o banco recusa`() {
+        migrated()
+        val insert = "INSERT INTO chapter (id, version_id, path, name, kind, format, sort_index, present, stamp, needs_check, toc_key) VALUES "
+
+        execute("$insert ('toc-1', 'version-dom', 'Novels/X/X.epub', 'Cap. 1', 'CHAPTER', 'EPUB', 20, 1, 's', 0, 'OEBPS/c1.xhtml')")
+        execute("$insert ('toc-2', 'version-dom', 'Novels/X/X.epub', 'Cap. 2', 'CHAPTER', 'EPUB', 21, 1, 's', 0, 'OEBPS/c2.xhtml')")
+
+        assertFails { execute("$insert ('toc-3', 'version-dom', 'Novels/X/X.epub', 'Cap. 2 bis', 'CHAPTER', 'EPUB', 22, 1, 's', 0, 'OEBPS/c2.xhtml')") }
+        // A previous edition keeps its key beside the current one.
+        execute("UPDATE chapter SET replaced_by = 'toc-2', present = 0 WHERE id = 'toc-1'")
+        execute("$insert ('toc-4', 'version-dom', 'Novels/X/X.epub', 'Cap. 1', 'CHAPTER', 'EPUB', 20, 1, 's', 0, 'OEBPS/c1.xhtml')")
+    }
+
+    @Test
+    fun `dado um banco migrado para a 4, quando a pergunta do arquivo que mudou é de uma obra que não existe, então o banco recusa`() {
+        migrated()
+
+        execute("INSERT INTO edition_offer (version_id, path) VALUES ('version-dom', 'Novels/X/X.epub')")
+
+        assertFails { execute("INSERT INTO edition_offer (version_id, path) VALUES ('version-nobody', 'Novels/X/X.epub')") }
+        assertFails { execute("INSERT INTO edition_offer (version_id, path) VALUES ('version-dom', 'Novels/X/X.epub')") }
     }
 
     @Test

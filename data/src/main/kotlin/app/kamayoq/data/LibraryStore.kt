@@ -71,6 +71,8 @@ data class StoredChapter(
     val needsContentCheck: Boolean,
     /** Where it comes from: 'local' or [LibraryStore.KAVITA]. */
     val origin: String,
+    /** Where it starts inside a file split by its table of contents; empty for a whole file. */
+    val tocKey: String = "",
 )
 
 /**
