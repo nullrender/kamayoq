@@ -16,6 +16,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -125,8 +126,11 @@ data class BackupOutbox(
 
 /** The backup file: JSON, so a person can read it, with a format version (decision of 27/10/2026). */
 object BackupFormat {
-    /** 3 carries a book's place (step 4, piece 22); 2 added Kavita (step 3); 1 is from 28/10/2026. */
-    const val VERSION = 3
+    /**
+     * 4 carries a chapter's key in a split file (step 4, milestone B); 3 a book's place (piece 22);
+     * 2 added Kavita (step 3); 1 is from 28/10/2026.
+     */
+    const val VERSION = 4
 
     // Pretty and with accents as they are, so the file reads in any text editor. Nulls are written
     // out, so every field shows even when empty.
@@ -149,6 +153,7 @@ object BackupFormat {
         var current = file
         if (version < 2) current = toFormat2(current)
         if (version < 3) current = toFormat3(current)
+        if (version < 4) current = toFormat4(current)
         return try {
             json.decodeFromJsonElement(BackupFile.serializer(), current).toBackup()
         } catch (e: DateTimeException) {
@@ -174,6 +179,10 @@ object BackupFormat {
     /** Format 3 added a book's place, which no earlier file could hold. */
     private fun toFormat3(file: JsonObject): JsonObject =
         file.withWorks { work -> work.withChapters { it.adding("textPosition" to JsonNull) } }
+
+    /** Format 4 added the key of a chapter inside a split file; every chapter before it is a whole file. */
+    private fun toFormat4(file: JsonObject): JsonObject =
+        file.withWorks { work -> work.withChapters { it.adding("tocKey" to JsonPrimitive("")) } }
 
     // A field the declared format could not have was not written by it: replacing it would drop it
     // without a word, so the file is refused instead.
@@ -327,6 +336,7 @@ private class ChapterEntry(
     val agreement: AgreementEntry?,
     val outbox: OutboxEntry?,
     val textPosition: TextPositionEntry?,
+    val tocKey: String,
 ) {
     fun toChapter() = BackupChapter(
         id = id,
@@ -349,6 +359,7 @@ private class ChapterEntry(
         remoteVolumeId = remoteVolumeId,
         agreement = agreement?.let { BackupAgreement(it.page, it.bookScrollId, it.serverAt, it.ownReread, it.localCfi) },
         outbox = outbox?.let { BackupOutbox(it.page, it.bookScrollId, it.localCfi, it.state, Instant.parse(it.queuedAt)) },
+        tocKey = tocKey,
     )
 
     // A chapter has a page in a strip or a place in a book, never both: a file with both was not
@@ -396,6 +407,7 @@ private class ChapterEntry(
             textPosition = (chapter.progress.position as? TextPosition)?.let {
                 TextPositionEntry(it.section, it.sections, it.cfi, it.fraction.value, it.at.toString(), it.device)
             },
+            tocKey = chapter.tocKey,
         )
     }
 }

@@ -770,6 +770,7 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
                         outbox = database.progressOutboxQueries.ofChapter(chapter.id).executeAsOneOrNull()?.let {
                             BackupOutbox(it.page.toInt(), it.book_scroll_id, it.local_cfi, it.state, Instant.ofEpochMilli(it.queued_at))
                         },
+                        tocKey = chapter.toc_href,
                     )
                 },
             )
