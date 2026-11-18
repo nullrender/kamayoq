@@ -174,6 +174,19 @@ class SplitReadingTest {
         assertNull(SplitReading(listOf(finished, ChapterProgress.NEVER_OPENED), opened = 0, device = "phone-a").start)
     }
 
+    // Found by the independent review of 18/11/2026: the last page of a chapter measures 1, and a
+    // place kept with the end's fraction reopened the chapter at its start.
+    @Test
+    fun `dado a última página de um capítulo, quando o lugar é guardado sem sair dele, então o capítulo reabre nessa página e não do começo`() {
+        val reading = reading(never(3), opened = 1)
+
+        val saved = reading.relocated(page(chapter = 1, fraction = BasisPoints.END, cfi = "epubcfi(/6/4!/4/90)"), now).single().progress
+
+        assertNull(saved.readMark)
+        assertEquals(BasisPoints.END - 1, saved.place().points())
+        assertEquals("epubcfi(/6/4!/4/90)", SplitReading(listOf(ChapterProgress.NEVER_OPENED, saved, ChapterProgress.NEVER_OPENED), opened = 1, device = "phone-a").start)
+    }
+
     @Test
     fun `dado uma página que não diz o capítulo, então o lugar fica no capítulo que estava sendo lido`() {
         val reading = reading(never(3), opened = 1)

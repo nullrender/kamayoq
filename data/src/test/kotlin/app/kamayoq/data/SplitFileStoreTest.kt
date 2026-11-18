@@ -299,6 +299,26 @@ class SplitFileStoreTest {
     }
 
     @Test
+    fun `dado um arquivo sem sumário lido pela metade, quando ele é renomeado só na caixa das letras, então continua o mesmo capítulo, com o seu lugar`() {
+        fun whole(file: String) = ReadingUnit("Novels/Release That Witch/$file.epub", file, UnitKind.VOLUME, 1.0, UnitContent.SplitEpub)
+        fun importWhole(file: String) {
+            val unit = whole(file)
+            val work = Work("Novels/Release That Witch", "Release That Witch", null, WorkType.NOVELS, null, listOf(unit))
+            store.importLocal(source, LocalLibrary(listOf(work), emptyList()), mapOf(unit.path to changed))
+        }
+        importWhole("vol 1")
+        val before = chapters().single()
+        store.saveProgress(before.id, reading(4_000))
+
+        importWhole("Vol 1")
+
+        assertEquals(listOf(before.id), chapters().map { it.id })
+        assertEquals("Vol 1", chapters().single().name)
+        assertEquals(4_000, (store.progress(before.id).position as TextPosition).fraction.value)
+        assertEquals(emptyList(), store.editionOffers(workId()))
+    }
+
+    @Test
     fun `dado dois capítulos do mesmo arquivo, quando faço a cópia de segurança, então cada um leva a sua chave`() {
         import(chapter(1), chapter(2))
 
@@ -351,7 +371,7 @@ class SplitOpeningTest {
         val rows = chapters()
         store.saveProgress(rows[2].id, halfway)
 
-        val opening = store.splitOpening(rows[1].id, contents("c1.xhtml", "c2.xhtml", "c3.xhtml"))
+        val opening = store.splitOpening(rows[1].id, contents("c1.xhtml", "c2.xhtml", "c3.xhtml")) as? SplitOpening
 
         assertEquals(rows.map { it.id }, opening?.chapterIds)
         assertEquals(1, opening?.opened)
@@ -364,7 +384,7 @@ class SplitOpeningTest {
         import("c1.xhtml", "c2.xhtml")
         val asked = chapters()[1].id
 
-        val opening = store.splitOpening(asked, contents("p.xhtml", "c1.xhtml", "c2.xhtml"))
+        val opening = store.splitOpening(asked, contents("p.xhtml", "c1.xhtml", "c2.xhtml")) as? SplitOpening
 
         assertEquals(listOf("p.xhtml", "c1.xhtml", "c2.xhtml"), chapters().map { it.tocKey })
         assertEquals(chapters().map { it.id }, opening?.chapterIds)
@@ -376,7 +396,7 @@ class SplitOpeningTest {
     fun `dado um arquivo guardado inteiro que agora traz sumário, quando o leitor o abre, então ele passa a ter os capítulos`() {
         import("")
 
-        val opening = store.splitOpening(chapters().single().id, contents("c1.xhtml", "c2.xhtml"))
+        val opening = store.splitOpening(chapters().single().id, contents("c1.xhtml", "c2.xhtml")) as? SplitOpening
 
         assertEquals(listOf("c1.xhtml", "c2.xhtml"), chapters().map { it.tocKey })
         assertEquals(0, opening?.opened)
@@ -386,7 +406,22 @@ class SplitOpeningTest {
     fun `dado um arquivo que não traz a divisão, quando o leitor o abre, então ele é lido inteiro`() {
         import("")
 
-        assertEquals(null, store.splitOpening(chapters().single().id, BookContents.UNDIVIDED))
+        val whole = chapters().single().id
+
+        assertEquals(whole, (store.splitOpening(whole, BookContents.UNDIVIDED) as? WholeOpening)?.chapterId)
         assertEquals(listOf(""), chapters().map { it.tocKey })
+    }
+
+    // Found by the independent review of 18/11/2026: the reader went on saving into the chapter the
+    // file no longer had.
+    @Test
+    fun `dado um arquivo guardado dividido que agora não traz sumário, quando o leitor o abre, então o capítulo a ler é o inteiro que tomou o lugar dele`() {
+        import("c1.xhtml", "c2.xhtml")
+        val asked = chapters()[1].id
+
+        val opening = store.splitOpening(asked, BookContents.UNDIVIDED) as? WholeOpening
+
+        assertEquals(listOf(""), chapters().map { it.tocKey })
+        assertEquals(chapters().single().id, opening?.chapterId)
     }
 }
