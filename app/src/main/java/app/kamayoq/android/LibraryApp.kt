@@ -50,10 +50,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import app.kamayoq.core.library.FolderConvention
 import app.kamayoq.core.library.IgnoreReason
 import app.kamayoq.core.library.IgnoredFile
 import app.kamayoq.data.BackupExport
 import app.kamayoq.data.BackupResult
+import app.kamayoq.data.EditionOffer
 import app.kamayoq.data.LibraryStore
 import app.kamayoq.data.StoredAlternative
 import app.kamayoq.data.StoredChapter
@@ -138,7 +140,7 @@ fun LibraryApp(
             val (left, loaded) = withContext(Dispatchers.IO) {
                 // A folder no longer chosen keeps its works and progress, out of the list (rule E1).
                 store.keepOnlyFolder(current.toString(), latest)
-                LibraryScan.run(folder, current, store, latest) to loadRows(store)
+                LibraryScan.run(folder, current, store, latest) { opening.contents(current, it) } to loadRows(store)
             }
             if (!latest()) return
             ignored = left
@@ -495,8 +497,11 @@ private fun WorkScreen(
     var resume by remember(workId) { mutableStateOf<StoredChapter?>(null) }
     var others by remember(workId) { mutableStateOf<List<StoredAlternative>>(emptyList()) }
     var usedOther by remember(workId) { mutableStateOf(0) }
+    // The questions of files that changed edition; answering one loads the work again.
+    var offers by remember(workId) { mutableStateOf<List<EditionOffer>>(emptyList()) }
+    var answered by remember(workId) { mutableStateOf(0) }
     val scope = rememberCoroutineScope()
-    LaunchedEffect(workId, progressVersion, usedOther) {
+    LaunchedEffect(workId, progressVersion, usedOther, answered) {
         val loaded = withContext(Dispatchers.IO) {
             Triple(
                 store.works().firstOrNull { it.id == workId },
@@ -508,6 +513,7 @@ private fun WorkScreen(
         chapters = loaded.second
         resume = loaded.third
         others = withContext(Dispatchers.IO) { store.alternatives(workId) }
+        offers = withContext(Dispatchers.IO) { store.editionOffers(workId) }
     }
     Screen(title = work?.title.orEmpty(), onBack = onBack) {
         val target = resume ?: chapters.firstOrNull()?.chapter
@@ -554,12 +560,44 @@ private fun WorkScreen(
                 },
             )
         }
+        // Rule E1: nothing of a file's previous edition passes to the new one without this answer.
+        offers.forEach { offer ->
+            fun answer(change: () -> Unit) {
+                scope.launch {
+                    withContext(Dispatchers.IO) { change() }
+                    answered++
+                }
+            }
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                val lastRead = offer.lastRead
+                Text(
+                    if (lastRead != null) stringResource(R.string.edition_changed, lastRead) else stringResource(R.string.edition_changed_plain),
+                    modifier = Modifier.announced(),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { answer { store.applyPreviousEdition(workId, offer.path) } }) {
+                        Text(stringResource(R.string.edition_apply))
+                    }
+                    TextButton(onClick = { answer { store.dismissEdition(workId, offer.path) } }) {
+                        Text(stringResource(R.string.edition_dismiss))
+                    }
+                }
+            }
+        }
         LazyColumn(state = listState) {
             items(chapters, key = { it.chapter.id }) { row ->
+                // A compiled novel whose file has no table of contents is one chapter, and says why.
+                val undivided = row.chapter.origin != LibraryStore.KAVITA && row.chapter.tocKey.isEmpty() &&
+                    FolderConvention.splitsByContents(row.chapter.path)
                 ListItem(
                     headlineContent = { Text(row.chapter.name) },
-                    supportingContent = if (row.read) {
-                        { Text(stringResource(R.string.chapter_read)) }
+                    supportingContent = if (row.read || undivided) {
+                        {
+                            Column {
+                                if (row.read) Text(stringResource(R.string.chapter_read))
+                                if (undivided) Text(stringResource(R.string.file_undivided))
+                            }
+                        }
                     } else {
                         null
                     },

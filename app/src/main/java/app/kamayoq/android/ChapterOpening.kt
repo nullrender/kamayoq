@@ -12,10 +12,12 @@ import app.kamayoq.core.library.FolderEntry
 import app.kamayoq.core.library.FolderWalk
 import app.kamayoq.core.library.UnitContent
 import app.kamayoq.core.progress.ChapterProgress
+import app.kamayoq.core.reader.ContentsChapter
 import app.kamayoq.core.reader.EpubArchive
 import app.kamayoq.core.reader.EpubLimits
 import app.kamayoq.data.ArchiveOpening
 import app.kamayoq.data.LibraryStore
+import app.kamayoq.data.SplitContents
 import app.kamayoq.data.StoredChapter
 import app.kamayoq.data.kavita.KavitaChapterFile
 import java.io.File
@@ -67,8 +69,22 @@ class ChapterOpening(
      */
     val turns = OpeningTurns()
 
+    // Apart from the reader's own cache, which is cleared at start of what the reader does not hold:
+    // a reading of the folder may be copying a file here at that very moment.
+    private val contentsCache = File(context.cacheDir, "contents")
+
     /** At start: copies left in the cache by a closed app go; the chapter being read stays. */
     fun clearLeftovers() = archives.clearLeftovers()
+
+    /**
+     * The chapters of the file with [documentId] under [tree], from its own table of contents, for
+     * the reading of the folder: a compiled novel is listed by chapter before it is ever opened.
+     */
+    fun contents(tree: Uri, documentId: String): List<ContentsChapter> {
+        val uri = DocumentsContract.buildDocumentUriUsingTree(tree, documentId)
+        val input = checkNotNull(resolver.openInputStream(uri)) { "The folder provider gave no stream" }
+        return SplitContents.read(input, contentsCache, bookLimits)
+    }
 
     /** [stillWanted] says whether the screen that asked still waits: a download stops when it left. */
     fun open(tree: Uri?, chapter: StoredChapter, stillWanted: () -> Boolean): OpenedChapter {

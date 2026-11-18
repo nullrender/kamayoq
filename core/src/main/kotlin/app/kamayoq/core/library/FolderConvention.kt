@@ -92,10 +92,9 @@ object FolderConvention {
                 val path = childPath(folder.path, name)
                 when (extension(name)) {
                     in archiveExtensions -> works += looseWork(path, name, type, UnitContent.Archive)
-                    EPUB -> if (readsEpub(type, stem(name), loose = true)) {
-                        works += looseWork(path, name, type, UnitContent.Epub)
-                    } else {
-                        ignore(path, IgnoreReason.UNSUPPORTED_FORMAT)
+                    EPUB -> when (val content = epubContent(type, stem(name), loose = true)) {
+                        null -> ignore(path, IgnoreReason.UNSUPPORTED_FORMAT)
+                        else -> works += looseWork(path, name, type, content)
                     }
                     in imageExtensions -> ignore(path, IgnoreReason.UNEXPECTED_PLACE)
                     else -> ignore(path, IgnoreReason.UNSUPPORTED_FORMAT)
@@ -132,10 +131,9 @@ object FolderConvention {
                 val path = childPath(folder.path, fileName)
                 when (extension(fileName)) {
                     in archiveExtensions -> units += unit(path, stem(fileName), UnitContent.Archive)
-                    EPUB -> if (readsEpub(type, stem(fileName), loose = false)) {
-                        units += unit(path, stem(fileName), UnitContent.Epub)
-                    } else {
-                        ignore(path, IgnoreReason.UNSUPPORTED_FORMAT)
+                    EPUB -> when (val content = epubContent(type, stem(fileName), loose = false)) {
+                        null -> ignore(path, IgnoreReason.UNSUPPORTED_FORMAT)
+                        else -> units += unit(path, stem(fileName), content)
                     }
                     in imageExtensions -> ignore(path, IgnoreReason.UNEXPECTED_PLACE)
                     else -> ignore(path, IgnoreReason.UNSUPPORTED_FORMAT)
@@ -196,19 +194,31 @@ object FolderConvention {
     }
 
     /**
-     * A book is read whole. In a novel's folder the name tells a chapter file from a compiled one
-     * (`docs/decisions/novel-chapters-2026-11-18.md`): a chapter number makes it one chapter. A file
-     * with "Vol." or no number, or loose in the type folder (the file is the whole work), is split
-     * by its table of contents, which is not read yet: until then it stays out, in sight.
+     * What an EPUB is where it was found; null where none is read. A book is read whole. In a
+     * novel's folder the name tells a chapter file from a compiled one
+     * (`docs/decisions/novel-chapters-2026-11-18.md`): a chapter number makes it one chapter, read
+     * whole; a file with "Vol." or no number, or loose in the type folder (the file is the whole
+     * work), is split by its table of contents.
      */
-    private fun readsEpub(type: WorkType, stem: String, loose: Boolean) = when (type) {
-        WorkType.BOOKS -> true
-        WorkType.NOVELS -> !loose && numbering(stem).let { (kind, number) -> kind == UnitKind.CHAPTER && number != null }
-        WorkType.COMICS -> false
+    private fun epubContent(type: WorkType, stem: String, loose: Boolean): UnitContent? = when (type) {
+        WorkType.BOOKS -> UnitContent.Epub
+        WorkType.NOVELS -> {
+            val chapterFile = !loose && numbering(stem).let { (kind, number) -> kind == UnitKind.CHAPTER && number != null }
+            if (chapterFile) UnitContent.Epub else UnitContent.SplitEpub
+        }
+        WorkType.COMICS -> null
     }
 
-    /** Whether the file at [path], relative to the chosen folder, is one to split by its table of contents. */
-    fun splitsByContents(path: String): Boolean = false
+    /**
+     * Whether the file at [path], relative to the chosen folder, is one to split by its table of
+     * contents: what [read] makes of it, told from the path alone.
+     */
+    fun splitsByContents(path: String): Boolean {
+        val segments = path.split('/').filter { it.isNotEmpty() }
+        if (segments.size !in 2..3 || typeFolders[fold(segments.first())] != WorkType.NOVELS) return false
+        val file = segments.last()
+        return extension(file) == EPUB && epubContent(WorkType.NOVELS, stem(file), loose = segments.size == 2) == UnitContent.SplitEpub
+    }
 
     /** The chapter number in the title of an item of a table of contents, by rule 4; null without one. */
     fun chapterNumber(title: String): Double? =
