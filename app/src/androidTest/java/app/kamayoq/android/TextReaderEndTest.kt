@@ -13,7 +13,11 @@ import app.kamayoq.core.reader.EpubArchive
 import app.kamayoq.core.reader.ReaderMessage
 import app.kamayoq.core.reader.TextReading
 import app.kamayoq.epubfixtures.EpubFixtures
+import android.view.View
+import android.view.ViewGroup
+import android.webkit.WebView
 import java.io.File
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -35,13 +39,24 @@ class TextReaderEndTest {
     private lateinit var file: File
     private val messages = LinkedBlockingQueue<ReaderMessage>()
     private val saves = CopyOnWriteArrayList<ChapterProgress>()
+    private val seen = CopyOnWriteArrayList<String>()
 
     @Before
     fun openBook() {
         file = File(compose.activity.cacheDir, "end.epub").apply { writeBytes(EpubFixtures.short()) }
         archive = EpubArchive.open(file)
         compose.setContent {
-            TextReader(archive, "Livro", TextReading(saved = null as TextPosition?, "emulator"), onSave = { saves += it }, onBack = {}, onMessage = messages::add)
+            TextReader(
+                archive,
+                "Livro",
+                TextReading(saved = null as TextPosition?, "emulator"),
+                onSave = { saves += it },
+                onBack = {},
+                onMessage = { message ->
+                    seen += message::class.simpleName.orEmpty()
+                    messages += message
+                },
+            )
         }
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60)
         while (System.nanoTime() < deadline) {
@@ -61,6 +76,26 @@ class TextReaderEndTest {
         file.delete()
     }
 
+    private fun View.findWebView(): WebView? = when (this) {
+        is WebView -> this
+        is ViewGroup -> (0 until childCount).firstNotNullOfOrNull { getChildAt(it).findWebView() }
+        else -> null
+    }
+
+    /** What the page says about where it stands, for a failure to explain itself. */
+    private fun pageState(): String {
+        val answer = CompletableFuture<String>()
+        compose.runOnUiThread {
+            checkNotNull(compose.activity.window.decorView.findWebView()).evaluateJavascript(
+                "(() => { const v = document.querySelector('foliate-view'); const l = v.lastLocation; " +
+                    "return JSON.stringify({ cfi: l?.cfi, section: l?.section, fraction: l?.fraction, atEnd: v.renderer.atEnd, " +
+                    "sections: v.book.sections.map(s => s.linear ?? 'yes') }) })()",
+                answer::complete,
+            )
+        }
+        return answer.get(30, TimeUnit.SECONDS)
+    }
+
     private fun button(label: Int) = compose.onNodeWithText(compose.activity.getString(label))
 
     private fun endBlockShows() = compose.onAllNodesWithText(END_OF_BOOK).fetchSemanticsNodes().isNotEmpty()
@@ -73,7 +108,7 @@ class TextReaderEndTest {
             compose.waitForIdle()
             Thread.sleep(300)
         }
-        throw AssertionError("No end block after 80 pages; saves: ${saves.lastOrNull()}")
+        throw AssertionError("No end block after 80 pages; page: ${pageState()}; messages seen: ${seen.distinct()}; last save: ${saves.lastOrNull()}")
     }
 
     @Test
