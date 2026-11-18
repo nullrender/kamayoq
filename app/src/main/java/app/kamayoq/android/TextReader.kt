@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
-import app.kamayoq.core.progress.TextPosition
+import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.reader.EpubArchive
 import app.kamayoq.core.reader.ReaderEngine
 import app.kamayoq.core.reader.ReaderContentsItem
@@ -48,7 +48,7 @@ import java.util.UUID
 import app.kamayoq.core.reader.ReaderMessage as PageMessage
 
 /**
- * Shows a book in the reader's page, from where [reading] starts; [onSave] gets each place to keep.
+ * Shows a book in the reader's page, from where [reading] starts; [onSave] gets the progress to keep.
  * [onMessage] hears every message of the page, for the tests.
  */
 @Composable
@@ -56,7 +56,7 @@ fun TextReader(
     archive: EpubArchive,
     title: String,
     reading: TextReading,
-    onSave: (TextPosition) -> Unit,
+    onSave: (ChapterProgress) -> Unit,
     onBack: () -> Unit,
     onMessage: (PageMessage) -> Unit = {},
 ) {
@@ -126,7 +126,7 @@ fun TextReader(
                                         reading.relocated(message, Instant.now())?.let { place ->
                                             cfi = place.cfi
                                             section = place.section
-                                            onSave(place)
+                                            onSave(reading.progress)
                                         }
                                     }
                                     is PageMessage.Failed -> problem = failureText(message.code)

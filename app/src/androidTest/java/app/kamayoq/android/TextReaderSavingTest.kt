@@ -66,9 +66,9 @@ class TextReaderSavingTest {
                     archive = archive,
                     title = "Livro",
                     reading = TextReading(saved, "emulator"),
-                    onSave = { place ->
+                    onSave = { progress ->
                         saveTimes += SystemClock.uptimeMillis()
-                        saves += place
+                        saves += progress.position as TextPosition
                     },
                     onBack = {},
                     onMessage = { message ->

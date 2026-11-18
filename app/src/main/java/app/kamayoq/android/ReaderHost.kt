@@ -32,7 +32,6 @@ import androidx.compose.ui.unit.dp
 import app.kamayoq.core.kavita.KavitaProgress
 import app.kamayoq.core.library.ChapterFormat
 import app.kamayoq.core.progress.ChapterProgress
-import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.progress.strip
 import app.kamayoq.core.reader.FileTooLargeException
 import app.kamayoq.core.reader.TextReading
@@ -229,17 +228,16 @@ fun ReaderHost(
         Opening.FormatNotYet -> ReaderMessage(stringResource(R.string.reader_format_not_yet), onBack)
         is Opening.TooLarge -> ReaderMessage(stringResource(R.string.reader_too_large, current.maxBytes / (1024 * 1024)), onBack)
         is Opening.ReadyText -> {
-            val reading = remember(current) { TextReading(current.progress.position as? TextPosition, deviceId) }
+            val reading = remember(current) { TextReading(current.progress, deviceId) }
             val saving = remember(store) { ProgressSaving(store) }
             TextReader(
                 current.text.archive,
                 current.title,
                 reading,
-                // In the same line as the Strip's saves, so leaving never drops the last place. The
-                // read mark and complete reads stay as the opening found them.
-                onSave = { place ->
+                // In the same line as the Strip's saves, so leaving never drops the last place.
+                onSave = { progress ->
                     opening.turns.inLine(current.round) {
-                        saving.save(current.text.chapterId, current.progress.copy(position = place))
+                        saving.save(current.text.chapterId, progress)
                             ?.let { Log.e("Kamayoq", "Saving the reading position failed", it) }
                     }
                 },

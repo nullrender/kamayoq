@@ -33,6 +33,9 @@ sealed interface ReaderMessage {
     data class Link(val href: String) : ReaderMessage
     data class Refused(val reason: String) : ReaderMessage
 
+    /** The person asked for the next page on the book's last one (piece 23). */
+    data object End : ReaderMessage
+
     companion object {
         const val MAX_MESSAGE_LENGTH = 8 * 1024
         const val MAX_CFI_LENGTH = 2 * 1024

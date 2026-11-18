@@ -1,6 +1,9 @@
 package app.kamayoq.core.reader
 
 import app.kamayoq.core.progress.BasisPoints
+import app.kamayoq.core.progress.ChapterProgress
+import app.kamayoq.core.progress.ReadMark
+import app.kamayoq.core.progress.ReadMarkSource
 import app.kamayoq.core.progress.TextPosition
 import java.time.Instant
 import kotlin.test.Test
@@ -85,6 +88,63 @@ class TextReadingTest {
         assertNull(reading.relocated(moved(RelocateReason.ANCHOR), now))
         assertNull(reading.position)
         assertNotNull(reading.relocated(moved(RelocateReason.SCROLL), now))
+    }
+
+    // Piece 23, decision 9: only the end block marks a book read; the fraction never decides it.
+    private fun readingAtLastPage(saved: ChapterProgress = ChapterProgress(null, this.saved, 0)): TextReading {
+        val reading = TextReading(saved, device)
+        reading.restored()
+        reading.relocated(ReaderMessage.Relocated(2, 3, "epubcfi(/6/8!/4/90)", BasisPoints.fromStored(BasisPoints.END), RelocateReason.PAGE), now)
+        return reading
+    }
+
+    @Test
+    fun `dado 10000 pontos-base sem o bloco de fim, então o livro não fica lido`() {
+        val reading = readingAtLastPage()
+
+        assertNull(reading.progress.readMark)
+        assertEquals(0, reading.progress.completeReads)
+    }
+
+    @Test
+    fun `dado o bloco de fim à vista, então o livro fica lido e as leituras somam 1`() {
+        val reading = readingAtLastPage()
+
+        val progress = reading.ended(now.plusSeconds(5))
+
+        assertEquals(ReadMark(now.plusSeconds(5), ReadMarkSource.READ_TO_END), progress?.readMark)
+        assertEquals(1, progress?.completeReads)
+        assertEquals("epubcfi(/6/8!/4/90)", progress?.position?.let { it as TextPosition }?.cfi)
+        assertEquals(progress, reading.progress)
+    }
+
+    @Test
+    fun `dado voltar e avançar no fim, então não soma de novo`() {
+        val reading = readingAtLastPage()
+        reading.ended(now.plusSeconds(5))
+        // Previous page closes the block on the same page; no move reaches the guard.
+
+        assertNull(reading.ended(now.plusSeconds(9)))
+        assertEquals(1, reading.progress.completeReads)
+    }
+
+    @Test
+    fun `dado um livro já lido, quando chega ao fim de novo, então a primeira marca fica e as leituras somam`() {
+        val first = ReadMark(earlier, ReadMarkSource.READ_TO_END)
+        val reading = readingAtLastPage(ChapterProgress(first, saved, 1))
+
+        val progress = reading.ended(now.plusSeconds(5))
+
+        assertEquals(first, progress?.readMark)
+        assertEquals(2, progress?.completeReads)
+    }
+
+    @Test
+    fun `dado o fim pedido antes da restauração, então nada conta`() {
+        val reading = TextReading(saved, device)
+
+        assertNull(reading.ended(now))
+        assertEquals(0, reading.progress.completeReads)
     }
 
     @Test

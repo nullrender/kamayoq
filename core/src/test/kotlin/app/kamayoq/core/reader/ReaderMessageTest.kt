@@ -20,6 +20,17 @@ class ReaderMessageTest {
         assertEquals(ReaderMessage.Ready, ReaderMessage.parse("""{"type":"ready"}"""))
     }
 
+    // Piece 23: Next page on the last page of the book.
+    @Test
+    fun `dado end, então a pessoa passou da última página`() {
+        assertEquals(ReaderMessage.End, ReaderMessage.parse("""{"type":"end"}"""))
+    }
+
+    @Test
+    fun `dado end com outro campo, então a mensagem é recusada`() {
+        assertIs<ReaderMessage.Refused>(ReaderMessage.parse("""{"type":"end","at":1}"""))
+    }
+
     @Test
     fun `dado relocated com fração 0,5, então são 5 000 pontos-base`() {
         val message = assertIs<ReaderMessage.Relocated>(ReaderMessage.parse(relocated()))
