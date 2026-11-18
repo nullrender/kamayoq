@@ -83,7 +83,28 @@ class TextReaderEndTest {
     }
 
     /** What the page says about where it stands, for a failure to explain itself. */
+    // evaluateJavascript does not wait for a promise, so the probe leaves its answer in a global.
     private fun pageState(): String {
+        evaluateJs(
+            "globalThis.endProbe = null; (async () => { const r = document.querySelector('foliate-view').renderer; " +
+                "const geometry = { page: r.page, pages: r.pages, start: r.start, end: r.end, size: r.size, viewSize: r.viewSize, " +
+                "position: r.containerPosition, animated: r.hasAttribute('animated') }; " +
+                "const turn = await Promise.race([r.next().then(() => 'ended'), new Promise(done => setTimeout(() => done('still waiting after 3 s'), 3000))]); " +
+                "globalThis.endProbe = JSON.stringify({ ...geometry, directTurn: turn, after: { page: r.page, position: r.containerPosition } }) })(); null",
+        )
+        Thread.sleep(4_000)
+        return evaluateJs("globalThis.endProbe") + " " + location()
+    }
+
+    private fun evaluateJs(script: String): String {
+        val answer = CompletableFuture<String>()
+        compose.runOnUiThread {
+            checkNotNull(compose.activity.window.decorView.findWebView()).evaluateJavascript(script, answer::complete)
+        }
+        return answer.get(30, TimeUnit.SECONDS)
+    }
+
+    private fun location(): String {
         val answer = CompletableFuture<String>()
         compose.runOnUiThread {
             checkNotNull(compose.activity.window.decorView.findWebView()).evaluateJavascript(
