@@ -15,6 +15,7 @@ import androidx.webkit.WebViewFeature
 import app.kamayoq.core.reader.EpubArchive
 import app.kamayoq.core.reader.OpenBook
 import app.kamayoq.core.reader.ReaderBookIndex
+import app.kamayoq.core.reader.ReaderChapters
 import app.kamayoq.core.reader.ReaderContents
 import app.kamayoq.core.reader.ReaderContentsItem
 import app.kamayoq.core.reader.ReaderFlow
@@ -48,7 +49,9 @@ private const val BRIDGE = "kamayoqBridge"
 /**
  * The book the page may read; [token] goes in its addresses, new at each opening. [section] is the
  * saved place's section, where the book opens when [position] no longer resolves. A place from
- * Kavita comes as [section] and [marker] instead, with the [sections] Kavita counts.
+ * Kavita comes as [section] and [marker] instead, with the [sections] Kavita counts. A file split
+ * by its table of contents brings its [chapters], and opens at the destination [start] when it has
+ * no [position].
  */
 class ReaderBook(
     val archive: EpubArchive,
@@ -58,6 +61,8 @@ class ReaderBook(
     val section: Int? = null,
     val marker: String? = null,
     val sections: Int? = null,
+    val start: String? = null,
+    val chapters: ReaderChapters? = null,
 )
 
 /**
@@ -134,6 +139,7 @@ open class ReaderClient(
     private fun indexOf(book: ReaderBook) =
         ReaderBookIndex.json(
             book.archive.names.associateWith(book.archive::sizeOf), book.position, book.flow, book.section, book.marker, book.sections,
+            book.start, book.chapters,
         )
 
     // Never a type a browser would run: a `<script src>` to a book file fails here too.

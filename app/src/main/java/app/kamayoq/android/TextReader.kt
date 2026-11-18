@@ -30,6 +30,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -77,6 +78,22 @@ fun TextReader(
     type: WorkType = WorkType.BOOKS,
     end: TextEnd = TextEnd.Book,
 ) {
+    val save by rememberUpdatedState(onSave)
+    val session = remember(reading) { WholeText(reading) { save(it) } }
+    TextReader(archive, title, session, onBack, onMessage, type, end)
+}
+
+/** The same screen for any text: [session] says where the page opens and saves what each move changes. */
+@Composable
+fun TextReader(
+    archive: EpubArchive,
+    title: String,
+    session: TextSession,
+    onBack: () -> Unit,
+    onMessage: (PageMessage) -> Unit = {},
+    type: WorkType = WorkType.BOOKS,
+    end: TextEnd = TextEnd.Book,
+) {
     val context = LocalContext.current
     // Checked before any WebView is made: below the floor the fork fails later, with no clear reason.
     val supported = remember {
@@ -95,10 +112,10 @@ fun TextReader(
     var contents by remember(archive) { mutableStateOf<List<ReaderContentsItem>?>(null) }
     var contentsOpen by remember(archive) { mutableStateOf(false) }
     // Where a new page of this screen opens (a crash, a change of mode): the last place kept.
-    var cfi by remember(archive) { mutableStateOf(reading.start) }
-    var section by remember(archive) { mutableStateOf(reading.position?.section) }
+    var cfi by remember(archive) { mutableStateOf(session.startCfi) }
+    var section by remember(archive) { mutableStateOf(session.startSection) }
     // A place from Kavita opens by its marker until the person moves; then the CFI read here leads.
-    var marker by remember(archive) { mutableStateOf(reading.startMarker) }
+    var marker by remember(archive) { mutableStateOf(session.startMarker) }
     // The end block shows over the last page until Previous page or another move leaves it.
     var atEnd by remember(archive) { mutableStateOf(false) }
 
@@ -130,7 +147,9 @@ fun TextReader(
                             layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
                             val book = ReaderBook(
                                 archive, token, position = cfi, flow = flow, section = section, marker = marker,
-                                sections = reading.startSections.takeIf { cfi == null },
+                                sections = session.startSections.takeIf { cfi == null },
+                                start = session.startHref.takeIf { cfi == null },
+                                chapters = session.chapters,
                             )
                             val client = ReaderClient(viewContext.assets, book) {
                                 when (crashes.afterCrash()) {
@@ -143,23 +162,22 @@ fun TextReader(
                                 when (message) {
                                     PageMessage.Restored -> {
                                         ready = true
-                                        reading.restored()
+                                        session.restored()
                                         readContents { items -> if (webView === this) contents = items }
                                     }
                                     // Only once this page restored: a new page lays out before it, and
                                     // the guard already left its own opening behind.
                                     is PageMessage.Relocated -> if (ready) {
-                                        reading.relocated(message, Instant.now())?.let { place ->
+                                        session.relocated(message, Instant.now())?.let { place ->
                                             atEnd = false
                                             cfi = place.cfi
                                             section = place.section
                                             marker = null
-                                            onSave(reading.progress)
                                         }
                                     }
                                     PageMessage.End -> if (ready) {
                                         atEnd = true
-                                        reading.ended(Instant.now())?.let(onSave)
+                                        session.ended(Instant.now())
                                     }
                                     is PageMessage.Failed -> problem = failureText(message.code)
                                     is PageMessage.Link ->
