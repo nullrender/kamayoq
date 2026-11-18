@@ -11,7 +11,8 @@ step() {
     out=$(adb shell am instrument -r -w -e processDeath "$1" -e class app.kamayoq.android.ProcessDeathTest "$RUNNER")
     echo "$out"
     echo "$out" | grep -q 'INSTRUMENTATION_CODE: -1'
-    ! echo "$out" | grep -q 'INSTRUMENTATION_STATUS_CODE: -2'
+    # A line negated with ! never stops a script under set -e, so the failure check exits by itself.
+    if echo "$out" | grep -q 'INSTRUMENTATION_STATUS_CODE: -2'; then exit 1; fi
     [ "$(echo "$out" | grep -c 'INSTRUMENTATION_STATUS_CODE: -4')" -eq 1 ]
     [ "$(echo "$out" | grep -c 'INSTRUMENTATION_STATUS_CODE: 0')" -eq 1 ]
 }
