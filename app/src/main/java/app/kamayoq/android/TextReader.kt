@@ -43,6 +43,7 @@ import app.kamayoq.core.reader.ReaderFlow
 import app.kamayoq.core.reader.ReaderLink
 import app.kamayoq.core.reader.RendererCrashes
 import app.kamayoq.core.reader.TextReading
+import java.time.Instant
 import java.util.UUID
 import app.kamayoq.core.reader.ReaderMessage as PageMessage
 
@@ -76,9 +77,8 @@ fun TextReader(
     var ready by remember(archive) { mutableStateOf(false) }
     var contents by remember(archive) { mutableStateOf<List<ReaderContentsItem>?>(null) }
     var contentsOpen by remember(archive) { mutableStateOf(false) }
-    // Kept only during this screen: changing accessibility mode must not jump to the start.
-    // Persisting it across closing the book belongs to the storage migration.
-    var cfi by remember(archive) { mutableStateOf<String?>(null) }
+    // Where a new page of this screen opens (a crash, a change of mode): the last place kept.
+    var cfi by remember(archive) { mutableStateOf(reading.start) }
 
     Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -116,9 +116,17 @@ fun TextReader(
                                 when (message) {
                                     PageMessage.Restored -> {
                                         ready = true
+                                        reading.restored()
                                         readContents { items -> if (webView === this) contents = items }
                                     }
-                                    is PageMessage.Relocated -> if (ready && message.reason.byPerson) cfi = message.cfi
+                                    // Only once this page restored: a new page lays out before it, and
+                                    // the guard already left its own opening behind.
+                                    is PageMessage.Relocated -> if (ready) {
+                                        reading.relocated(message, Instant.now())?.let { place ->
+                                            cfi = place.cfi
+                                            onSave(place)
+                                        }
+                                    }
                                     is PageMessage.Failed -> problem = failureText(message.code)
                                     is PageMessage.Link ->
                                         (ReaderLink.classify(message.href) as? ReaderLink.AskFirst)?.let { leaving = it.url }

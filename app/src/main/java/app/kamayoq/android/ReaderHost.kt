@@ -31,10 +31,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.kamayoq.core.kavita.KavitaProgress
 import app.kamayoq.core.library.ChapterFormat
+import app.kamayoq.core.progress.ChapterProgress
+import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.progress.strip
 import app.kamayoq.core.reader.FileTooLargeException
 import app.kamayoq.core.reader.TextReading
 import app.kamayoq.data.LibraryStore
+import app.kamayoq.data.ProgressSaving
 import app.kamayoq.data.StoredAlternative
 import app.kamayoq.data.StoredChapter
 import app.kamayoq.data.kavita.KavitaSyncOutcome
@@ -59,7 +62,7 @@ private sealed interface Opening {
     data object EpubNotYet : Opening
     data object FormatNotYet : Opening
     class TooLarge(val maxBytes: Long) : Opening
-    class ReadyText(val text: OpenedText, val title: String) : Opening
+    class ReadyText(val text: OpenedText, val title: String, val progress: ChapterProgress, val round: Long) : Opening
     class Conflict(val chapterId: String, val localPage: Int, val conflict: KavitaSyncOutcome.Conflict, val turn: Long) : Opening
     class Ready(
         val chapter: OpenedChapter,
@@ -225,7 +228,24 @@ fun ReaderHost(
         Opening.EpubNotYet -> ReaderMessage(stringResource(R.string.reader_epub_not_yet), onBack)
         Opening.FormatNotYet -> ReaderMessage(stringResource(R.string.reader_format_not_yet), onBack)
         is Opening.TooLarge -> ReaderMessage(stringResource(R.string.reader_too_large, current.maxBytes / (1024 * 1024)), onBack)
-        is Opening.ReadyText -> TextReader(current.text.archive, current.title, TextReading(null, deviceId), onSave = {}, onBack = onBack)
+        is Opening.ReadyText -> {
+            val reading = remember(current) { TextReading(current.progress.position as? TextPosition, deviceId) }
+            val saving = remember(store) { ProgressSaving(store) }
+            TextReader(
+                current.text.archive,
+                current.title,
+                reading,
+                // In the same line as the Strip's saves, so leaving never drops the last place. The
+                // read mark and complete reads stay as the opening found them.
+                onSave = { place ->
+                    opening.turns.inLine(current.round) {
+                        saving.save(current.text.chapterId, current.progress.copy(position = place))
+                            ?.let { Log.e("Kamayoq", "Saving the reading position failed", it) }
+                    }
+                },
+                onBack = onBack,
+            )
+        }
         is Opening.Conflict -> {
             ConflictScreen(
             localPage = current.localPage,
@@ -329,7 +349,7 @@ private fun openChapter(
         ChapterFormat.EPUB -> return if (chapter.origin == LibraryStore.KAVITA) {
             Opening.EpubNotYet
         } else {
-            openText(store, opening, tree, workId, chapter)
+            openText(store, opening, tree, workId, chapter, round)
         }
         ChapterFormat.PDF, ChapterFormat.OTHER_ARCHIVE -> return Opening.FormatNotYet
         ChapterFormat.ARCHIVE, ChapterFormat.IMAGE_FOLDER -> Unit
@@ -363,13 +383,13 @@ private fun openChapter(
     }
 }
 
-private fun openText(store: LibraryStore, opening: ChapterOpening, tree: Uri?, workId: String, chapter: StoredChapter): Opening {
+private fun openText(store: LibraryStore, opening: ChapterOpening, tree: Uri?, workId: String, chapter: StoredChapter, round: Long): Opening {
     val text = opening.openText(tree, chapter)
     try {
         val work = store.works().firstOrNull { it.id == workId }?.title
         // A loose book is a work of one volume with the same name: the name once is enough.
         val title = listOfNotNull(work, chapter.name.takeIf { it != work }).joinToString(" · ")
-        return Opening.ReadyText(text, title)
+        return Opening.ReadyText(text, title, store.progress(text.chapterId), round)
     } catch (e: Exception) {
         text.release()
         throw e
