@@ -151,18 +151,23 @@ class TextReaderSavingTest {
         val (saved, word) = readToAPlace()
         hide()
         saves.clear()
-        var width = 0
-        var height = 0
-        scenario.onActivity {
-            width = it.window.decorView.width
-            height = it.window.decorView.height
-        }
 
-        // Where Next page sits (bottom right) and the middle of the book, the way an impatient
-        // finger would, until the book says it has opened.
+        // Where Next page sits (the row of controls right under the book, on the right) and the
+        // middle of the book, the way an impatient finger would, until the book says it has opened.
+        // Placed from the book's own view: below the app's window the touch would reach the system.
         show(saved) {
-            touchScreen(width * 0.75f to height * 0.95f)
-            touchScreen(width * 0.5f to height * 0.5f)
+            var book: IntArray? = null
+            scenario.onActivity { activity ->
+                activity.window.decorView.findWebView()?.let { view ->
+                    val location = IntArray(2).also(view::getLocationOnScreen)
+                    val controlsRow = (24 * view.resources.displayMetrics.density).toInt()
+                    book = intArrayOf(location[0], location[1], view.width, view.height, controlsRow)
+                }
+            }
+            book?.let { (left, top, width, height, controlsRow) ->
+                touchScreen(left + width * 0.75f to (top + height + controlsRow).toFloat())
+                touchScreen(left + width * 0.5f to top + height * 0.5f)
+            }
         }
 
         assertShows(word)
