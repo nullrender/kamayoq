@@ -28,8 +28,12 @@ class WholeOpening(val chapterId: String) : FileOpening
 fun LibraryStore.splitOpening(chapterId: String, contents: BookContents): FileOpening {
     val keys = contents.chapters.map { it.key }
     var asked = currentEdition(chapterId)
-    // The reading of the folder may be from before the file changed: the file itself says its chapters.
-    if (fileChapters(asked).map { it.tocKey }.filter { it.isNotEmpty() } != keys) asked = resplit(asked, contents.chapters)
+    // The reading of the folder may be from before the file changed: the file itself says its chapters,
+    // by their destinations and by their titles, which rule E1 compares. A chapter with no title is
+    // named after the file by the folder's reading, so only titles the contents give are compared.
+    val stored = fileChapters(asked)
+    val retitled = stored.zip(contents.chapters).any { (row, chapter) -> chapter.title.isNotBlank() && row.name != chapter.title }
+    if (stored.map { it.tocKey }.filter { it.isNotEmpty() } != keys || retitled) asked = resplit(asked, contents.chapters)
     // The chapter that stands for the one asked for now: bringing the chapters in line may have
     // given its place to another.
     if (keys.isEmpty()) return WholeOpening(asked)
