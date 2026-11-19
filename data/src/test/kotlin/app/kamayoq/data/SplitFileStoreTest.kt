@@ -176,6 +176,23 @@ class SplitFileStoreTest {
         assertEquals(emptyList(), store.editionOffers(workId()))
     }
 
+    // Found by the Gemini review of milestone B: the question came for any read mark, also when no
+    // read chapter's title is in the new edition, and Apply then marked nothing (decision, section 8).
+    @Test
+    fun `dado um arquivo lido trocado por uma edição sem nenhum dos títulos lidos, quando importo, então nada é perguntado`() {
+        import(chapter(1), chapter(2))
+        store.saveProgress(chapters()[0].id, reading(10_000).copy(readMark = readMark))
+
+        import(
+            ReadingUnit(novel, "Chapter 1", UnitKind.CHAPTER, 1.0, UnitContent.SplitEpub, tocKey = "OEBPS/c1.xhtml"),
+            ReadingUnit(novel, "Chapter 2", UnitKind.CHAPTER, 2.0, UnitContent.SplitEpub, tocKey = "OEBPS/c2.xhtml"),
+            stamp = changed,
+        )
+
+        assertEquals(listOf("Chapter 1", "Chapter 2"), chapters().map { it.name })
+        assertEquals(emptyList(), store.editionOffers(workId()))
+    }
+
     @Test
     fun `dado uma edição nova de um arquivo nunca lido, quando importo, então nada é perguntado`() {
         import(chapter(1), chapter(2))
