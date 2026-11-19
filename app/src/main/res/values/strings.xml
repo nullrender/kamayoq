@@ -156,4 +156,21 @@
     <string name="edition_dismiss_confirm">Yes, don\'t apply</string>
     <string name="edition_dismiss_keep">Keep the question</string>
     <string name="file_undivided">This file does not carry the chapter division.</string>
+    <!-- Restoring a backup: offered only while Kamayoq is empty (docs/decisions/backup-restore-2026-11-18.md). -->
+    <string name="restore_backup">Restore backup</string>
+    <string name="restore_reading">Reading the backup…</string>
+    <string name="restore_confirm_title">Restore this backup?</string>
+    <!-- %1$s is the backup's date and time; %2$d how many works it has. -->
+    <string name="restore_confirm_text">Backup from %1$s. Works in it: %2$d. Your works, what you\'ve read and the Kavita server come back; the works\' files stay in the library folder.</string>
+    <string name="restore_confirm">Restore</string>
+    <string name="restore_cancel">Cancel</string>
+    <string name="restore_running">Restoring the backup…</string>
+    <string name="restore_done_choose_folder">Backup restored. Now choose the library folder: its works find what you read by their place in it.</string>
+    <string name="restore_done">Backup restored. Kamayoq is reading the library folder so its works find what you read.</string>
+    <string name="restore_not_empty">Restoring works only while Kamayoq is empty, as on a new phone or after reinstalling it. Your library stays as it is.</string>
+    <string name="restore_unreadable">This file is not a Kamayoq backup that this version can read. Nothing was changed.</string>
+    <string name="restore_read_failed">Couldn\'t read the file. Nothing was changed.</string>
+    <string name="restore_failed">Couldn\'t restore this backup. Nothing was changed.</string>
+    <!-- %1$s is the Kavita server's address. -->
+    <string name="kavita_key_again">Kavita at %1$s needs its key again: the key never goes in the backup.</string>
 </resources>

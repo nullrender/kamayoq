@@ -80,6 +80,12 @@ class KavitaSync(
         }
     }
 
+    /**
+     * The address of a server stored with no key saved, as after a restore: the key never goes in
+     * the backup (docs/decisions/backup-restore-2026-11-18.md, choice 12).
+     */
+    fun waitingForKey(): String? = null
+
     /** Reads the marked libraries and the positions again; with nothing connected, there is nothing to read. */
     fun importNow(): Unit = connection.read {
         val server = store.kavitaServer() ?: return

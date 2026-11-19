@@ -20,6 +20,8 @@ open class KamayoqApp : Application() {
         private set
     lateinit var backups: Backups
         private set
+    lateinit var restores: Restores
+        private set
     lateinit var kavita: KavitaAccess
         private set
     lateinit var kavitaSync: KavitaSync
@@ -47,5 +49,7 @@ open class KamayoqApp : Application() {
         opening = ChapterOpening(this, folder, store, kavitaSync::chapterFile)
         // Lives as long as the app: a backup started on a screen that goes away still ends.
         backups = Backups(MainScope())
+        // The same for a restore: its confirmation and result outlive a recreated screen.
+        restores = Restores(MainScope())
     }
 }

@@ -86,6 +86,7 @@ fun LibraryApp(
     kavita: KavitaAccess,
     kavitaSync: KavitaSync,
     deviceId: String,
+    restores: Restores,
 ) {
     val scope = rememberCoroutineScope()
     var tree by remember { mutableStateOf(folder.saved()) }

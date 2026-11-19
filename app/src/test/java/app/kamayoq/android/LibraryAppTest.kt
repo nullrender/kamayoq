@@ -1,5 +1,8 @@
 package app.kamayoq.android
 
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -15,6 +18,11 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ApplicationProvider
+import app.kamayoq.core.backup.Backup
+import app.kamayoq.core.backup.BackupChapter
+import app.kamayoq.core.backup.BackupFormat
+import app.kamayoq.core.backup.BackupServer
+import app.kamayoq.core.backup.BackupWork
 import app.kamayoq.core.kavita.ImportedChapter
 import app.kamayoq.core.kavita.ImportedWork
 import app.kamayoq.core.kavita.KavitaConnection
@@ -45,6 +53,8 @@ import java.io.IOException
 import java.time.Instant
 import javax.crypto.KeyGenerator
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -61,13 +71,13 @@ class LibraryAppTest {
 
     private fun showLibrary(titles: List<String>): FolderInMemory {
         val folder = FolderInMemory(app, titles)
-        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device") }
+        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
         return folder
     }
 
     private fun showWithoutFolder() {
         val folder = FolderInMemory(app, emptyList()).apply { chosen = false }
-        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device") }
+        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
     }
 
     private fun kavitaWork(title: String, format: ChapterFormat = ChapterFormat.ARCHIVE) {
@@ -125,7 +135,7 @@ class LibraryAppTest {
         val kept = File(app.cacheDir, "kavita-large.epub").apply { writeBytes(ByteArray(2 * 1024 * 1024)) }
         val folder = FolderInMemory(app, emptyList()).apply { chosen = false }
         val opening = ChapterOpening(app, folder, app.store, { _, _ -> KavitaChapterFile(kept, outdated = false) }, EpubLimits(maxFileBytes = 1024 * 1024))
-        compose.setContent { LibraryApp(app.store, folder, opening, app.backups, app.kavita, app.kavitaSync, "test-device") }
+        compose.setContent { LibraryApp(app.store, folder, opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
         waitFor("Livro grande")
 
         compose.onNodeWithText("Livro grande").performClick()
@@ -145,7 +155,7 @@ class LibraryAppTest {
             twoMegabytes,
         )
         val opening = ChapterOpening(app, folder, app.store, app.kavitaSync::chapterFile, EpubLimits(maxFileBytes = 1024 * 1024))
-        compose.setContent { LibraryApp(app.store, folder, opening, app.backups, app.kavita, app.kavitaSync, "test-device") }
+        compose.setContent { LibraryApp(app.store, folder, opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
         waitFor("Os Miseráveis")
 
         compose.onNodeWithText("Os Miseráveis").performClick()
@@ -240,7 +250,7 @@ class LibraryAppTest {
         val stored = app.store.chapters(app.store.works().single().id).single()
         app.store.saveProgress(stored.id, ChapterProgress(null, StripPosition(1, 3, Instant.EPOCH, "phone-a"), 0))
         val folder = FolderInMemory(app, emptyList()).apply { chosen = false }
-        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, sync, "test-device") }
+        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, sync, "test-device", app.restores) }
         waitFor("Obra dividida")
 
         compose.onNodeWithText("Obra dividida").performClick()
@@ -272,7 +282,7 @@ class LibraryAppTest {
         val here = TextPosition(1, 3, "epubcfi(/6/4!/4/2/1:0)", checkNotNull(BasisPoints.fromFraction(0.4)), Instant.EPOCH, "phone-a")
         app.store.saveProgress(stored.id, ChapterProgress(null, here, 0), marker = "//body/p[2]")
         val folder = FolderInMemory(app, emptyList()).apply { chosen = false }
-        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, sync, "test-device") }
+        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, sync, "test-device", app.restores) }
         waitFor("Livro dividido")
 
         compose.onNodeWithText("Livro dividido").performClick()
@@ -343,7 +353,7 @@ class LibraryAppTest {
     @Test
     fun `dado uma pasta só de leitura sem Library, então a tela diz que não há obras, sem dizer que a leitura falhou`() {
         val folder = FolderInMemory(app, emptyList()).apply { readOnlyWithoutLibrary = true }
-        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device") }
+        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
 
         // Rule E5, reading never depends on writing.
         waitFor(app.getString(R.string.no_works_found))
@@ -354,7 +364,7 @@ class LibraryAppTest {
     fun `dado a lista de arquivos deixados de fora, quando a tela é recriada e a leitura falha, então a lista continua`() {
         val folder = FolderInMemory(app, listOf("Obra")).apply { looseFiles = listOf("notas.txt") }
         val restoration = StateRestorationTester(compose)
-        restoration.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device") }
+        restoration.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
         waitFor(app.getString(R.string.see_ignored_files))
         compose.onNodeWithText(app.getString(R.string.see_ignored_files)).performClick()
         waitFor("Comics/notas.txt")
@@ -387,7 +397,7 @@ class LibraryAppTest {
             novels = listOf("Romance")
             novelsModified = modified
         }
-        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device") }
+        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
     }
 
     @Test
@@ -397,7 +407,7 @@ class LibraryAppTest {
             DocumentsContract.buildDocumentUriUsingTree(folder.tree, folder.novelFileId("Novela em volumes")),
             ByteArrayInputStream(EpubFixtures.novel()),
         )
-        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device") }
+        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
         waitFor("Novela em volumes")
 
         compose.onNodeWithText("Novela em volumes").performClick()
@@ -482,5 +492,152 @@ class LibraryAppTest {
         compose.onNodeWithText("Romance").performClick()
 
         waitFor(app.getString(R.string.file_undivided))
+    }
+
+    // Restoring a backup on an empty app (docs/decisions/backup-restore-2026-11-18.md).
+
+    private val stoppedAt = Instant.parse("2026-11-18T12:00:00Z")
+
+    /** A backup with a local work read to the end and a Kavita work halfway, on the server it came from. */
+    private val backup = Backup(
+        appVersion = "r550",
+        exportedAt = Instant.parse("2026-11-18T22:00:00Z"),
+        servers = listOf(BackupServer("server-1", "http://kavita.example:5000", "0.9.1.4", 1, listOf(2))),
+        works = listOf(
+            BackupWork(
+                id = "work-1", versionId = "version-1", origin = "local", path = "Comics/Sakamoto Days", title = "Sakamoto Days",
+                alternativeTitle = null, type = WorkType.COMICS, subtype = null, present = true,
+                chapters = listOf(
+                    BackupChapter(
+                        id = "chapter-1", replacedBy = null, path = "Comics/Sakamoto Days/Cap. 1.cbz", name = "Cap. 1",
+                        kind = UnitKind.CHAPTER, number = 1.0, format = ChapterFormat.ARCHIVE, contentHash = "ab12", present = true,
+                        resume = true,
+                        progress = ChapterProgress(ReadMark(stoppedAt, ReadMarkSource.READ_TO_END), StripPosition(10, 10, stoppedAt, "phone-a"), 1),
+                    ),
+                ),
+            ),
+            BackupWork(
+                id = "work-12", versionId = "version-12", origin = "kavita", path = "12", title = "Kaiju No. 8",
+                alternativeTitle = null, type = WorkType.COMICS, subtype = null, present = true,
+                chapters = listOf(
+                    BackupChapter(
+                        id = "chapter-91", replacedBy = null, path = "91", name = "Cap. 91", kind = UnitKind.CHAPTER, number = 91.0,
+                        format = ChapterFormat.ARCHIVE, contentHash = null, present = true, resume = true,
+                        progress = ChapterProgress(null, StripPosition(17, 42, stoppedAt, "phone-a"), 0),
+                        pageCount = 42, remoteFile = "Cap. 91.cbz", remoteVolumeId = 7,
+                    ),
+                ),
+                source = "server-1",
+                remoteLibraryId = 2,
+            ),
+        ),
+    )
+
+    /** Taps Restore backup and answers Android's file picker with a file holding [text]. */
+    private fun pickBackup(text: String) {
+        waitFor(app.getString(R.string.restore_backup))
+        compose.onNodeWithText(app.getString(R.string.restore_backup)).performClick()
+        compose.waitForIdle()
+        val started = checkNotNull(shadowOf(compose.activity).nextStartedActivityForResult) { "No picker was opened" }
+        val file = Uri.parse("content://com.android.externalstorage.documents/document/primary%3AKamayoq%2FBackups%2Fkamayoq_2026-11-18_19-00.json")
+        shadowOf(app.contentResolver).registerInputStream(file, ByteArrayInputStream(text.toByteArray(Charsets.UTF_8)))
+        shadowOf(compose.activity).receiveResult(started.intent, Activity.RESULT_OK, Intent().setData(file))
+    }
+
+    @Test
+    fun `dado o app vazio, quando toco em Restaurar backup, então o seletor de arquivos do Android abre para qualquer tipo de arquivo`() {
+        showWithoutFolder()
+        waitFor(app.getString(R.string.restore_backup))
+
+        compose.onNodeWithText(app.getString(R.string.restore_backup)).performClick()
+        compose.waitForIdle()
+
+        val started = checkNotNull(shadowOf(compose.activity).nextStartedActivityForResult) { "No picker was opened" }
+        assertEquals(Intent.ACTION_OPEN_DOCUMENT, started.intent.action)
+        // A backup copied by cable or a cloud drive may come with another type than JSON (choice 10).
+        assertEquals(listOf("*/*"), started.intent.getStringArrayExtra(Intent.EXTRA_MIME_TYPES)?.toList())
+    }
+
+    @Test
+    fun `dado um backup escolhido sem pasta, quando confirmo, então a obra do Kavita aparece e o TalkBack anuncia que falta escolher a pasta`() {
+        showWithoutFolder()
+
+        pickBackup(BackupFormat.write(backup))
+        waitFor(app.getString(R.string.restore_confirm_title))
+        compose.onNodeWithText(app.getString(R.string.restore_confirm)).performClick()
+
+        val message = app.getString(R.string.restore_done_choose_folder)
+        waitFor(message)
+        compose.onNodeWithText(message)
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+        waitFor("Kaiju No. 8")
+        compose.onNodeWithText(app.getString(R.string.restore_backup)).assertDoesNotExist()
+    }
+
+    @Test
+    fun `dado uma pasta escolhida ainda vazia, quando restauro, então a pasta é lida de novo e a obra local volta lida com o mesmo identificador`() {
+        val folder = showLibrary(emptyList())
+        waitFor(app.getString(R.string.no_works_found))
+
+        pickBackup(BackupFormat.write(backup))
+        waitFor(app.getString(R.string.restore_confirm_title))
+        // The works were copied to the new phone's folder meanwhile.
+        folder.titles = listOf("Sakamoto Days")
+        compose.onNodeWithText(app.getString(R.string.restore_confirm)).performClick()
+
+        waitFor(app.getString(R.string.restore_done))
+        waitFor("Sakamoto Days")
+        assertEquals("work-1", app.store.works().first { it.title == "Sakamoto Days" }.id)
+        compose.onNodeWithText("Sakamoto Days").performClick()
+        waitFor(app.getString(R.string.chapter_read))
+    }
+
+    @Test
+    fun `dado a confirmação aberta, quando cancelo, então nada é restaurado e o app continua vazio`() {
+        showWithoutFolder()
+
+        pickBackup(BackupFormat.write(backup))
+        waitFor(app.getString(R.string.restore_confirm_title))
+        compose.onNodeWithText(app.getString(R.string.restore_cancel)).performClick()
+        compose.waitForIdle()
+
+        compose.onNodeWithText(app.getString(R.string.restore_confirm_title)).assertDoesNotExist()
+        assertTrue(app.store.isEmpty())
+        compose.onNodeWithText(app.getString(R.string.restore_backup)).assertExists()
+    }
+
+    @Test
+    fun `dado um arquivo que não é um backup, quando escolho, então o app diz que não consegue ler e nada muda`() {
+        showWithoutFolder()
+
+        pickBackup("Capítulo 1 de Dom Casmurro")
+
+        val message = app.getString(R.string.restore_unreadable)
+        waitFor(message)
+        compose.onNodeWithText(message)
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+        assertTrue(app.store.isEmpty())
+    }
+
+    @Test
+    fun `dado uma biblioteca com obras, então a Biblioteca não oferece restaurar`() {
+        showLibrary(listOf("Obra"))
+        waitFor("Obra")
+
+        compose.onNodeWithText(app.getString(R.string.restore_backup)).assertDoesNotExist()
+        assertFalse(app.store.isEmpty())
+    }
+
+    @Test
+    fun `dado um servidor do Kavita restaurado sem chave, quando abro a Biblioteca, então ela pede a chave e a tela do Kavita já traz o endereço`() {
+        app.store.restore(backup)
+        showWithoutFolder()
+
+        waitFor(app.getString(R.string.kavita_key_again, "http://kavita.example:5000"))
+        compose.onNodeWithText(app.getString(R.string.kavita_read_failed)).assertDoesNotExist()
+        compose.onNodeWithText(app.getString(R.string.kavita_connect)).performClick()
+
+        waitFor(app.getString(R.string.kavita_address))
+        compose.onNodeWithText("http://kavita.example:5000").assertExists()
     }
 }

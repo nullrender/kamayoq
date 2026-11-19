@@ -110,4 +110,18 @@
     <string name="edition_dismiss_confirm">Sim, não aplicar</string>
     <string name="edition_dismiss_keep">Manter a pergunta</string>
     <string name="file_undivided">Este arquivo não traz a divisão em capítulos.</string>
+    <string name="restore_backup">Restaurar backup</string>
+    <string name="restore_reading">Lendo o backup…</string>
+    <string name="restore_confirm_title">Restaurar este backup?</string>
+    <string name="restore_confirm_text">Backup de %1$s. Obras nele: %2$d. Suas obras, o que você já leu e o servidor do Kavita voltam; os arquivos das obras ficam na pasta da biblioteca.</string>
+    <string name="restore_confirm">Restaurar</string>
+    <string name="restore_cancel">Cancelar</string>
+    <string name="restore_running">Restaurando o backup…</string>
+    <string name="restore_done_choose_folder">Backup restaurado. Agora escolha a pasta da biblioteca: as obras dela reencontram o que você leu pelo lugar onde estão.</string>
+    <string name="restore_done">Backup restaurado. O Kamayoq está lendo a pasta da biblioteca para as obras reencontrarem o que você leu.</string>
+    <string name="restore_not_empty">Só dá para restaurar com o Kamayoq vazio, como num celular novo ou depois de reinstalá-lo. Sua biblioteca continua como está.</string>
+    <string name="restore_unreadable">Este arquivo não é um backup do Kamayoq que esta versão consiga ler. Nada mudou.</string>
+    <string name="restore_read_failed">Não foi possível ler o arquivo. Nada mudou.</string>
+    <string name="restore_failed">Não foi possível restaurar este backup. Nada mudou.</string>
+    <string name="kavita_key_again">O Kavita em %1$s precisa da chave de novo: a chave nunca vai no backup.</string>
 </resources>
