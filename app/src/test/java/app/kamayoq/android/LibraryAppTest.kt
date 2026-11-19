@@ -90,6 +90,9 @@ class LibraryAppTest {
     private fun waitFor(text: String) =
         compose.waitUntil(30_000) { compose.onAllNodes(hasText(text)).fetchSemanticsNodes().isNotEmpty() }
 
+    private fun waitUntilGone(text: String) =
+        compose.waitUntil(10_000) { compose.onAllNodes(hasText(text)).fetchSemanticsNodes().isEmpty() }
+
     @Test
     fun `dado a Biblioteca rolada até uma obra, quando abre a obra e volta, então a lista continua nessa obra`() {
         showLibrary((1..60).map { "Obra %02d".format(it) })
@@ -571,7 +574,7 @@ class LibraryAppTest {
         compose.onNodeWithText(message)
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
         waitFor("Kaiju No. 8")
-        compose.onNodeWithText(app.getString(R.string.restore_backup)).assertDoesNotExist()
+        waitUntilGone(app.getString(R.string.restore_backup))
     }
 
     @Test
@@ -624,7 +627,8 @@ class LibraryAppTest {
         showLibrary(listOf("Obra"))
         waitFor("Obra")
 
-        compose.onNodeWithText(app.getString(R.string.restore_backup)).assertDoesNotExist()
+        // Whether the app is empty is asked after each change to the works, off the main thread.
+        waitUntilGone(app.getString(R.string.restore_backup))
         assertFalse(app.store.isEmpty())
     }
 
@@ -639,5 +643,40 @@ class LibraryAppTest {
 
         waitFor(app.getString(R.string.kavita_address))
         compose.onNodeWithText("http://kavita.example:5000").assertExists()
+    }
+
+    // Found by the external review of 18/11/2026.
+
+    @Test
+    fun `dado um servidor restaurado pedindo a chave, quando conecto na tela do Kavita e volto, então o aviso da chave some`() {
+        app.store.restore(backup)
+        val secret = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+        val access = KavitaAccess(app, { _, _ -> KavitaConnection.Connected("0.9.1.4") }) { secret }
+        val sync = KavitaSync(app.store, access, File(app.cacheDir, "restored"))
+        val folder = FolderInMemory(app, emptyList()).apply { chosen = false }
+        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, access, sync, "test-device", app.restores) }
+        val askingForKey = app.getString(R.string.kavita_key_again, "http://kavita.example:5000")
+        waitFor(askingForKey)
+
+        compose.onNodeWithText(app.getString(R.string.kavita_connect)).performClick()
+        waitFor(app.getString(R.string.kavita_address))
+        sync.connect("http://kavita.example:5000", "key-of-kavita-1234")
+        compose.onNodeWithText(app.getString(R.string.back)).performClick()
+
+        waitFor("Kaiju No. 8")
+        waitUntilGone(askingForKey)
+    }
+
+    @Test
+    fun `dado um backup só com obras que tinham saído da pasta, quando restauro, então Restaurar backup some`() {
+        showWithoutFolder()
+        val gone = backup.copy(servers = emptyList(), works = backup.works.filter { it.origin == "local" }.map { it.copy(present = false) })
+
+        pickBackup(BackupFormat.write(gone))
+        waitFor(app.getString(R.string.restore_confirm_title))
+        compose.onNodeWithText(app.getString(R.string.restore_confirm)).performClick()
+        waitFor(app.getString(R.string.restore_done_choose_folder))
+
+        waitUntilGone(app.getString(R.string.restore_backup))
     }
 }

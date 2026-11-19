@@ -43,6 +43,12 @@ class Restores(private val scope: CoroutineScope) {
         }
     }
 
+    /**
+     * The result, once: what follows a restore (reading the folder and Kavita again) runs for it
+     * once, not again on every screen made after it. [result] keeps it for the message.
+     */
+    fun takeResult(): RestoreResult? = result
+
     /** Nothing is written: the person may pick another file. */
     fun cancel() {
         offer = null

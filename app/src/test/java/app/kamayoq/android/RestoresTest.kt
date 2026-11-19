@@ -81,4 +81,16 @@ class RestoresTest {
         assertNull(restores.offer)
         assertEquals(RestoreResult.NotEmpty, restores.result)
     }
+
+    @Test
+    fun `dado uma restauração que deu certo, quando a Biblioteca pede o resultado duas vezes, então só a primeira o recebe`() {
+        val restores = Restores(CoroutineScope(Dispatchers.Unconfined))
+        restores.open { RestoreOpening.Ready(backup) }
+        restores.confirm { RestoreResult.Restored(null) }
+
+        // A screen made again (the phone turned) must not read the folder and Kavita again for the same restore.
+        assertEquals(RestoreResult.Restored(null), restores.takeResult())
+        assertNull(restores.takeResult())
+        assertEquals(RestoreResult.Restored(null), restores.result)
+    }
 }
