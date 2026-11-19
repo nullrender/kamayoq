@@ -422,7 +422,9 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
             }
         }
         val ids = units.map { newId() }
-        val hadReadMark = stored.any { progress(it.id).readMark != null }
+        // The question is kept only when a read mark could pass: Apply marks the chapters of the same title.
+        val newNames = units.map { it.second.name }.toSet()
+        val hadReadMark = stored.any { it.name in newNames && progress(it.id).readMark != null }
         val openQuestion = database.editionOfferQueries.isOpen(versionId, path).executeAsOne()
         for ((index, row) in stored.withIndex()) {
             // The chapter at the same destination takes its place; without one, the one at the same position.
