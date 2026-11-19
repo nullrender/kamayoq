@@ -3,6 +3,7 @@ package app.kamayoq.data
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import app.kamayoq.core.backup.Backup
 import app.kamayoq.core.backup.BackupFormat
+import app.kamayoq.core.backup.BackupWork
 import app.kamayoq.core.kavita.ImportedChapter
 import app.kamayoq.core.kavita.ImportedWork
 import app.kamayoq.core.library.ChapterFormat
@@ -393,6 +394,92 @@ class BackupRestoreTest {
 
         assertIs<RestoreResult.Failed>(BackupRestore(target).apply(broken))
         assertTrue(target.isEmpty())
+    }
+
+    // Found by the external review of 18/11/2026.
+
+    @Test
+    fun `dado um romance dividido restaurado, antes da primeira leitura da pasta nova, então ela já acha os capítulos guardados do arquivo`() {
+        val restored = emptyStore()
+        restored.restore(fileOf(fullLibrary()))
+
+        // The reading of the folder asks this before importing: a file it cannot open keeps these chapters.
+        val stored = restored.splitFiles(newFolder)[novel]
+
+        assertEquals(listOf("OEBPS/c1.xhtml", "OEBPS/c2.xhtml"), stored?.chapters?.map { it.key })
+    }
+
+    @Test
+    fun `dado um capítulo lido restaurado, antes de qualquer leitura da pasta ou do Kavita, então ele já espera a conferência do conteúdo`() {
+        val original = fullLibrary()
+        val restored = emptyStore()
+
+        restored.restore(fileOf(original))
+
+        val sakamoto = restored.chapters(original.workId("Sakamoto Days")).associate { it.name to it.needsContentCheck }
+        assertEquals(mapOf("Cap. 001" to true, "Cap. 002" to false), sakamoto)
+        // A Kavita chapter joins a sync only after its content is confirmed here (choice 7).
+        assertEquals(emptyList(), restored.syncItems(checkNotNull(restored.kavitaServer()).id))
+    }
+
+    /** Backups this app could not have written, each of which must be refused before writing. */
+    private fun malformed(): Map<String, Backup> {
+        val file = fileOf(fullLibrary())
+        fun Backup.changingWork(title: String, change: (BackupWork) -> BackupWork) =
+            copy(works = works.map { if (it.title == title) change(it) else it })
+        val sakamoto = file.works.single { it.title == "Sakamoto Days" }
+        val (earlier, current) = sakamoto.chapters.filter { it.name == "Cap. 001" }
+        return mapOf(
+            "edição que se substitui" to file.changingWork("Sakamoto Days") { work ->
+                work.copy(chapters = work.chapters.map { if (it.id == current.id) it.copy(replacedBy = earlier.id) else it })
+            },
+            "edição anterior presente" to file.changingWork("Sakamoto Days") { work ->
+                work.copy(chapters = work.chapters.map { if (it.id == earlier.id) it.copy(present = true) else it })
+            },
+            "obra do Kavita sem biblioteca" to file.changingWork("Kaiju No. 8") { it.copy(remoteLibraryId = null) },
+            "obra do Kavita sem série" to file.changingWork("Kaiju No. 8") { it.copy(path = "Kaiju No. 8") },
+            "capítulo do Kavita sem volume" to file.changingWork("Kaiju No. 8") { work ->
+                work.copy(chapters = work.chapters.map { it.copy(remoteVolumeId = null) })
+            },
+            "capítulo do Kavita sem número" to file.changingWork("Kaiju No. 8") { work ->
+                work.copy(chapters = work.chapters.map { it.copy(path = "Cap. 1") })
+            },
+            "duas posições pelo mesmo motivo" to file.changingWork("Kaiju No. 8") { work ->
+                work.copy(alternatives = work.alternatives + work.alternatives)
+            },
+        )
+    }
+
+    @Test
+    fun `dado backups que este app não poderia ter gravado, quando restauro cada um, então todos são recusados e o app fica vazio`() {
+        for ((case, backup) in malformed()) {
+            val target = emptyStore()
+
+            assertFailsWith<IllegalArgumentException>(case) { target.restore(backup) }
+
+            assertTrue(target.isEmpty(), case)
+        }
+    }
+
+    @Test
+    fun `dado um arquivo legível que este app não poderia ter gravado, quando o app abre, então recusa como ilegível antes da confirmação`() {
+        val broken = fileOf(fullLibrary()).copy(servers = emptyList())
+
+        val opening = BackupRestore(emptyStore()).open(stream(BackupFormat.write(broken)))
+
+        assertIs<RestoreResult.Unreadable>(assertIs<RestoreOpening.Refused>(opening).result)
+    }
+
+    @Test
+    fun `dado um provedor de arquivos que falha com erro de estado ou de argumento, quando o app abre, então diz que não conseguiu ler`() {
+        val provider = listOf<() -> InputStream>(
+            { throw IllegalStateException("The provider closed") },
+            { throw IllegalArgumentException("Unknown document") },
+        )
+
+        for (input in provider) {
+            assertIs<RestoreResult.ReadFailed>(assertIs<RestoreOpening.Refused>(BackupRestore(emptyStore()).open(input)).result)
+        }
     }
 
     private companion object {
