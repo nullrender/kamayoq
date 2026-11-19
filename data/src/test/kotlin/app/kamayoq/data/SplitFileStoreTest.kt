@@ -412,6 +412,27 @@ class SplitOpeningTest {
         assertEquals(listOf(""), chapters().map { it.tocKey })
     }
 
+    // Found by the Gemini review of milestone B: the reader took the name and the next chapter from the
+    // chapters as they were before the file was read, so the end block offered a chapter replaced as
+    // it opened, and the title named it.
+    @Test
+    fun `dado um arquivo guardado dividido seguido de outro arquivo, quando ele abre sem sumário, então a leitura inteira tem o nome dele e o próximo é o primeiro capítulo do arquivo seguinte`() {
+        val second = "Novels/Release That Witch/Vol. 2.epub"
+        val units = listOf(
+            ReadingUnit(novel, "Capítulo 1", UnitKind.CHAPTER, null, UnitContent.SplitEpub, tocKey = "c1.xhtml"),
+            ReadingUnit(novel, "Capítulo 2", UnitKind.CHAPTER, null, UnitContent.SplitEpub, tocKey = "c2.xhtml"),
+            ReadingUnit(second, "Capítulo 3", UnitKind.CHAPTER, null, UnitContent.SplitEpub, tocKey = "v2.xhtml#c3"),
+        )
+        val work = Work("Novels/Release That Witch", "Release That Witch", null, WorkType.NOVELS, null, units)
+        val stamp = FileStamp(1_000, 1_761_400_000_000)
+        store.importLocal(source, LocalLibrary(listOf(work), emptyList()), mapOf(novel to stamp, second to stamp))
+
+        val opening = store.splitOpening(chapters()[0].id, BookContents.UNDIVIDED) as? WholeOpening
+
+        assertEquals("Release That Witch", opening?.name)
+        assertEquals(chapters().single { it.path == second }.id, opening?.next?.id)
+    }
+
     // Found by the Gemini review of milestone B: the opening compared only the destinations, so an
     // edition with the same destinations and other titles was read under the chapters of the old one.
     @Test

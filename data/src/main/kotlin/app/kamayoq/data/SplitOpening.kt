@@ -18,8 +18,11 @@ class SplitOpening(
     val chapters: ReaderChapters,
 ) : FileOpening
 
-/** The file carries no division: it is read whole, as the chapter [chapterId]. */
-class WholeOpening(val chapterId: String) : FileOpening
+/**
+ * The file carries no division: it is read whole, as the chapter [chapterId], named [name]. [next] is
+ * the chapter after it in the work, as the work's chapters are now.
+ */
+class WholeOpening(val chapterId: String, val name: String = "", val next: StoredChapter? = null) : FileOpening
 
 /**
  * Prepares the opening of [chapterId], a chapter of a file whose table of contents, read from the
