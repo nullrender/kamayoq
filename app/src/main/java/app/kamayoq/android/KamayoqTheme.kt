@@ -128,6 +128,6 @@ private fun Palette.scheme(dark: Boolean): ColorScheme {
 fun KamayoqTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     val palette = if (dark) MossAndAmber.dark else MossAndAmber.light
     CompositionLocalProvider(LocalPalette provides palette) {
-        MaterialTheme(colorScheme = palette.scheme(dark), content = content)
+        MaterialTheme(colorScheme = palette.scheme(dark), typography = KamayoqTypography, content = content)
     }
 }
