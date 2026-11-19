@@ -469,7 +469,7 @@ class FolderConventionTest {
     }
 
     @Test
-    fun `dado um EPUB fora de Books, então ele continua ignorado até os romances chegarem`() {
+    fun `dado um EPUB solto na raiz ou dentro de Comics, então ele fica ignorado`() {
         val library = read(
             "Solto.epub",
             "Comics/X/Extra.epub",

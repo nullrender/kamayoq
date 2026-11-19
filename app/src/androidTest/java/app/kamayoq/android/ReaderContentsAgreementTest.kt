@@ -164,8 +164,10 @@ class ReaderContentsAgreementTest {
         }
     }
 
+    // The page before the first item belongs to the first chapter by the page's own rule, tested in
+    // messages.test.mjs; here only what the fork reports there is measured.
     @Test
-    fun `dado o romance em volumes quando o livro abre na capa então nenhum item vale e a página é do primeiro capítulo`() {
+    fun `dado o romance em volumes quando o livro abre na capa então o fork não diz item nenhum`() {
         open(EpubFixtures.novel())
 
         assertEquals("null", evaluate("document.querySelector('foliate-view').lastLocation?.tocItem?.id ?? null"))
