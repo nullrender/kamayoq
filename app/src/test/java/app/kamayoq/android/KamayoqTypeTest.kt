@@ -26,11 +26,8 @@ class KamayoqTypeTest {
 
     private val app = ApplicationProvider.getApplicationContext<KamayoqApp>()
 
-    // Looked up by name, so a missing file fails the check instead of the build.
-    private fun fontId(name: String) = app.resources.getIdentifier(name, "font", R::class.java.packageName)
-
-    private val bricolage get() = fontId("bricolage_grotesque")
-    private val figtree get() = fontId("figtree")
+    private val bricolage = R.font.bricolage_grotesque
+    private val figtree = R.font.figtree
 
     private fun filesOf(family: FontFamily?): Set<Int> =
         (family as? FontListFontFamily)?.fonts.orEmpty().mapNotNull { (it as? ResourceFont)?.resId }.toSet()
