@@ -151,5 +151,9 @@
     <string name="edition_changed_plain">This file changed.</string>
     <string name="edition_apply">Apply to the new edition</string>
     <string name="edition_dismiss">Don\'t apply</string>
+    <string name="edition_dismiss_title">Don\'t apply your previous progress?</string>
+    <string name="edition_dismiss_text">The read marks of the previous edition stay out of this one, and this question does not come back.</string>
+    <string name="edition_dismiss_confirm">Yes, don\'t apply</string>
+    <string name="edition_dismiss_keep">Keep the question</string>
     <string name="file_undivided">This file does not carry the chapter division.</string>
 </resources>

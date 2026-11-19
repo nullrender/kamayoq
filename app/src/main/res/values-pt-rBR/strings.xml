@@ -105,5 +105,9 @@
     <string name="edition_changed_plain">Este arquivo mudou.</string>
     <string name="edition_apply">Aplicar à nova edição</string>
     <string name="edition_dismiss">Não aplicar</string>
+    <string name="edition_dismiss_title">Não aplicar o progresso anterior?</string>
+    <string name="edition_dismiss_text">As marcas de lido da edição anterior ficam fora desta, e esta pergunta não volta.</string>
+    <string name="edition_dismiss_confirm">Sim, não aplicar</string>
+    <string name="edition_dismiss_keep">Manter a pergunta</string>
     <string name="file_undivided">Este arquivo não traz a divisão em capítulos.</string>
 </resources>

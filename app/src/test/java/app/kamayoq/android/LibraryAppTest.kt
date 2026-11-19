@@ -442,9 +442,35 @@ class LibraryAppTest {
         waitFor(question)
 
         compose.onNodeWithText(app.getString(R.string.edition_dismiss)).performClick()
+        // Decided on 18/11/2026: there is no way back, so it asks first.
+        waitFor(app.getString(R.string.edition_dismiss_text))
+        compose.onNodeWithText(app.getString(R.string.edition_dismiss_confirm)).performClick()
 
         compose.waitUntil(30_000) { compose.onAllNodes(hasText(question)).fetchSemanticsNodes().isEmpty() }
         compose.onNodeWithText(app.getString(R.string.chapter_read)).assertDoesNotExist()
+    }
+
+    // Decided on 18/11/2026: "Don't apply" has no undo and no way to bring the question back, so it
+    // asks first (AGENTS.md, a destructive action).
+    @Test
+    fun `dado a pergunta do arquivo que mudou, quando toco em não aplicar e mantenho a pergunta na confirmação, então ela continua e nada é descartado`() {
+        importNovel(listOf("Capítulo 1", "Capítulo 2"))
+        val read = ChapterProgress(ReadMark(Instant.parse("2026-11-18T12:00:00Z"), ReadMarkSource.READ_TO_END), null, 1)
+        app.store.saveProgress(app.store.chapters(app.store.works().single().id).first().id, read)
+        importNovel(listOf("Prefácio", "Capítulo 1", "Capítulo 2"), modified = 2)
+        showNovelFolder(modified = 2)
+        waitFor("Romance")
+        compose.onNodeWithText("Romance").performClick()
+        val question = app.getString(R.string.edition_changed, "Capítulo 1")
+        waitFor(question)
+
+        compose.onNodeWithText(app.getString(R.string.edition_dismiss)).performClick()
+        waitFor(app.getString(R.string.edition_dismiss_text))
+        compose.onNodeWithText(app.getString(R.string.edition_dismiss_keep)).performClick()
+
+        compose.waitUntil(30_000) { compose.onAllNodes(hasText(app.getString(R.string.edition_dismiss_text))).fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithText(question).assertExists()
+        assertEquals(1, app.store.editionOffers(app.store.works().single().id).size)
     }
 
     @Test
