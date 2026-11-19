@@ -61,6 +61,22 @@ class LibraryScanTest {
         assertEquals(1, opened)
     }
 
+    // Found by the Gemini review of milestone B: the stored chapters were looked up by the exact path,
+    // so a folder renamed in letter case only found none, and an unreadable file became one chapter.
+    @Test
+    fun `dado um romance renomeado só na caixa das letras cujo arquivo mudou e não pôde ser lido, quando a pasta é lida, então os capítulos e o que foi lido ficam`() {
+        scan { twoChapters }
+        val first = readFirstChapter()
+        folder.novels = listOf("ROMANCE")
+        folder.novelsModified = 2
+
+        scan { throw IOException("The file could not be read") }
+
+        assertEquals(listOf("Capítulo 1", "Capítulo 2"), chapters().map { it.name })
+        assertEquals(first, chapters().first().id)
+        assertEquals(read.readMark, app.store.progress(first).readMark)
+    }
+
     @Test
     fun `dado um romance que saiu da pasta e voltou, quando o arquivo não pôde ser lido na volta, então os capítulos voltam com o que foi lido`() {
         scan { twoChapters }
