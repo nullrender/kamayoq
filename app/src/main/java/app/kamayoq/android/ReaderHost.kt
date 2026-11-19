@@ -550,21 +550,28 @@ private fun openText(
         val type = stored?.type ?: WorkType.BOOKS
         // A local file to split is read across its chapters; the file itself says which they are now.
         var whole = text
+        var name = chapter.name
+        var nextNow = next
         if (turn == null && (chapter.tocKey.isNotEmpty() || FolderConvention.splitsByContents(chapter.path))) {
             when (val file = store.splitOpening(text.chapterId, SplitContents.of(text.archive))) {
                 is SplitOpening -> return Opening.ReadySplit(text, work ?: chapter.name, file, round, type, afterFile)
                 // A file that lost its division since the folder was read: one chapter took the
-                // place of the ones it had, and the reading is that chapter's from here on.
-                is WholeOpening -> whole = OpenedText(file.chapterId, text.archive, text.release)
+                // place of the ones it had, and the reading is that chapter's from here on, with its
+                // name and the chapter after it as the work's chapters are now.
+                is WholeOpening -> {
+                    whole = OpenedText(file.chapterId, text.archive, text.release)
+                    name = file.name
+                    nextNow = file.next
+                }
             }
         }
         // A loose book is a work of one volume with the same name: the name once is enough.
-        val title = listOfNotNull(work, chapter.name.takeIf { it != work }).joinToString(" · ")
+        val title = listOfNotNull(work, name.takeIf { it != work }).joinToString(" · ")
         val progress = store.progress(whole.chapterId)
         // The marker known for the saved place, queued here or agreed with Kavita: it opens a place
         // from Kavita, and goes with the place when the end block saves it with no move first.
         val marker = turn?.let { store.syncItem(whole.chapterId)?.knownPlace(progress.position as? TextPosition)?.marker }
-        return Opening.ReadyText(whole, title, progress, round, turn, marker, type, next)
+        return Opening.ReadyText(whole, title, progress, round, turn, marker, type, nextNow)
     } catch (e: Exception) {
         text.release()
         throw e

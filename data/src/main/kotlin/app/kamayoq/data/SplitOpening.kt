@@ -22,7 +22,7 @@ class SplitOpening(
  * The file carries no division: it is read whole, as the chapter [chapterId], named [name]. [next] is
  * the chapter after it in the work, as the work's chapters are now.
  */
-class WholeOpening(val chapterId: String, val name: String = "", val next: StoredChapter? = null) : FileOpening
+class WholeOpening(val chapterId: String, val name: String, val next: StoredChapter?) : FileOpening
 
 /**
  * Prepares the opening of [chapterId], a chapter of a file whose table of contents, read from the
@@ -39,7 +39,13 @@ fun LibraryStore.splitOpening(chapterId: String, contents: BookContents): FileOp
     if (stored.map { it.tocKey }.filter { it.isNotEmpty() } != keys || retitled) asked = resplit(asked, contents.chapters)
     // The chapter that stands for the one asked for now: bringing the chapters in line may have
     // given its place to another.
-    if (keys.isEmpty()) return WholeOpening(asked)
+    if (keys.isEmpty()) {
+        // Read now, after the chapters were brought in line: the ones the reader had may be replaced.
+        val whole = fileChapters(asked).firstOrNull { it.id == asked }
+        val work = whole?.let { chapters(it.workId) }.orEmpty()
+        val at = work.indexOfFirst { it.id == asked }
+        return WholeOpening(asked, whole?.name.orEmpty(), if (at >= 0) work.getOrNull(at + 1) else null)
+    }
     val rows = fileChapters(asked)
     return SplitOpening(
         chapterIds = rows.map { it.id },
