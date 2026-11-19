@@ -56,7 +56,7 @@ The chapters of a split file are compared **as a whole**, in one transaction, wh
 
 ## 6. A compiled novel from Kavita (B-3)
 
-**Decided, not built in milestone B**, whose pieces B1 to B7 are the local folder's. Until it is built, a file from Kavita stays one chapter here, as milestone C left it, whatever its name says.
+**Decided, not built in milestone B**, whose pieces B1 to B7 are the local folder's; to be built after v1 (the maintainer's choice, 18/11/2026). Until it is built, a file from Kavita stays one chapter here, as milestone C left it, whatever its name says.
 
 Kavita sees a file as **one chapter, one record** (milestone C). For a Kavita novel whose file name splits by rule 1, the app shows the chapters of the table of contents, each with its own read mark here, and Kavita keeps the one record:
 
