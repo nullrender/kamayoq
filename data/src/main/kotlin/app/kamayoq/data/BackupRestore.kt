@@ -46,12 +46,18 @@ class BackupRestore(private val store: LibraryStore) {
         } catch (e: SecurityException) {
             // The provider took back the access the picker gave.
             return RestoreOpening.Refused(RestoreResult.ReadFailed(e))
+        } catch (e: IllegalStateException) {
+            // Some document providers fail this way instead of with an IOException.
+            return RestoreOpening.Refused(RestoreResult.ReadFailed(e))
+        } catch (e: IllegalArgumentException) {
+            return RestoreOpening.Refused(RestoreResult.ReadFailed(e))
         }
         val bytes = read ?: return RestoreOpening.Refused(
             RestoreResult.Unreadable(IllegalArgumentException("The file is over $MAX_BYTES bytes")),
         )
         return try {
-            RestoreOpening.Ready(BackupFormat.read(bytes.toString(Charsets.UTF_8)))
+            // Checked before the confirmation too, so only a backup that can be restored is offered (choice 10).
+            RestoreOpening.Ready(BackupFormat.read(bytes.toString(Charsets.UTF_8)).also(store::requireRestorable))
         } catch (e: IllegalArgumentException) {
             RestoreOpening.Refused(RestoreResult.Unreadable(e))
         }

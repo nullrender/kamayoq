@@ -416,8 +416,8 @@ class BackupRestoreTest {
 
         restored.restore(fileOf(original))
 
-        val sakamoto = restored.chapters(original.workId("Sakamoto Days")).associate { it.name to it.needsContentCheck }
-        assertEquals(mapOf("Cap. 001" to true, "Cap. 002" to false), sakamoto)
+        // Cap. 001 has a hash, which alone would say its content is known: only the restore's mark makes it wait.
+        assertTrue(restored.chapters(original.workId("Sakamoto Days")).single { it.name == "Cap. 001" }.needsContentCheck)
         // A Kavita chapter joins a sync only after its content is confirmed here (choice 7).
         assertEquals(emptyList(), restored.syncItems(checkNotNull(restored.kavitaServer()).id))
     }

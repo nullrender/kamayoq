@@ -72,12 +72,13 @@ repoint:
 UPDATE chapter SET replaced_by = ? WHERE replaced_by = ?;
 
 -- What a reading of the folder may reuse instead of opening each EPUB again. Also what is gone from
--- the folder: a file that comes back and cannot be read keeps the chapters it had.
+-- the folder: a file that comes back and cannot be read keeps the chapters it had. The second
+-- source is the restored library still waiting for its folder, taken over only by the import.
 splitOfSource:
 SELECT chapter.path, chapter.name, chapter.toc_href, chapter.stamp
 FROM chapter
 JOIN work_version ON work_version.id = chapter.version_id
-WHERE work_version.origin = 'local' AND work_version.source = ?
+WHERE work_version.origin = 'local' AND work_version.source IN (?, ?)
     AND chapter.replaced_by IS NULL AND chapter.format = 'EPUB'
 ORDER BY work_version.sort_index, chapter.sort_index, chapter.rowid;
 

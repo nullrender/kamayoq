@@ -450,7 +450,7 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
 
     /** The split files of [source] as stored, by path, for a reading of the folder to reuse. */
     fun splitFiles(source: String): Map<String, StoredSplit> =
-        database.chapterQueries.splitOfSource(source).executeAsList().groupBy { it.path }.mapValues { (_, rows) ->
+        database.chapterQueries.splitOfSource(source, RESTORED).executeAsList().groupBy { it.path }.mapValues { (_, rows) ->
             // A file kept whole has one chapter with no key: it carries no division.
             StoredSplit(rows.first().stamp, rows.filter { it.toc_href.isNotEmpty() }.map { ContentsChapter(it.name, it.toc_href, volume = null) })
         }
@@ -972,22 +972,47 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         true
     }
 
-    // What the database cannot check by itself. A previous edition is checked here too: its key is
-    // checked only at commit, and a commit refused there would leave the transaction open.
-    private fun requireRestorable(backup: Backup) {
+    /**
+     * Throws [IllegalArgumentException] for a backup this app could not have written: what the
+     * database cannot check by itself, and what would break the app later, as a chain of editions
+     * that never ends. A previous edition is checked here too: its key is checked only at commit,
+     * and a commit refused there would leave the transaction open.
+     */
+    fun requireRestorable(backup: Backup) {
         require(backup.servers.size <= 1) { "The backup has ${backup.servers.size} Kavita servers; the app keeps one" }
         val servers = backup.servers.map { it.id }.toSet()
         for (work in backup.works) {
             when (work.origin) {
                 LOCAL -> require(work.source == null) { "Local work ${work.id} names a source" }
-                KAVITA -> require(work.source in servers) { "Kavita work ${work.id} names a server not in the backup" }
+                KAVITA -> requireKavita(work, servers)
                 else -> throw IllegalArgumentException("Work ${work.id} comes from ${work.origin}")
             }
             require(work.chapters.count { it.resume } <= 1) { "Work ${work.id} reopens in more than one chapter" }
-            val chapters = work.chapters.map { it.id }.toSet()
-            require(work.chapters.all { it.replacedBy == null || it.replacedBy in chapters }) {
-                "A previous edition in work ${work.id} names a chapter not in it"
+            require(work.alternatives.map { it.reason }.toSet().size == work.alternatives.size) {
+                "Work ${work.id} keeps two positions aside for the same reason"
             }
+            val next = work.chapters.associate { it.id to it.replacedBy }
+            for (chapter in work.chapters) {
+                if (chapter.replacedBy == null) continue
+                require(!chapter.present) { "Previous edition ${chapter.id} is shown as present" }
+                // Each previous edition leads to a current one: currentEdition follows the chain.
+                val seen = mutableSetOf(chapter.id)
+                var id = chapter.replacedBy
+                while (id != null) {
+                    require(id in next) { "A previous edition in work ${work.id} names a chapter not in it" }
+                    require(seen.add(id)) { "The editions of chapter ${chapter.id} go round in a circle" }
+                    id = next.getValue(id)
+                }
+            }
+        }
+    }
+
+    // What sending a position to Kavita needs (syncItem).
+    private fun requireKavita(work: BackupWork, servers: Set<String>) {
+        require(work.source in servers) { "Kavita work ${work.id} names a server not in the backup" }
+        require(work.path.toIntOrNull() != null && work.remoteLibraryId != null) { "Kavita work ${work.id} has no series or library" }
+        require(work.chapters.all { it.path.toIntOrNull() != null && it.remoteVolumeId != null }) {
+            "A chapter of Kavita work ${work.id} has no id or volume"
         }
     }
 
