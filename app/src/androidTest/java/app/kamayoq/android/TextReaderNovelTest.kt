@@ -116,8 +116,8 @@ class TextReaderNovelTest {
         val opened = AtomicInteger()
         open(WorkType.NOVELS, TextEnd.Chapter("Cap. 0929") { opened.incrementAndGet() })
 
-        readToTheEnd("End of the chapter")
-        compose.onNodeWithText("Next: Cap. 0929").performClick()
+        readToTheEnd(compose.activity.getString(R.string.end_of_chapter))
+        compose.onNodeWithText(compose.activity.getString(R.string.next_chapter, "Cap. 0929")).performClick()
 
         assertEquals(1, opened.get())
     }
@@ -126,8 +126,8 @@ class TextReaderNovelTest {
     fun `dado o fim do último capítulo de um romance então o bloco de fim diz que é o último`() {
         open(WorkType.NOVELS, TextEnd.Chapter(nextName = null) {})
 
-        readToTheEnd("End of the chapter")
+        readToTheEnd(compose.activity.getString(R.string.end_of_chapter))
 
-        compose.onNodeWithText("This is the last chapter in the folder.").assertExists()
+        compose.onNodeWithText(compose.activity.getString(R.string.no_next_chapter)).assertExists()
     }
 }

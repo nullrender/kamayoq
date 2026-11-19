@@ -109,12 +109,13 @@ class LibraryAppTest {
 
     @Test
     fun `dado uma obra do Kavita e nenhuma pasta escolhida, quando abro a Biblioteca, então vejo a obra com o selo Kavita`() {
-        kavitaWork("Obra do Kavita")
+        // A title without the word Kavita: only the badge can say where the work comes from.
+        kavitaWork("Obra remota")
 
         showWithoutFolder()
 
-        waitFor("Obra do Kavita")
-        compose.onNodeWithText(" · Kavita", substring = true).assertExists()
+        waitFor("Obra remota")
+        compose.onNode(hasText("Obra remota") and hasText(app.getString(R.string.origin_kavita), substring = true)).assertExists()
     }
 
     // Milestone C1 of step 4: a book from Kavita goes the way of a local one, through the download.

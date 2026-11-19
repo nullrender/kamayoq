@@ -26,12 +26,12 @@ class LibraryFailureTest {
     @Test
     @Config(application = NewerLibraryApp::class)
     fun `dado um banco de versão mais nova, quando o app abre, então pede atualização em vez de cair`() {
-        compose.onNodeWithText("Update Kamayoq", substring = true).assertIsDisplayed()
+        compose.onNodeWithText(compose.activity.getString(R.string.library_failed_newer)).assertIsDisplayed()
     }
 
     @Test
     @Config(application = NotOpenedLibraryApp::class)
     fun `dado uma biblioteca que não abre, quando o app abre, então diz que nada foi apagado em vez de cair`() {
-        compose.onNodeWithText("Nothing was erased", substring = true).assertIsDisplayed()
+        compose.onNodeWithText(compose.activity.getString(R.string.library_failed_not_opened)).assertIsDisplayed()
     }
 }

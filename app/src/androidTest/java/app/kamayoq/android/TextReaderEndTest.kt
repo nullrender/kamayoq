@@ -122,7 +122,9 @@ class TextReaderEndTest {
 
     private fun button(label: Int) = compose.onNodeWithText(compose.activity.getString(label))
 
-    private fun endBlockShows() = compose.onAllNodesWithText(END_OF_BOOK).fetchSemanticsNodes().isNotEmpty()
+    private fun endOfBook() = compose.activity.getString(R.string.end_of_book)
+
+    private fun endBlockShows() = compose.onAllNodesWithText(endOfBook()).fetchSemanticsNodes().isNotEmpty()
 
     /**
      * The last section from the contents, then Next page until the end block shows. The short book
@@ -147,7 +149,7 @@ class TextReaderEndTest {
     fun `dado a última página quando toco próxima então o bloco de fim aparece e o livro fica lido uma vez`() {
         readToTheEnd()
 
-        compose.onNodeWithText(END_OF_BOOK).assertExists()
+        compose.onNodeWithText(endOfBook()).assertExists()
         compose.waitUntil(15_000) { saves.lastOrNull()?.readMark != null }
         val read = saves.last()
         assertEquals(ReadMarkSource.READ_TO_END, read.readMark?.source)
@@ -176,9 +178,5 @@ class TextReaderEndTest {
         Thread.sleep(1_000)
 
         assertEquals(1, saves.maxOf { it.completeReads })
-    }
-
-    private companion object {
-        const val END_OF_BOOK = "End of the book"
     }
 }
