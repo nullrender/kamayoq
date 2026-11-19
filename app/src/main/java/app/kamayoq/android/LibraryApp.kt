@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
@@ -500,6 +501,8 @@ private fun WorkScreen(
     // The questions of files that changed edition; answering one loads the work again.
     var offers by remember(workId) { mutableStateOf<List<EditionOffer>>(emptyList()) }
     var answered by remember(workId) { mutableStateOf(0) }
+    // The question whose "Don't apply" waits for its confirmation.
+    var dismissing by remember(workId) { mutableStateOf<EditionOffer?>(null) }
     val scope = rememberCoroutineScope()
     LaunchedEffect(workId, progressVersion, usedOther, answered) {
         val loaded = withContext(Dispatchers.IO) {
@@ -561,13 +564,30 @@ private fun WorkScreen(
             )
         }
         // Rule E1: nothing of a file's previous edition passes to the new one without this answer.
-        offers.forEach { offer ->
-            fun answer(change: () -> Unit) {
-                scope.launch {
-                    withContext(Dispatchers.IO) { change() }
-                    answered++
-                }
+        fun answer(change: () -> Unit) {
+            scope.launch {
+                withContext(Dispatchers.IO) { change() }
+                answered++
             }
+        }
+        // Not applying has no undo and nothing brings the question back: it asks first.
+        dismissing?.let { offer ->
+            AlertDialog(
+                onDismissRequest = { dismissing = null },
+                title = { Text(stringResource(R.string.edition_dismiss_title)) },
+                text = { Text(stringResource(R.string.edition_dismiss_text)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        dismissing = null
+                        answer { store.dismissEdition(workId, offer.path) }
+                    }) { Text(stringResource(R.string.edition_dismiss_confirm)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { dismissing = null }) { Text(stringResource(R.string.edition_dismiss_keep)) }
+                },
+            )
+        }
+        offers.forEach { offer ->
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                 val lastRead = offer.lastRead
                 Text(
@@ -578,7 +598,7 @@ private fun WorkScreen(
                     TextButton(onClick = { answer { store.applyPreviousEdition(workId, offer.path) } }) {
                         Text(stringResource(R.string.edition_apply))
                     }
-                    TextButton(onClick = { answer { store.dismissEdition(workId, offer.path) } }) {
+                    TextButton(onClick = { dismissing = offer }) {
                         Text(stringResource(R.string.edition_dismiss))
                     }
                 }
