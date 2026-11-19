@@ -219,17 +219,18 @@ fun LibraryApp(
         }
     }
 
-    // Any change to the works may end the empty app, or begin it.
-    LaunchedEffect(rows) {
+    val restoreResult = restores.result
+    // Any change to the works may end the empty app, or begin it: a restore whose works are all
+    // out of the list and a Kavita server connected change no row.
+    LaunchedEffect(rows, restoreResult, showKavita) {
         empty = withContext(Dispatchers.IO) { store.isEmpty() }
     }
 
-    val restoreResult = restores.result
     LaunchedEffect(restoreResult) {
-        when (restoreResult) {
-            is RestoreResult.Failed -> Log.e(TAG, "Restoring the backup failed", restoreResult.cause)
-            is RestoreResult.Unreadable -> Log.e(TAG, "The backup picked could not be read as one", restoreResult.cause)
-            is RestoreResult.ReadFailed -> Log.e(TAG, "Reading the backup picked failed", restoreResult.cause)
+        when (val taken = restores.takeResult()) {
+            is RestoreResult.Failed -> Log.e(TAG, "Restoring the backup failed", taken.cause)
+            is RestoreResult.Unreadable -> Log.e(TAG, "The backup picked could not be read as one", taken.cause)
+            is RestoreResult.ReadFailed -> Log.e(TAG, "Reading the backup picked failed", taken.cause)
             is RestoreResult.Restored -> {
                 rows = withContext(Dispatchers.IO) { loadRows(store) }
                 importKavita()
@@ -308,6 +309,8 @@ fun LibraryApp(
                 kavita.keyDraft.value = ""
                 kavita.addressDraft.value = ""
                 showKavita = false
+                // A key saved there ends the request for it, and the restored works can be read now.
+                scope.launch { importKavita() }
             }
             BackHandler(onBack = closeKavita)
             // Off the main thread: the Android docs warn that Keystore calls may take a while.

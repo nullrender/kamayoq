@@ -26,6 +26,9 @@ class Restores(private val scope: CoroutineScope) {
     var result by mutableStateOf<RestoreResult?>(null)
         private set
 
+    // Whether takeResult already gave the current result; each new result is untaken.
+    private var taken = false
+
     private val busy get() = reading || restoring
 
     /** Runs [read] on the file picked. Main thread only, as [Backups.start]: two taps cannot both pass. */
@@ -37,7 +40,10 @@ class Restores(private val scope: CoroutineScope) {
         scope.launch {
             when (val opening = read()) {
                 is RestoreOpening.Ready -> offer = opening.backup
-                is RestoreOpening.Refused -> result = opening.result
+                is RestoreOpening.Refused -> {
+                    taken = false
+                    result = opening.result
+                }
             }
             reading = false
         }
@@ -47,7 +53,11 @@ class Restores(private val scope: CoroutineScope) {
      * The result, once: what follows a restore (reading the folder and Kavita again) runs for it
      * once, not again on every screen made after it. [result] keeps it for the message.
      */
-    fun takeResult(): RestoreResult? = result
+    fun takeResult(): RestoreResult? {
+        if (taken) return null
+        taken = true
+        return result
+    }
 
     /** Nothing is written: the person may pick another file. */
     fun cancel() {
@@ -61,6 +71,7 @@ class Restores(private val scope: CoroutineScope) {
         offer = null
         restoring = true
         scope.launch {
+            taken = false
             result = apply(backup)
             restoring = false
         }

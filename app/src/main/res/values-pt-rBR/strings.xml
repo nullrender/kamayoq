@@ -118,7 +118,7 @@
     <string name="restore_cancel">Cancelar</string>
     <string name="restore_running">Restaurando o backup…</string>
     <string name="restore_done_choose_folder">Backup restaurado. Agora escolha a pasta da biblioteca: as obras dela reencontram o que você leu pelo lugar onde estão.</string>
-    <string name="restore_done">Backup restaurado. O Kamayoq está lendo a pasta da biblioteca para as obras reencontrarem o que você leu.</string>
+    <string name="restore_done">Backup restaurado. As obras da pasta da biblioteca reencontram o que você leu pelo lugar onde estão.</string>
     <string name="restore_not_empty">Só dá para restaurar com o Kamayoq vazio, como num celular novo ou depois de reinstalá-lo. Sua biblioteca continua como está.</string>
     <string name="restore_unreadable">Este arquivo não é um backup do Kamayoq que esta versão consiga ler. Nada mudou.</string>
     <string name="restore_read_failed">Não foi possível ler o arquivo. Nada mudou.</string>

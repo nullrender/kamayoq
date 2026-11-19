@@ -166,7 +166,7 @@
     <string name="restore_cancel">Cancel</string>
     <string name="restore_running">Restoring the backup…</string>
     <string name="restore_done_choose_folder">Backup restored. Now choose the library folder: its works find what you read by their place in it.</string>
-    <string name="restore_done">Backup restored. Kamayoq is reading the library folder so its works find what you read.</string>
+    <string name="restore_done">Backup restored. The works in the library folder find what you read by their place in it.</string>
     <string name="restore_not_empty">Restoring works only while Kamayoq is empty, as on a new phone or after reinstalling it. Your library stays as it is.</string>
     <string name="restore_unreadable">This file is not a Kamayoq backup that this version can read. Nothing was changed.</string>
     <string name="restore_read_failed">Couldn\'t read the file. Nothing was changed.</string>
