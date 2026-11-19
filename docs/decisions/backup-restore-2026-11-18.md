@@ -24,7 +24,25 @@
 12. **After the restore:** with no folder chosen, the message asks for the folder; with one chosen, the app reads it again at once. With a Kavita server restored and no key saved, the Library says that Kavita needs the key again, instead of saying that Kavita could not be reached, and the Kavita screen opens with the server's address filled in. Connecting to the same account keeps the server's id, so its works stay linked; another account is refused, as before (decision 6 of 02/11/2026).
 13. **Where the action is:** on the Library screen, only while the app is empty. The message of the result stays after the action leaves, and TalkBack announces it.
 
-## 3. Not done here
+## 3. After the external review (18/11/2026)
+
+The external review (Gemini 4 Neon) found these, each fixed with a failing test first:
+
+- A split file the first reading of the new folder could not open lost its restored chapters: the reading asks for the stored chapters before the import takes the restored library over. The stored split files now include the library still waiting for its folder.
+- Choice 4 is wider: an edition chain that does not end (opening would follow it forever), an earlier edition shown as present, a Kavita work or chapter without the ids a sync needs, and two positions aside for the same reason are refused. The check runs before the confirmation too, so choice 10 holds: only a backup that can be restored is offered.
+- A document provider failing with an `IllegalStateException` or `IllegalArgumentException` is a file that could not be read, as an `IOException` is.
+- Coming back from the Kavita screen reads Kavita again: a key saved there ends the request for it. Whether the app is empty is asked again after a restore and after the Kavita screen. What follows a restore runs once, not again on every screen made after it. The message after a restore with a folder no longer says the folder is being read.
+
+Limits accepted, as they are:
+
+- **Another Kavita server with the same account id.** Besides the account id (1 in every new Kavita), the app tells servers apart by the names of the libraries marked, kept in the app's preferences, not in the database or the backup. After a restore only the account id is checked, until the first import remembers the names again. The address comes filled in with the restored server's, so connecting elsewhere needs typing another address.
+- **A very large file.** A file near the 50 MB ceiling is held in memory several times while it is read (bytes, text, JSON tree); on a phone with little memory that may stop the app. A backup of a personal library is a few megabytes.
+- **A folder chosen before restoring takes the library over.** Choices 5 and 12 together: a folder already chosen is read at once and its reading takes the restored works over, even when the works are elsewhere. Choosing the right folder later does not find them again (they stay stored, out of the list, rule E1). The confirmation does not warn about it.
+- **Two restored works whose paths differ only in letter case**, both waiting for the folder, may meet the folder's work in either order.
+- **The first opening of a restored Kavita chapter** asks no conflict question: the chapter waits for its content check (choice 7), and the check runs as it opens. A position from another device is compared at the next sync.
+- The confirmation counts the works present in the list when the backup was made; works gone from the folder then also come back, stored, without being counted.
+
+## 4. Not done here
 
 - Merging into a library that has works; other apps' backups (section 1).
 - Carrying the open question of a split file in the backup (choice 9).
