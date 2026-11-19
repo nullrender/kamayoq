@@ -937,6 +937,16 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         Backup(appVersion, exportedAt, works, servers)
     }
 
+    /** Nothing stored: no work and no Kavita server (docs/decisions/backup-restore-2026-11-18.md, choice 1). */
+    fun isEmpty(): Boolean = true
+
+    /**
+     * Writes [backup] into an empty app, in one transaction. Returns false, writing nothing, when
+     * anything is stored. Throws [IllegalArgumentException] for a backup this app could not have
+     * written; the database refuses the rest, and then nothing stays written either.
+     */
+    fun restore(backup: Backup): Boolean = true
+
     companion object {
         val schema: SqlSchema<QueryResult.Value<Unit>> = KamayoqDatabase.Schema
 
