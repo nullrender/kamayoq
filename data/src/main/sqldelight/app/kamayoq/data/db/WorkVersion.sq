@@ -68,3 +68,13 @@ SELECT work_version.id, work_version.work_id, work_version.origin, work_version.
 FROM work_version
 JOIN work ON work.id = work_version.work_id
 ORDER BY work_version.present DESC, work_version.sort_index, work_version.path;
+
+-- A version as a backup has it, its order given by the backup's.
+restore:
+INSERT INTO work_version (id, work_id, origin, source, path, present, sort_index, remote_library_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+-- The restored local versions waiting for a folder: the first one read takes them over
+-- (docs/decisions/backup-restore-2026-11-18.md, choice 5).
+adoptRestored:
+UPDATE work_version SET source = ? WHERE origin = 'local' AND source = ?;

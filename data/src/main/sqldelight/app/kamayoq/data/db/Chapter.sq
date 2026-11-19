@@ -199,3 +199,9 @@ LEFT JOIN progress_agreement ON progress_agreement.chapter_id = chapter.id
 LEFT JOIN progress_outbox ON progress_outbox.chapter_id = chapter.id
 WHERE chapter.id = ? AND work_version.origin = 'kavita' AND chapter.present = 1 AND work_version.present = 1
     AND chapter.format IN ('ARCHIVE', 'EPUB') AND chapter.page_count > 0 AND chapter.needs_check = 0;
+
+-- A chapter as a backup has it. The stamp is empty: the file's size and date were the old device's.
+restore:
+INSERT INTO chapter (id, version_id, path, name, kind, number, format, sort_index, present, stamp, content_hash,
+    needs_check, replaced_by, page_count, remote_file, remote_volume_id, toc_href)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?);

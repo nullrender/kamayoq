@@ -1,6 +1,9 @@
 package app.kamayoq.data
 
 import app.kamayoq.core.backup.Backup
+import app.kamayoq.core.backup.BackupFormat
+import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.io.InputStream
 
 sealed interface RestoreResult {
@@ -33,11 +36,53 @@ sealed interface RestoreOpening {
  */
 class BackupRestore(private val store: LibraryStore) {
 
-    fun open(input: () -> InputStream): RestoreOpening = RestoreOpening.Refused(RestoreResult.NotEmpty)
+    /** Asks for the file only when the app is empty: a refusal costs no reading. */
+    fun open(input: () -> InputStream): RestoreOpening {
+        if (!store.isEmpty()) return RestoreOpening.Refused(RestoreResult.NotEmpty)
+        val read = try {
+            input().use(::readUpToCeiling)
+        } catch (e: IOException) {
+            return RestoreOpening.Refused(RestoreResult.ReadFailed(e))
+        } catch (e: SecurityException) {
+            // The provider took back the access the picker gave.
+            return RestoreOpening.Refused(RestoreResult.ReadFailed(e))
+        }
+        val bytes = read ?: return RestoreOpening.Refused(
+            RestoreResult.Unreadable(IllegalArgumentException("The file is over $MAX_BYTES bytes")),
+        )
+        return try {
+            RestoreOpening.Ready(BackupFormat.read(bytes.toString(Charsets.UTF_8)))
+        } catch (e: IllegalArgumentException) {
+            RestoreOpening.Refused(RestoreResult.Unreadable(e))
+        }
+    }
 
-    fun apply(backup: Backup): RestoreResult = RestoreResult.NotEmpty
+    /**
+     * Writes the confirmed [backup]. Any failure leaves the app as it was, since the store writes
+     * in one transaction, so every one is the same answer to the person; its cause goes in the result.
+     */
+    fun apply(backup: Backup): RestoreResult = try {
+        if (store.restore(backup)) RestoreResult.Restored(backup.servers.firstOrNull()?.address) else RestoreResult.NotEmpty
+    } catch (e: Exception) {
+        RestoreResult.Failed(e)
+    }
+
+    // Null past the ceiling: a file picked by mistake (a video) must not be read whole into memory.
+    private fun readUpToCeiling(input: InputStream): ByteArray? {
+        val output = ByteArrayOutputStream()
+        val buffer = ByteArray(BUFFER)
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) return output.toByteArray()
+            output.write(buffer, 0, count)
+            if (output.size() > MAX_BYTES) return null
+        }
+    }
 
     companion object {
+        /** A backup of a large personal library is a few megabytes (choice 10). */
         const val MAX_BYTES = 50L * 1024 * 1024
+
+        private const val BUFFER = 64 * 1024
     }
 }

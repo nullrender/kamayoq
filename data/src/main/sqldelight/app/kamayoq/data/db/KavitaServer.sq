@@ -17,3 +17,6 @@ INSERT INTO kavita_server (id, address, last_version, account_id) VALUES (?, ?, 
 
 updateConnection:
 UPDATE kavita_server SET address = ?, last_version = ?, account_id = ? WHERE id = ?;
+
+anyServer:
+SELECT EXISTS (SELECT 1 FROM kavita_server);

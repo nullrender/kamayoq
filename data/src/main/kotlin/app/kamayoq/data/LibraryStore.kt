@@ -347,6 +347,9 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
     ) {
         database.transaction {
             if (!stillChosen()) return@transaction
+            // A restored library waits for its folder: the first one read takes it over, so its works
+            // meet the folder's by path below (docs/decisions/backup-restore-2026-11-18.md, choice 5).
+            database.workVersionQueries.adoptRestored(source, RESTORED)
             val findVersion = PathMatch(
                 database.workVersionQueries.versionsOfSource(LOCAL, source).executeAsList(),
                 library.works.map { it.path },
@@ -938,14 +941,93 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
     }
 
     /** Nothing stored: no work and no Kavita server (docs/decisions/backup-restore-2026-11-18.md, choice 1). */
-    fun isEmpty(): Boolean = true
+    fun isEmpty(): Boolean = database.transactionWithResult {
+        !database.workQueries.anyWork().executeAsOne() && !database.kavitaServerQueries.anyServer().executeAsOne()
+    }
 
     /**
      * Writes [backup] into an empty app, in one transaction. Returns false, writing nothing, when
      * anything is stored. Throws [IllegalArgumentException] for a backup this app could not have
      * written; the database refuses the rest, and then nothing stays written either.
      */
-    fun restore(backup: Backup): Boolean = true
+    fun restore(backup: Backup): Boolean = database.transactionWithResult {
+        // Checked here, not before: a reading of the folder that ends in between must not mix with the backup.
+        if (!isEmpty()) return@transactionWithResult false
+        requireRestorable(backup)
+        for (server in backup.servers) {
+            database.kavitaServerQueries.insert(server.id, server.address, server.lastVersion, server.accountId?.toLong())
+            server.libraries.forEach { database.kavitaLibraryQueries.mark(server.id, it.toLong()) }
+        }
+        // Only the first local work at a path can wait for the new folder; the others stay stored
+        // apart, never taken over (choice 6).
+        val waiting = mutableSetOf<String>()
+        backup.works.forEachIndexed { index, work ->
+            val source = when {
+                work.origin == KAVITA -> checkNotNull(work.source)
+                waiting.add(work.path) -> RESTORED
+                else -> "$RESTORED:${work.versionId}"
+            }
+            restoreWork(work, source, index.toLong())
+        }
+        true
+    }
+
+    // What the database cannot check by itself. A previous edition is checked here too: its key is
+    // checked only at commit, and a commit refused there would leave the transaction open.
+    private fun requireRestorable(backup: Backup) {
+        require(backup.servers.size <= 1) { "The backup has ${backup.servers.size} Kavita servers; the app keeps one" }
+        val servers = backup.servers.map { it.id }.toSet()
+        for (work in backup.works) {
+            when (work.origin) {
+                LOCAL -> require(work.source == null) { "Local work ${work.id} names a source" }
+                KAVITA -> require(work.source in servers) { "Kavita work ${work.id} names a server not in the backup" }
+                else -> throw IllegalArgumentException("Work ${work.id} comes from ${work.origin}")
+            }
+            require(work.chapters.count { it.resume } <= 1) { "Work ${work.id} reopens in more than one chapter" }
+            val chapters = work.chapters.map { it.id }.toSet()
+            require(work.chapters.all { it.replacedBy == null || it.replacedBy in chapters }) {
+                "A previous edition in work ${work.id} names a chapter not in it"
+            }
+        }
+    }
+
+    private fun restoreWork(work: BackupWork, source: String, sortIndex: Long) {
+        database.workQueries.insert(work.id, work.title, work.alternativeTitle, work.type.name, work.subtype?.name)
+        database.workVersionQueries.restore(
+            work.versionId, work.id, work.origin, source, work.path, if (work.present) 1L else 0L, sortIndex,
+            work.remoteLibraryId?.toLong(),
+        )
+        work.chapters.forEachIndexed { index, chapter ->
+            val progress = chapter.progress
+            // The file on this device may not be the one read: what was read or hashed is confirmed on
+            // its first opening here (choice 7).
+            val protectsSomething = chapter.contentHash != null || progress != ChapterProgress.NEVER_OPENED
+            database.chapterQueries.restore(
+                chapter.id, work.versionId, chapter.path, chapter.name, chapter.kind.name, chapter.number,
+                chapter.format.name, index.toLong(), if (chapter.present) 1L else 0L, chapter.contentHash,
+                if (protectsSomething) 1L else 0L, chapter.replacedBy, chapter.pageCount?.toLong(), chapter.remoteFile,
+                chapter.remoteVolumeId?.toLong(), chapter.tocKey,
+            )
+            if (progress != ChapterProgress.NEVER_OPENED) writeProgress(chapter.id, progress)
+            chapter.agreement?.let {
+                database.progressAgreementQueries.agree(
+                    chapter.id, it.page.toLong(), it.bookScrollId, it.serverAt, if (it.ownReread) 1L else 0L, it.localCfi,
+                )
+            }
+            chapter.outbox?.let {
+                database.progressOutboxQueries.queue(
+                    chapter.id, it.page.toLong(), it.bookScrollId, it.localCfi, it.state, it.queuedAt.toEpochMilli(),
+                )
+            }
+        }
+        work.chapters.singleOrNull { it.resume }?.let { database.workResumeQueries.save(work.versionId, it.id) }
+        for (position in work.alternatives) {
+            database.alternativePositionQueries.keep(
+                work.versionId, position.reason, position.chapterId, position.page.toLong(), position.total.toLong(),
+                position.at.toEpochMilli(), position.device,
+            )
+        }
+    }
 
     companion object {
         val schema: SqlSchema<QueryResult.Value<Unit>> = KamayoqDatabase.Schema
@@ -955,6 +1037,10 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         const val CONFLICT = "CONFLICT"
 
         private const val LOCAL = "local"
+
+        // The source of restored local works until a folder is read: no folder address can be it,
+        // as an address always has a scheme.
+        private const val RESTORED = "restored"
         private const val TO_SEND = "TO_SEND"
         private const val SENT_UNCONFIRMED = "SENT_UNCONFIRMED"
 

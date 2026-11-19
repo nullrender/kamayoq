@@ -13,3 +13,7 @@ INSERT INTO work (id, title, alternative_title, type, subtype) VALUES (?, ?, ?, 
 
 update:
 UPDATE work SET title = ?, alternative_title = ?, type = ?, subtype = ? WHERE id = ?;
+
+-- A restore needs an empty app (docs/decisions/backup-restore-2026-11-18.md).
+anyWork:
+SELECT EXISTS (SELECT 1 FROM work);
