@@ -37,7 +37,8 @@ object LibraryScan {
         val known = store.splitFiles(tree.toString())
         val unread = mutableSetOf<String>()
         val expanded = SplitFiles.expand(library) { file ->
-            val stored = known[file.path]
+            // A file renamed in letter case only is the same file, as the store finds it.
+            val stored = known[file.path] ?: known.entries.firstOrNull { it.key.equals(file.path, ignoreCase = true) }?.value
             if (stored != null && stored.stamp == ContentCheck.stampOf(file, stamps)) {
                 stored.chapters
             } else {
