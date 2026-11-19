@@ -55,9 +55,11 @@ import app.kamayoq.core.library.FolderConvention
 import app.kamayoq.core.library.IgnoreReason
 import app.kamayoq.core.library.IgnoredFile
 import app.kamayoq.data.BackupExport
+import app.kamayoq.data.BackupRestore
 import app.kamayoq.data.BackupResult
 import app.kamayoq.data.EditionOffer
 import app.kamayoq.data.LibraryStore
+import app.kamayoq.data.RestoreResult
 import app.kamayoq.data.StoredAlternative
 import app.kamayoq.data.StoredChapter
 import app.kamayoq.data.StoredWork
@@ -66,8 +68,11 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.time.Instant
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 
 private const val TAG = "Kamayoq"
 
@@ -95,6 +100,10 @@ fun LibraryApp(
     var scanning by remember { mutableStateOf(false) }
     var scanFailed by remember { mutableStateOf(false) }
     var kavitaFailed by remember { mutableStateOf(false) }
+    // The address of a restored server whose key must be typed again.
+    var kavitaKeyFor by remember { mutableStateOf<String?>(null) }
+    // A restore is offered only while nothing is stored (docs/decisions/backup-restore-2026-11-18.md).
+    var empty by remember { mutableStateOf(false) }
     var rows by remember { mutableStateOf<List<WorkRow>?>(null) }
     var ignored by rememberSaveable(stateSaver = IGNORED_SAVER) { mutableStateOf<List<IgnoredFile>>(emptyList()) }
     var openWorkId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -166,6 +175,10 @@ fun LibraryApp(
     suspend fun importKavita() {
         kavitaFailed = false
         try {
+            val waiting = withContext(Dispatchers.IO) { kavitaSync.waitingForKey() }
+            kavitaKeyFor = waiting
+            // Nothing can be read without the key: the Library asks for it instead of saying Kavita failed.
+            if (waiting != null) return
             rows = withContext(Dispatchers.IO) {
                 kavitaSync.importNow()
                 loadRows(store)
@@ -192,6 +205,38 @@ fun LibraryApp(
             accessLost = false
             accessRefused = false
             scope.launch { refresh(chosen) }
+        }
+    }
+
+    // Any type: a backup copied by cable or a cloud drive may not come as JSON, and the content decides (choice 10).
+    val backupPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { file ->
+        if (file == null) return@rememberLauncherForActivityResult
+        val resolver = context.applicationContext.contentResolver
+        restores.open {
+            withContext(Dispatchers.IO) {
+                BackupRestore(store).open { resolver.openInputStream(file) ?: throw IOException("No input for $file") }
+            }
+        }
+    }
+
+    // Any change to the works may end the empty app, or begin it.
+    LaunchedEffect(rows) {
+        empty = withContext(Dispatchers.IO) { store.isEmpty() }
+    }
+
+    val restoreResult = restores.result
+    LaunchedEffect(restoreResult) {
+        when (restoreResult) {
+            is RestoreResult.Failed -> Log.e(TAG, "Restoring the backup failed", restoreResult.cause)
+            is RestoreResult.Unreadable -> Log.e(TAG, "The backup picked could not be read as one", restoreResult.cause)
+            is RestoreResult.ReadFailed -> Log.e(TAG, "Reading the backup picked failed", restoreResult.cause)
+            is RestoreResult.Restored -> {
+                rows = withContext(Dispatchers.IO) { loadRows(store) }
+                importKavita()
+                // A folder already chosen is read again at once: its works meet the restored ones by path.
+                tree?.let { if (folder.canRead(it)) refresh(it) }
+            }
+            RestoreResult.NotEmpty, null -> Unit
         }
     }
 
@@ -268,7 +313,12 @@ fun LibraryApp(
             // Off the main thread: the Android docs warn that Keystore calls may take a while.
             // The address comes from the same file as the key: the two were saved as one pair.
             val saved by produceState<Pair<StoredKavitaKey, String>?>(null) {
-                val stored = withContext(Dispatchers.IO) { kavita.savedForm() }
+                val stored = withContext(Dispatchers.IO) {
+                    val (key, address) = kavita.savedForm()
+                    // After a restore nothing is saved yet: the address is the restored server's, and
+                    // only the key is asked again (choice 12).
+                    key to address.ifEmpty { store.kavitaServer()?.address.orEmpty() }
+                }
                 // Filled as a pair, and only when nothing was typed: half of one with half of another
                 // would send a key to an address it was not made for.
                 val (key, address) = stored
@@ -299,11 +349,16 @@ fun LibraryApp(
             scanning = scanning,
             scanFailed = scanFailed,
             kavitaFailed = kavitaFailed,
+            kavitaKeyFor = kavitaKeyFor,
+            canRestore = empty,
+            restores = restores,
             backingUp = backups.running,
             backupResult = backups.result,
             backupPlace = backups.place,
             listState = libraryList,
             onBackUp = { currentTree?.let(::backUp) },
+            onPickBackup = { backupPicker.launch(arrayOf("*/*")) },
+            onConfirmRestore = { restores.confirm { backup -> withContext(Dispatchers.IO) { BackupRestore(store).apply(backup) } } },
             onChooseFolder = { picker.launch(null) },
             onOpenWork = { openWorkId = it },
             onOpenIgnored = { showIgnored = true },
@@ -346,11 +401,16 @@ private fun LibraryScreen(
     scanning: Boolean,
     scanFailed: Boolean,
     kavitaFailed: Boolean,
+    kavitaKeyFor: String?,
+    canRestore: Boolean,
+    restores: Restores,
     backingUp: Boolean,
     backupResult: BackupResult?,
     backupPlace: String,
     listState: LazyListState,
     onBackUp: () -> Unit,
+    onPickBackup: () -> Unit,
+    onConfirmRestore: () -> Unit,
     onChooseFolder: () -> Unit,
     onOpenWork: (String) -> Unit,
     onOpenIgnored: () -> Unit,
@@ -378,6 +438,15 @@ private fun LibraryScreen(
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
+        if (kavitaKeyFor != null) {
+            Text(
+                stringResource(R.string.kavita_key_again, kavitaKeyFor),
+                modifier = Modifier.padding(16.dp).announced(),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+        // Here until the Settings screen exists (its place there: Settings › Backup).
+        RestoreRow(canRestore, restores, hasFolder, onPickBackup, onConfirmRestore)
         // Without a readable folder only Kavita's works can open; the local ones wait, stored.
         val kavitaRows = rows.orEmpty().filter { it.work.origin == LibraryStore.KAVITA }
         when {
@@ -472,6 +541,47 @@ private fun BackupRow(backingUp: Boolean, result: BackupResult?, place: String, 
             else -> null
         }
         if (message != null) Text(message, modifier = Modifier.announced(), style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun RestoreRow(
+    offered: Boolean,
+    restores: Restores,
+    hasFolder: Boolean,
+    onPick: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    val result = restores.result
+    val busy = restores.reading || restores.restoring
+    if (offered || busy || result != null) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+            if (offered) TextButton(onClick = onPick, enabled = !busy) { Text(stringResource(R.string.restore_backup)) }
+            val message = when {
+                restores.reading -> R.string.restore_reading
+                restores.restoring -> R.string.restore_running
+                result is RestoreResult.Restored -> if (hasFolder) R.string.restore_done else R.string.restore_done_choose_folder
+                result == RestoreResult.NotEmpty -> R.string.restore_not_empty
+                result is RestoreResult.Unreadable -> R.string.restore_unreadable
+                result is RestoreResult.ReadFailed -> R.string.restore_read_failed
+                result is RestoreResult.Failed -> R.string.restore_failed
+                else -> null
+            }
+            if (message != null) Text(stringResource(message), modifier = Modifier.announced(), style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+    // Asked even on an empty app: the date and the number of works say whether it is the right file.
+    restores.offer?.let { backup ->
+        val date = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
+            .withZone(ZoneId.systemDefault())
+            .format(backup.exportedAt)
+        AlertDialog(
+            onDismissRequest = restores::cancel,
+            title = { Text(stringResource(R.string.restore_confirm_title)) },
+            text = { Text(stringResource(R.string.restore_confirm_text, date, backup.works.count { it.present })) },
+            confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.restore_confirm)) } },
+            dismissButton = { TextButton(onClick = restores::cancel) { Text(stringResource(R.string.restore_cancel)) } },
+        )
     }
 }
 

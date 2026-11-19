@@ -7,6 +7,7 @@ import app.kamayoq.core.backup.Backup
 import app.kamayoq.data.RestoreOpening
 import app.kamayoq.data.RestoreResult
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 /**
  * Restoring a backup as the Library shows it: the file being read, the backup waiting for the
@@ -25,15 +26,37 @@ class Restores(private val scope: CoroutineScope) {
     var result by mutableStateOf<RestoreResult?>(null)
         private set
 
+    private val busy get() = reading || restoring
+
     /** Runs [read] on the file picked. Main thread only, as [Backups.start]: two taps cannot both pass. */
     fun open(read: suspend () -> RestoreOpening) {
+        if (busy) return
+        reading = true
+        offer = null
+        result = null
+        scope.launch {
+            when (val opening = read()) {
+                is RestoreOpening.Ready -> offer = opening.backup
+                is RestoreOpening.Refused -> result = opening.result
+            }
+            reading = false
+        }
     }
 
     /** Nothing is written: the person may pick another file. */
     fun cancel() {
+        offer = null
     }
 
     /** Writes the backup waiting for confirmation with [apply]. */
     fun confirm(apply: suspend (Backup) -> RestoreResult) {
+        val backup = offer ?: return
+        if (busy) return
+        offer = null
+        restoring = true
+        scope.launch {
+            result = apply(backup)
+            restoring = false
+        }
     }
 }

@@ -12,6 +12,7 @@ import app.kamayoq.data.kavita.KavitaClient
 import app.kamayoq.data.kavita.KavitaImport
 import app.kamayoq.data.kavita.KavitaProgressSync
 import app.kamayoq.data.kavita.KavitaSyncOutcome
+import app.kamayoq.data.kavita.StoredKavitaKey
 import java.io.File
 import java.io.IOException
 import java.time.Instant
@@ -84,7 +85,11 @@ class KavitaSync(
      * The address of a server stored with no key saved, as after a restore: the key never goes in
      * the backup (docs/decisions/backup-restore-2026-11-18.md, choice 12).
      */
-    fun waitingForKey(): String? = null
+    fun waitingForKey(): String? {
+        val server = store.kavitaServer() ?: return null
+        // Only a key never saved here: one that cannot be opened keeps its own message, as before.
+        return server.address.takeIf { access.storedKey() == StoredKavitaKey.Absent }
+    }
 
     /** Reads the marked libraries and the positions again; with nothing connected, there is nothing to read. */
     fun importNow(): Unit = connection.read {
