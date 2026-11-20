@@ -2,6 +2,7 @@ package app.kamayoq.android
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -31,6 +33,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -149,8 +152,17 @@ internal fun WorkSummary(summary: String) {
             onTextLayout = { if (!open) overflows = it.hasVisualOverflow },
         )
         if (open || overflows) {
-            TextButton(onClick = { open = !open }, modifier = Modifier.sizeIn(minHeight = 48.dp)) {
-                Text(stringResource(if (open) R.string.summary_less else R.string.summary_more))
+            // A plain clickable line, not a TextButton: the button's own padding and minimum width
+            // pushed the word in from the summary's margin.
+            Box(
+                modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).clickable(role = Role.Button) { open = !open },
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                Text(
+                    stringResource(if (open) R.string.summary_less else R.string.summary_more),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
             }
         }
     }
