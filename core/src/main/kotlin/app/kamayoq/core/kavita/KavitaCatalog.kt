@@ -2,7 +2,8 @@ package app.kamayoq.core.kavita
 
 data class RemoteLibrary(val id: Int, val name: String, val type: Int)
 
-data class RemoteWork(val id: Int, val name: String, val libraryId: Int)
+/** [coverImage] is the name Kavita gives the series' cover file, empty with no cover; it changes with the cover. */
+data class RemoteWork(val id: Int, val name: String, val libraryId: Int, val coverImage: String = "")
 
 /**
  * A series' metadata as Kavita gives it (KavitaDetailsFactsTest). [status] is Kavita's

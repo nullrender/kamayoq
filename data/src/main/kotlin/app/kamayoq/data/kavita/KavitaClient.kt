@@ -2,6 +2,7 @@ package app.kamayoq.data.kavita
 
 import app.kamayoq.core.kavita.KavitaConnection
 import app.kamayoq.core.kavita.RemoteChapter
+import app.kamayoq.core.kavita.RemoteDetails
 import app.kamayoq.core.kavita.RemoteFile
 import app.kamayoq.core.kavita.RemoteLibrary
 import app.kamayoq.core.kavita.RemoteProgress
@@ -132,6 +133,15 @@ open class KavitaClient(
         }
     }
 
+    /** The series' metadata (KavitaDetailsFactsTest). */
+    @Suppress("UNUSED_PARAMETER")
+    open fun details(address: String, key: String, workId: Int): RemoteDetails =
+        RemoteDetails("", emptyList(), emptyList(), emptyList(), 0, false, 0, NO_COUNT)
+
+    /** The series' cover image, or null when the series has none. */
+    @Suppress("UNUSED_PARAMETER")
+    open fun cover(address: String, key: String, workId: Int): ByteArray? = null
+
     open fun progress(address: String, key: String, chapterId: Int): RemoteProgress {
         val answer = fetch(address, key, "/api/Reader/get-progress?chapterId=$chapterId")
         return ofTheRightShape {
@@ -231,6 +241,7 @@ open class KavitaClient(
 
     private companion object {
         const val HTTP_OK = 200
+        const val NO_COUNT = -100000
         val JSON = "application/json".toMediaType()
 
         // Kavita's series filter: SeriesFilterField.Libraries, FilterComparison.Equal, FilterCombination.And.
