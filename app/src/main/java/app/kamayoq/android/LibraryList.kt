@@ -1,15 +1,12 @@
 package app.kamayoq.android
 
 import androidx.annotation.StringRes
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.PaddingValues
@@ -36,10 +33,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -60,7 +55,7 @@ internal val COLLAPSED_SAVER = listSaver<Set<WorkType>, String>(
 )
 
 @StringRes
-private fun sectionName(type: WorkType) = when (type) {
+internal fun sectionName(type: WorkType) = when (type) {
     WorkType.COMICS -> R.string.section_comics
     WorkType.NOVELS -> R.string.section_novels
     WorkType.BOOKS -> R.string.section_books
@@ -195,10 +190,6 @@ private fun SectionHeader(type: WorkType, count: Int, open: Boolean, onToggle: (
     }
 }
 
-// Dark tones for the provisional cover, so the light initial on top reads in either theme
-// (DESIGN.md, "Capa provisória"). The title picks one, so a work always gets the same.
-private val coverTones = listOf(0xFF2E3B30, 0xFF3B3026, 0xFF26324A, 0xFF3A2A38, 0xFF2D3A3B, 0xFF3A3526).map(::Color)
-
 @Composable
 private fun WorkRowItem(row: WorkRow, onOpen: () -> Unit) {
     val chapters = pluralStringResource(R.plurals.chapter_count, row.chapterCount, row.chapterCount)
@@ -208,20 +199,8 @@ private fun WorkRowItem(row: WorkRow, onOpen: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(
-            modifier = Modifier.size(width = 44.dp, height = 64.dp).clip(RoundedCornerShape(6.dp))
-                .background(coverTones[Math.floorMod(row.work.title.hashCode(), coverTones.size)])
-                // The initial is decoration; the title is read next to it.
-                .clearAndSetSemantics {},
-        ) {
-            Text(
-                row.work.title.take(1).uppercase(),
-                modifier = Modifier.offset(x = (-3).dp, y = (-9).dp),
-                style = MaterialTheme.typography.displayLarge.copy(fontSize = 68.sp, lineHeight = 68.sp, fontWeight = FontWeight.ExtraBold),
-                color = Color.White.copy(alpha = 0.1f),
-                maxLines = 1,
-            )
-        }
+        // The initial is decoration; the title is read next to it.
+        ProvisionalCover(row.work.title, initialSize = 68.sp, modifier = Modifier.size(width = 44.dp, height = 64.dp).clip(RoundedCornerShape(6.dp)))
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(row.work.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(

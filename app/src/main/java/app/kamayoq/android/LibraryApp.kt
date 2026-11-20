@@ -691,7 +691,9 @@ internal fun Screen(title: String, onBack: () -> Unit, notices: SnackbarHostStat
             TextButton(onClick = onBack, modifier = Modifier.padding(start = 4.dp, top = 8.dp)) {
                 Text(stringResource(R.string.back))
             }
-            Text(title, modifier = Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.headlineSmall)
+            if (title.isNotEmpty()) {
+                Text(title, modifier = Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.headlineSmall)
+            }
             content()
         }
         // Over the screen's foot, where a notice with Undo does not move what is under the finger.

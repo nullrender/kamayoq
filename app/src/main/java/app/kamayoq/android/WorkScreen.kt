@@ -1,5 +1,6 @@
 package app.kamayoq.android
 
+import android.graphics.BitmapFactory
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -30,10 +31,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.kamayoq.core.library.FolderConvention
+import app.kamayoq.core.library.WorkDetails
 import app.kamayoq.core.progress.ReadingState
 import app.kamayoq.data.EditionOffer
 import app.kamayoq.data.LibraryStore
@@ -51,7 +55,7 @@ private class ChapterRow(val chapter: StoredChapter, val read: Boolean)
 @Composable
 internal fun WorkScreen(
     store: LibraryStore,
-    @Suppress("UNUSED_PARAMETER") covers: WorkCovers?,
+    covers: WorkCovers?,
     workId: String,
     listState: LazyListState,
     progressVersion: Int,
@@ -74,6 +78,8 @@ internal fun WorkScreen(
     // Raised by each change of state, so the screen reads it again from the store.
     var stateVersion by remember(workId) { mutableStateOf(0) }
     var choosingState by rememberSaveable(workId) { mutableStateOf(false) }
+    var details by remember(workId) { mutableStateOf(WorkDetails.NONE) }
+    var cover by remember(workId) { mutableStateOf<ImageBitmap?>(null) }
     val notices = remember { SnackbarHostState() }
     val resources = LocalResources.current
     val scope = rememberCoroutineScope()
@@ -130,87 +136,21 @@ internal fun WorkScreen(
         resume = loaded.third
         others = withContext(Dispatchers.IO) { store.alternatives(workId) }
         offers = withContext(Dispatchers.IO) { store.editionOffers(workId) }
+        details = withContext(Dispatchers.IO) { store.details(workId) }
+        // An image that does not decode leaves the provisional cover.
+        cover = withContext(Dispatchers.IO) { covers?.file(workId)?.let { BitmapFactory.decodeFile(it.path)?.asImageBitmap() } }
     }
-    Screen(title = work?.title.orEmpty(), onBack = onBack, notices = notices) {
+    // The title is in the header, beside the cover (board SinteseObra).
+    Screen(title = "", onBack = onBack, notices = notices) {
         val target = resume ?: chapters.firstOrNull()?.chapter
         // The two sides went to different chapters: where to reopen is the person's (contract, case 5).
         val crossing = others.firstOrNull { it.reason == LibraryStore.CONFLICT && resume != null && it.chapterId != resume?.id }
         val here = resume
-        if (crossing != null && here != null) {
-            Text(stringResource(R.string.conflict_title), modifier = Modifier.padding(16.dp))
-            OutlinedButton(onClick = { onOpenChapter(here.id) }, modifier = Modifier.padding(horizontal = 16.dp)) {
-                Text(stringResource(R.string.conflict_here, here.name))
-            }
-            OutlinedButton(
-                onClick = {
-                    scope.launch {
-                        withContext(Dispatchers.IO) { store.useAlternative(workId, crossing) }
-                        onOpenChapter(crossing.chapterId)
-                    }
-                },
-                modifier = Modifier.padding(16.dp),
-            ) {
-                Text(stringResource(R.string.conflict_kavita, crossing.chapterName))
-            }
-        } else if (target != null) {
-            Button(onClick = { onOpenChapter(target.id) }, modifier = Modifier.padding(16.dp)) {
-                val label = if (resume != null) stringResource(R.string.continue_reading, target.name)
-                else stringResource(R.string.start_reading)
-                Text(label)
-            }
-        }
-        StateButton(readingState.state, onClick = { choosingState = true }, modifier = Modifier.padding(horizontal = 16.dp))
-        readingState.automatic?.let { change ->
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    stringResource(R.string.state_changed_by_itself, stringResource(stateName(readingState.state))),
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                TextButton(onClick = { undoAutomatic() }, modifier = Modifier.sizeIn(minHeight = 48.dp)) {
-                    val from = change.from
-                    Text(if (from == null) stringResource(R.string.state_clear) else stringResource(R.string.state_back_to, stringResource(stateName(from))))
-                }
-            }
-        }
-        // Completed by itself needs the publication finished, which the app does not know yet: with
-        // everything here read, the person decides (FEATURES, part 3).
-        if (chapters.isNotEmpty() && chapters.all { it.read } && readingState.state != ReadingState.COMPLETED) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(stringResource(R.string.all_read), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                TextButton(onClick = { choose(ReadingState.COMPLETED) }, modifier = Modifier.sizeIn(minHeight = 48.dp)) {
-                    Text(stringResource(R.string.mark_completed))
-                }
-            }
-        }
         if (choosingState) {
             StateSheet(
                 current = readingState.state,
                 onPick = { choose(it) },
                 onDismiss = { choosingState = false },
-            )
-        }
-        others.filter { it !== crossing }.forEach { other ->
-            val place = if (other.page >= other.total) stringResource(R.string.position_end)
-            else stringResource(R.string.position_page, other.page + 1, other.total)
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.other_position, other.chapterName, place)) },
-                trailingContent = {
-                    TextButton(
-                        onClick = {
-                            scope.launch {
-                                withContext(Dispatchers.IO) { store.useAlternative(workId, other) }
-                                usedOther++
-                            }
-                        },
-                    ) { Text(stringResource(R.string.other_position_use)) }
-                },
             )
         }
         // Rule E1: nothing of a file's previous edition passes to the new one without this answer.
@@ -237,24 +177,108 @@ internal fun WorkScreen(
                 },
             )
         }
-        offers.forEach { offer ->
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                val lastRead = offer.lastRead
-                Text(
-                    if (lastRead != null) stringResource(R.string.edition_changed, lastRead) else stringResource(R.string.edition_changed_plain),
-                    modifier = Modifier.announced(),
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = { answer { store.applyPreviousEdition(workId, offer.path) } }) {
-                        Text(stringResource(R.string.edition_apply))
-                    }
-                    TextButton(onClick = { dismissing = offer }) {
-                        Text(stringResource(R.string.edition_dismiss))
+        // One list for the whole screen: the header scrolls away with it, as on the board.
+        LazyColumn(state = listState) {
+            work?.let { shown -> item(key = "header") { WorkHeader(shown, details, cover) } }
+            item(key = "state") {
+                StateButton(readingState.state, onClick = { choosingState = true }, modifier = Modifier.padding(horizontal = 16.dp))
+            }
+            readingState.automatic?.let { change ->
+                item(key = "automatic") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            stringResource(R.string.state_changed_by_itself, stringResource(stateName(readingState.state))),
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        TextButton(onClick = { undoAutomatic() }, modifier = Modifier.sizeIn(minHeight = 48.dp)) {
+                            val from = change.from
+                            Text(if (from == null) stringResource(R.string.state_clear) else stringResource(R.string.state_back_to, stringResource(stateName(from))))
+                        }
                     }
                 }
             }
-        }
-        LazyColumn(state = listState) {
+            // With everything here read and the state not Completed, the person decides: Completed by
+            // itself needs the publication finished at the source (FEATURES, part 3).
+            if (chapters.isNotEmpty() && chapters.all { it.read } && readingState.state != ReadingState.COMPLETED) {
+                item(key = "all-read") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(stringResource(R.string.all_read), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                        TextButton(onClick = { choose(ReadingState.COMPLETED) }, modifier = Modifier.sizeIn(minHeight = 48.dp)) {
+                            Text(stringResource(R.string.mark_completed))
+                        }
+                    }
+                }
+            }
+            if (details.summary.isNotEmpty()) item(key = "summary") { WorkSummary(details.summary) }
+            if (details.tags.isNotEmpty()) item(key = "tags") { WorkTags(details.tags) }
+            item(key = "continue") {
+                if (crossing != null && here != null) {
+                    Column {
+                        Text(stringResource(R.string.conflict_title), modifier = Modifier.padding(16.dp))
+                        OutlinedButton(onClick = { onOpenChapter(here.id) }, modifier = Modifier.padding(horizontal = 16.dp)) {
+                            Text(stringResource(R.string.conflict_here, here.name))
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                scope.launch {
+                                    withContext(Dispatchers.IO) { store.useAlternative(workId, crossing) }
+                                    onOpenChapter(crossing.chapterId)
+                                }
+                            },
+                            modifier = Modifier.padding(16.dp),
+                        ) {
+                            Text(stringResource(R.string.conflict_kavita, crossing.chapterName))
+                        }
+                    }
+                } else if (target != null) {
+                    Button(onClick = { onOpenChapter(target.id) }, modifier = Modifier.padding(16.dp)) {
+                        val label = if (resume != null) stringResource(R.string.continue_reading, target.name)
+                        else stringResource(R.string.start_reading)
+                        Text(label)
+                    }
+                }
+            }
+            items(others.filter { it !== crossing }) { other ->
+                val place = if (other.page >= other.total) stringResource(R.string.position_end)
+                else stringResource(R.string.position_page, other.page + 1, other.total)
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.other_position, other.chapterName, place)) },
+                    trailingContent = {
+                        TextButton(
+                            onClick = {
+                                scope.launch {
+                                    withContext(Dispatchers.IO) { store.useAlternative(workId, other) }
+                                    usedOther++
+                                }
+                            },
+                        ) { Text(stringResource(R.string.other_position_use)) }
+                    },
+                )
+            }
+            items(offers) { offer ->
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    val lastRead = offer.lastRead
+                    Text(
+                        if (lastRead != null) stringResource(R.string.edition_changed, lastRead) else stringResource(R.string.edition_changed_plain),
+                        modifier = Modifier.announced(),
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = { answer { store.applyPreviousEdition(workId, offer.path) } }) {
+                            Text(stringResource(R.string.edition_apply))
+                        }
+                        TextButton(onClick = { dismissing = offer }) {
+                            Text(stringResource(R.string.edition_dismiss))
+                        }
+                    }
+                }
+            }
             items(chapters, key = { it.chapter.id }) { row ->
                 // A compiled novel whose file has no table of contents is one chapter, and says why.
                 val undivided = row.chapter.origin != LibraryStore.KAVITA && row.chapter.tocKey.isEmpty() &&
