@@ -33,6 +33,7 @@ import app.kamayoq.core.progress.ReadingPosition
 import app.kamayoq.core.progress.ReadMark
 import app.kamayoq.core.progress.ReadMarkSource
 import app.kamayoq.core.progress.ReadingState
+import app.kamayoq.core.progress.ReadingStates
 import app.kamayoq.core.progress.StateMark
 import app.kamayoq.core.progress.StripPosition
 import app.kamayoq.core.progress.TextPosition
@@ -774,6 +775,7 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
             writeProgress(chapterId, progress)
             val versionId = database.chapterQueries.versionOfChapter(chapterId).executeAsOne()
             database.workResumeQueries.save(versionId, chapterId)
+            moveStateByReading(chapterId, before, progress)
             val place = progress.position as? TextPosition
             if (place != null && syncItem(chapterId)?.isText == true) {
                 // Only the end block counts one more complete read (TextReading.ended): that save, and
@@ -915,7 +917,29 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
     }
 
     /** Goes back to the state before the change the app made by itself; nothing happens without one. */
-    fun undoAutomatic(workId: String) = Unit
+    fun undoAutomatic(workId: String) = database.transaction {
+        val change = readingState(workId).automatic ?: return@transaction
+        val mark = markNow(workId)
+        database.readingStateQueries.save(workId, change.from?.name, 0L, null, null, mark?.chapterId, mark?.fraction?.value?.toLong())
+    }
+
+    /**
+     * The change of state a save of [chapterId] from [before] to [after] makes by itself (core
+     * ReadingStates), kept with the state before it. Only the reader's saves come here: a position
+     * from Kavita moves no state.
+     */
+    private fun moveStateByReading(chapterId: String, before: ChapterProgress, after: ChapterProgress) {
+        val at = after.position?.at ?: return
+        val owner = database.readingStateQueries.workOfChapter(chapterId).executeAsOne()
+        val row = database.readingStateQueries.stateOfWork(owner.id).executeAsOneOrNull()
+        val state = row?.state?.let(ReadingState::valueOf)
+        val mark = row?.mark_chapter_id?.let { StateMark(it, BasisPoints.fromStored(checkNotNull(row.mark_fraction).toInt())) }
+        val next = ReadingStates.afterSave(state, WorkType.valueOf(owner.type), chapterId, before, after, mark) ?: return
+        val newMark = (after.position as? TextPosition)?.let { StateMark(chapterId, it.fraction) }
+        database.readingStateQueries.save(
+            owner.id, next.name, 1L, state?.name, at.toEpochMilli(), newMark?.chapterId, newMark?.fraction?.value?.toLong(),
+        )
+    }
 
     // A book's place where the work reopens; a chapter counts by its end, so it needs no mark.
     private fun markNow(workId: String): StateMark? {
