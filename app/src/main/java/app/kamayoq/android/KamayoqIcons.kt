@@ -65,4 +65,13 @@ internal object KamayoqIcons {
     val search = stroked("search", 2f, "M17 10.5a6.5 6.5 0 1 1-13 0a6.5 6.5 0 1 1 13 0", "M15.5 15.5l5 5")
 
     val back = stroked("back", 2f, "M15 5l-7 7 7 7")
+
+    val more = filled(
+        "more",
+        "M12 4.2a1.8 1.8 0 1 1 0 3.6a1.8 1.8 0 1 1 0-3.6z",
+        "M12 10.2a1.8 1.8 0 1 1 0 3.6a1.8 1.8 0 1 1 0-3.6z",
+        "M12 16.2a1.8 1.8 0 1 1 0 3.6a1.8 1.8 0 1 1 0-3.6z",
+    )
+
+    val close = stroked("close", 2.2f, "M6 6l12 12", "M18 6L6 18")
 }

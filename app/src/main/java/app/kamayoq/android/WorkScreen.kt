@@ -1,18 +1,27 @@
 package app.kamayoq.android
 
 import android.graphics.BitmapFactory
-import androidx.compose.foundation.clickable
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -34,11 +43,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.kamayoq.core.library.FolderConvention
 import app.kamayoq.core.library.WorkDetails
+import app.kamayoq.core.progress.ChapterProgress
+import app.kamayoq.core.progress.ReadingPosition
 import app.kamayoq.core.progress.ReadingState
+import app.kamayoq.core.progress.StripPosition
+import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.data.EditionOffer
 import app.kamayoq.data.LibraryStore
 import app.kamayoq.data.StoredAlternative
@@ -46,12 +62,22 @@ import app.kamayoq.data.StoredChapter
 import app.kamayoq.data.StoredReadingState
 import app.kamayoq.data.StoredWork
 import app.kamayoq.data.WorkCovers
+import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private class ChapterRow(val chapter: StoredChapter, val read: Boolean)
+private class ChapterRow(val chapter: StoredChapter, val progress: ChapterProgress) {
+    val read get() = progress.readMark != null
+}
 
+// How far into a chapter its place is, for "Reading · 35 %".
+private fun percentOf(position: ReadingPosition): Int = when (position) {
+    is StripPosition -> position.page * 100 / position.totalPages
+    is TextPosition -> position.fraction.value / 100
+}
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun WorkScreen(
     store: LibraryStore,
@@ -78,6 +104,12 @@ internal fun WorkScreen(
     // Raised by each change of state, so the screen reads it again from the store.
     var stateVersion by remember(workId) { mutableStateOf(0) }
     var choosingState by rememberSaveable(workId) { mutableStateOf(false) }
+    // Choosing chapters to mark (board SinteseObra, "Selecionar capítulos"); kept as the screen is recreated.
+    var selecting by rememberSaveable(workId) { mutableStateOf(false) }
+    var selection by rememberSaveable(workId) { mutableStateOf(ArrayList<String>()) }
+    var menuOpen by remember(workId) { mutableStateOf(false) }
+    // Raised by each marking and its Undo, so the chapters are read again from the store.
+    var marked by remember(workId) { mutableStateOf(0) }
     var details by remember(workId) { mutableStateOf(WorkDetails.NONE) }
     var cover by remember(workId) { mutableStateOf<ImageBitmap?>(null) }
     val notices = remember { SnackbarHostState() }
@@ -123,11 +155,38 @@ internal fun WorkScreen(
             }
         }
     }
-    LaunchedEffect(workId, progressVersion, usedOther, answered) {
+    fun closeSelection() {
+        selecting = false
+        selection = ArrayList()
+    }
+    // A marking said with Undo, which puts back each mark and the state it moved by itself.
+    fun mark(ids: List<String>, read: Boolean, message: Int, count: Int) {
+        closeSelection()
+        scope.launch {
+            val change = withContext(Dispatchers.IO) {
+                if (read) store.markRead(workId, ids, Instant.now()) else store.markUnread(workId, ids, Instant.now())
+            }
+            marked++
+            stateVersion++
+            val answer = notices.showSnackbar(
+                resources.getQuantityString(message, count, count),
+                actionLabel = resources.getString(R.string.undo),
+                duration = SnackbarDuration.Long,
+            )
+            if (answer == SnackbarResult.ActionPerformed) {
+                withContext(Dispatchers.IO) { store.undoMarks(change) }
+                marked++
+                stateVersion++
+            }
+        }
+    }
+    // Back closes the selection first and keeps the Work screen, as a sheet does.
+    BackHandler(enabled = selecting) { closeSelection() }
+    LaunchedEffect(workId, progressVersion, usedOther, answered, marked) {
         val loaded = withContext(Dispatchers.IO) {
             Triple(
                 store.works().firstOrNull { it.id == workId },
-                store.chapters(workId).map { ChapterRow(it, store.progress(it.id).readMark != null) },
+                store.chapters(workId).map { ChapterRow(it, store.progress(it.id)) },
                 store.resumeChapter(workId)?.takeIf { it.present },
             )
         }
@@ -141,7 +200,36 @@ internal fun WorkScreen(
         cover = withContext(Dispatchers.IO) { covers?.file(workId)?.let { BitmapFactory.decodeFile(it.path)?.asImageBitmap() } }
     }
     // The title is in the header, beside the cover (board SinteseObra).
-    Screen(title = "", onBack = onBack, notices = notices) {
+    Screen(
+        title = "",
+        onBack = onBack,
+        notices = notices,
+        actions = {
+            Box {
+                IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(48.dp)) {
+                    Icon(KamayoqIcons.more, contentDescription = stringResource(R.string.more_options), modifier = Modifier.size(22.dp))
+                }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    // Long press is hard with TalkBack: the menu selects too (DESIGN.md, 10/10).
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.select_chapters)) },
+                        onClick = {
+                            menuOpen = false
+                            selecting = true
+                            selection = ArrayList()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.mark_all_read)) },
+                        onClick = {
+                            menuOpen = false
+                            mark(chapters.map { it.chapter.id }, read = true, R.plurals.marked_read, chapters.size)
+                        },
+                    )
+                }
+            }
+        },
+    ) {
         val target = resume ?: chapters.firstOrNull()?.chapter
         // The two sides went to different chapters: where to reopen is the person's (contract, case 5).
         val crossing = others.firstOrNull { it.reason == LibraryStore.CONFLICT && resume != null && it.chapterId != resume?.id }
@@ -175,6 +263,18 @@ internal fun WorkScreen(
                 dismissButton = {
                     TextButton(onClick = { dismissing = null }) { Text(stringResource(R.string.edition_dismiss_keep)) }
                 },
+            )
+        }
+        if (selecting) {
+            SelectionBar(
+                count = selection.size,
+                // "Mark the earlier ones" follows the reading order, which is the list's (FEATURES, part 4).
+                earlier = selection.singleOrNull()?.let { one -> chapters.indexOfFirst { it.chapter.id == one } }?.takeIf { it > 0 },
+                onClose = { closeSelection() },
+                onAll = { selection = ArrayList(chapters.map { it.chapter.id }) },
+                onRead = { mark(selection.toList(), read = true, R.plurals.marked_read, selection.size) },
+                onUnread = { mark(selection.toList(), read = false, R.plurals.marked_unread, selection.size) },
+                onEarlier = { before -> mark(chapters.take(before).map { it.chapter.id }, read = true, R.plurals.marked_previous, before) },
             )
         }
         // One list for the whole screen: the header scrolls away with it, as on the board.
@@ -283,20 +383,85 @@ internal fun WorkScreen(
                 // A compiled novel whose file has no table of contents is one chapter, and says why.
                 val undivided = row.chapter.origin != LibraryStore.KAVITA && row.chapter.tocKey.isEmpty() &&
                     FolderConvention.splitsByContents(row.chapter.path)
+                val place = row.progress.position?.takeIf { !row.read }
+                val checked = selecting && row.chapter.id in selection
                 ListItem(
                     headlineContent = { Text(row.chapter.name) },
-                    supportingContent = if (row.read || undivided) {
+                    supportingContent = if (row.read || place != null || undivided) {
                         {
                             Column {
                                 if (row.read) Text(stringResource(R.string.chapter_read))
+                                if (place != null) Text(stringResource(R.string.chapter_reading, percentOf(place)))
                                 if (undivided) Text(stringResource(R.string.file_undivided))
                             }
                         }
                     } else {
                         null
                     },
-                    modifier = Modifier.clickable { onOpenChapter(row.chapter.id) },
+                    leadingContent = if (selecting) {
+                        { Checkbox(checked = checked, onCheckedChange = null) }
+                    } else {
+                        null
+                    },
+                    // A long press always selects; the action comes after (FEATURES, part 4).
+                    modifier = Modifier
+                        .combinedClickable(
+                            onLongClickLabel = stringResource(R.string.chapter_select),
+                            onLongClick = if (selecting) null else {
+                                {
+                                    selecting = true
+                                    selection = arrayListOf(row.chapter.id)
+                                }
+                            },
+                            onClick = {
+                                if (!selecting) {
+                                    onOpenChapter(row.chapter.id)
+                                } else {
+                                    selection = ArrayList(if (checked) selection - row.chapter.id else selection + row.chapter.id)
+                                }
+                            },
+                        )
+                        .semantics { if (selecting) selected = checked },
                 )
+            }
+        }
+    }
+}
+
+/** The bar of the selection: how many, Select all and close, and what to do with them. */
+@Composable
+private fun SelectionBar(
+    count: Int,
+    earlier: Int?,
+    onClose: () -> Unit,
+    onAll: () -> Unit,
+    onRead: () -> Unit,
+    onUnread: () -> Unit,
+    onEarlier: (Int) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onClose, modifier = Modifier.size(48.dp)) {
+                Icon(KamayoqIcons.close, contentDescription = stringResource(R.string.selection_close), modifier = Modifier.size(20.dp))
+            }
+            Text(
+                if (count == 0) stringResource(R.string.selection_none) else pluralStringResource(R.plurals.selection_count, count, count),
+                modifier = Modifier.weight(1f).announced(),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            TextButton(onClick = onAll, modifier = Modifier.sizeIn(minHeight = 48.dp)) { Text(stringResource(R.string.selection_all)) }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = onRead, enabled = count > 0, modifier = Modifier.weight(1f).sizeIn(minHeight = 48.dp)) {
+                Text(stringResource(R.string.selection_read))
+            }
+            OutlinedButton(onClick = onUnread, enabled = count > 0, modifier = Modifier.weight(1f).sizeIn(minHeight = 48.dp)) {
+                Text(stringResource(R.string.selection_unread))
+            }
+        }
+        earlier?.let { before ->
+            TextButton(onClick = { onEarlier(before) }, modifier = Modifier.sizeIn(minHeight = 48.dp)) {
+                Text(stringResource(R.string.mark_previous_read, before))
             }
         }
     }

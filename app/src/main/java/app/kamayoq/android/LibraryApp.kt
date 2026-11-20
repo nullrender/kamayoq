@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -685,11 +686,21 @@ private fun IgnoredScreen(ignored: List<IgnoredFile>, onBack: () -> Unit) {
 }
 
 @Composable
-internal fun Screen(title: String, onBack: () -> Unit, notices: SnackbarHostState? = null, content: @Composable () -> Unit) {
+internal fun Screen(
+    title: String,
+    onBack: () -> Unit,
+    notices: SnackbarHostState? = null,
+    actions: @Composable () -> Unit = {},
+    content: @Composable () -> Unit,
+) {
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
-            TextButton(onClick = onBack, modifier = Modifier.padding(start = 4.dp, top = 8.dp)) {
-                Text(stringResource(R.string.back))
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onBack, modifier = Modifier.padding(start = 4.dp, top = 8.dp)) {
+                    Text(stringResource(R.string.back))
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                actions()
             }
             if (title.isNotEmpty()) {
                 Text(title, modifier = Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.headlineSmall)
