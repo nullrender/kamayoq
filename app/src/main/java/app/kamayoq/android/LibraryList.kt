@@ -23,6 +23,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -79,15 +80,29 @@ internal fun WorkList(
     stateFilter: StateFilter,
     onStateFilter: (StateFilter) -> Unit,
 ) {
-    val found = rows.filter { WorkSearch.matches(query, it.work.title, it.work.alternativeTitle) }
-    val sections = LibrarySections.of(found, { it.work.type }, { it.work.title })
     val searching = query.isNotBlank()
+    // Only once a work has a state: before that, every chip but two would count zero. The search
+    // looks in every work of the app, whatever the chip.
+    val chips = !searching && rows.any { it.state != null }
+    val shown = if (chips) stateFilter.keep(rows) { it.state } else rows
+    val found = shown.filter { WorkSearch.matches(query, it.work.title, it.work.alternativeTitle) }
+    val sections = LibrarySections.of(found, { it.work.type }, { it.work.title })
     Column {
-        // Only once a work has a state: before that, every chip but two would count zero.
-        if (!searching && rows.any { it.state != null }) {
-            StateChips(StateFilter.counts(rows.map { it.state }), stateFilter, onStateFilter)
-        }
+        if (chips) StateChips(StateFilter.counts(rows.map { it.state }), stateFilter, onStateFilter)
         LazyColumn(state = listState) {
+            if (chips && shown.isEmpty()) {
+                item(key = "filtered-out") {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        Text(stringResource(R.string.filter_empty), modifier = Modifier.announced(), style = MaterialTheme.typography.bodyLarge)
+                        OutlinedButton(onClick = { onStateFilter(StateFilter.ALL) }, modifier = Modifier.heightIn(min = 48.dp)) {
+                            Text(stringResource(R.string.filter_clear))
+                        }
+                    }
+                }
+            }
             if (searching && found.isEmpty() && rows.isNotEmpty()) {
                 item(key = "none") {
                     Text(

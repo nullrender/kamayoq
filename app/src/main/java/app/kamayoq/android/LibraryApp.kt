@@ -285,6 +285,11 @@ fun LibraryApp(
         if (folder.canRead(saved)) scope.launch { refresh(saved) } else accessLost = true
     }
 
+    // A state chosen on the Work screen, or changed by reading, shows in the Library's chips on return.
+    LaunchedEffect(openWorkId) {
+        if (openWorkId == null && rows != null) rows = withContext(Dispatchers.IO) { loadRows(store) }
+    }
+
     // A sync may finish after the screen that asked for it is gone, and it changes what any screen shows.
     val kavitaChanges by kavitaSync.changes.collectAsState()
     LaunchedEffect(kavitaChanges) {
@@ -479,7 +484,7 @@ private val IGNORED_SAVER = listSaver<List<IgnoredFile>, String>(
 )
 
 private fun loadRows(store: LibraryStore): List<WorkRow> =
-    store.works().map { WorkRow(it, store.chapters(it.id).size) }
+    store.works().map { WorkRow(it, store.chapters(it.id).size, store.readingState(it.id).state) }
 
 /** The installed version, such as `0.1.0-r102`, written in the backup. */
 private fun appVersion(context: Context): String {
