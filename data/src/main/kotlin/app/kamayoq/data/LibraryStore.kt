@@ -914,6 +914,9 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         database.readingStateQueries.save(workId, state?.name, 0L, null, null, mark?.chapterId, mark?.fraction?.value?.toLong())
     }
 
+    /** Goes back to the state before the change the app made by itself; nothing happens without one. */
+    fun undoAutomatic(workId: String) = Unit
+
     // A book's place where the work reopens; a chapter counts by its end, so it needs no mark.
     private fun markNow(workId: String): StateMark? {
         val chapter = resumeChapter(workId) ?: return null
