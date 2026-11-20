@@ -9,7 +9,9 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -35,6 +37,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -51,7 +54,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -121,6 +126,9 @@ internal fun WorkScreen(
     var selecting by rememberSaveable(workId) { mutableStateOf(false) }
     var selection by rememberSaveable(workId) { mutableStateOf(ArrayList<String>()) }
     var menuOpen by remember(workId) { mutableStateOf(false) }
+    // The bar's height, kept free at the list's end so the last chapters can come above it.
+    var barHeight by remember(workId) { mutableStateOf(0.dp) }
+    val density = LocalDensity.current
     // Raised by each marking and its Undo, so the chapters are read again from the store.
     var marked by remember(workId) { mutableStateOf(0) }
     var downloadSheet by rememberSaveable(workId) { mutableStateOf(false) }
@@ -339,30 +347,11 @@ internal fun WorkScreen(
                 },
             )
         }
-        if (selecting) {
-            SelectionBar(
-                count = selection.size,
-                // "Mark the earlier ones" follows the reading order, which is the list's (FEATURES, part 4).
-                earlier = selection.singleOrNull()?.let { one -> chapters.indexOfFirst { it.chapter.id == one } }?.takeIf { it > 0 },
-                onClose = { closeSelection() },
-                onAll = { selection = ArrayList(chapters.map { it.chapter.id }) },
-                onRead = { mark(selection.toList(), read = true, R.plurals.marked_read, selection.size) },
-                onUnread = { mark(selection.toList(), read = false, R.plurals.marked_unread, selection.size) },
-                onEarlier = { before -> mark(chapters.take(before).map { it.chapter.id }, read = true, R.plurals.marked_previous, before) },
-                onDownload = if (fromKavita) {
-                    { download(chapters.filter { it.chapter.id in selection }) }
-                } else {
-                    null
-                },
-                onDeleteDownloads = if (fromKavita) {
-                    { askToDelete(chapters.filter { it.chapter.id in selection }) }
-                } else {
-                    null
-                },
-            )
-        }
-        // One list for the whole screen: the header scrolls away with it, as on the board.
-        LazyColumn(state = listState) {
+        // One list for the whole screen: the header scrolls away with it, as on the board. The
+        // selection's bar lies over the foot of the screen instead of above the chapters, as the
+        // board has it: there it pushed the chapter just pressed out from under the finger.
+        Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(state = listState, contentPadding = PaddingValues(bottom = if (selecting) barHeight else 0.dp)) {
             work?.let { shown -> item(key = "header") { WorkHeader(shown, details, cover) } }
             item(key = "state") {
                 Row(modifier = Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -521,6 +510,30 @@ internal fun WorkScreen(
                 )
             }
         }
+        if (selecting) {
+            SelectionBar(
+                modifier = Modifier.align(Alignment.BottomCenter).onSizeChanged { barHeight = with(density) { it.height.toDp() } },
+                count = selection.size,
+                // "Mark the earlier ones" follows the reading order, which is the list's (FEATURES, part 4).
+                earlier = selection.singleOrNull()?.let { one -> chapters.indexOfFirst { it.chapter.id == one } }?.takeIf { it > 0 },
+                onClose = { closeSelection() },
+                onAll = { selection = ArrayList(chapters.map { it.chapter.id }) },
+                onRead = { mark(selection.toList(), read = true, R.plurals.marked_read, selection.size) },
+                onUnread = { mark(selection.toList(), read = false, R.plurals.marked_unread, selection.size) },
+                onEarlier = { before -> mark(chapters.take(before).map { it.chapter.id }, read = true, R.plurals.marked_previous, before) },
+                onDownload = if (fromKavita) {
+                    { download(chapters.filter { it.chapter.id in selection }) }
+                } else {
+                    null
+                },
+                onDeleteDownloads = if (fromKavita) {
+                    { askToDelete(chapters.filter { it.chapter.id in selection }) }
+                } else {
+                    null
+                },
+            )
+        }
+        }
     }
 }
 
@@ -530,6 +543,7 @@ internal const val SELECTION_BAR = "selection-bar"
 /** The bar of the selection: how many, Select all and close, and what to do with them. */
 @Composable
 private fun SelectionBar(
+    modifier: Modifier,
     count: Int,
     earlier: Int?,
     onClose: () -> Unit,
@@ -540,7 +554,8 @@ private fun SelectionBar(
     onDownload: (() -> Unit)?,
     onDeleteDownloads: (() -> Unit)?,
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).semantics { testTag = SELECTION_BAR }) {
+    Surface(modifier = modifier.fillMaxWidth().semantics { testTag = SELECTION_BAR }, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+    Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onClose, modifier = Modifier.size(48.dp)) {
                 Icon(KamayoqIcons.close, contentDescription = stringResource(R.string.selection_close), modifier = Modifier.size(20.dp))
@@ -575,6 +590,7 @@ private fun SelectionBar(
                 Text(stringResource(R.string.mark_previous_read, before))
             }
         }
+    }
     }
 }
 
