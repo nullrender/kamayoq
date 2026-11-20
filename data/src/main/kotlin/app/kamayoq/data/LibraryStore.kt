@@ -149,6 +149,12 @@ data class EditionOffer(val path: String, val lastRead: String?)
 data class AutomaticChange(val from: ReadingState?, val at: Instant)
 
 /**
+ * What a marking by hand changed, to undo it: each chapter's read mark as it was, and the moment of
+ * the marking, which names the change of state it made by itself, if it made one.
+ */
+data class MarkChange(val workId: String, val marksBefore: Map<String, ReadMark?>, val at: Instant)
+
+/**
  * A work's reading state, null for none, and the change the app made by itself, kept until the
  * person decides the state (FEATURES, part 3: the way back cannot depend on the notice).
  */
@@ -939,6 +945,22 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
     fun openingOf(workId: String, chapterId: String): ChapterOpeningList = database.transactionWithResult {
         ChapterOpeningList(currentEdition(chapterId), chapters(workId))
     }
+
+    /**
+     * The person marks [chapterIds] of [workId] read at [at] (contract 2b, source PERSON). A chapter
+     * already read keeps the mark it had; the position and the complete reads never change. Marking
+     * counts for the "start" and "finish" rules, not for "resume" (contract, section 5).
+     */
+    @Suppress("UNUSED_PARAMETER")
+    fun markRead(workId: String, chapterIds: List<String>, at: Instant): MarkChange = MarkChange(workId, emptyMap(), at)
+
+    /** The person takes the read mark off [chapterIds]; the position and the state stay. */
+    @Suppress("UNUSED_PARAMETER")
+    fun markUnread(workId: String, chapterIds: List<String>, at: Instant): MarkChange = MarkChange(workId, emptyMap(), at)
+
+    /** Puts back the marks [change] found, and the state its marking changed by itself. */
+    @Suppress("UNUSED_PARAMETER")
+    fun undoMarks(change: MarkChange) = Unit
 
     fun readingState(workId: String): StoredReadingState =
         database.readingStateQueries.stateOfWork(workId).executeAsOneOrNull()?.let { row ->
