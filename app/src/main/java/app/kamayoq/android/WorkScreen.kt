@@ -357,7 +357,8 @@ internal fun WorkScreen(
         LazyColumn(state = listState, contentPadding = PaddingValues(bottom = if (selecting) barHeight else 0.dp)) {
             work?.let { shown -> item(key = "header") { WorkHeader(shown, details, cover) } }
             item(key = "state") {
-                Row(modifier = Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Apart from the cover above, as the board's actions are, not touching it.
+                Row(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     // Download only where the origin offers it: a local file is already on the device (FEATURES, part 4).
                     if (fromKavita) {
                         OutlinedButton(onClick = { downloadSheet = true }, modifier = Modifier.sizeIn(minHeight = 48.dp)) {
