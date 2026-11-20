@@ -19,6 +19,7 @@ import app.kamayoq.core.progress.ReadMarkSource
 import app.kamayoq.core.progress.StripPosition
 import java.time.Instant
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -60,6 +61,8 @@ class ChapterSelectionTest {
     private fun readMarks() = chapterIds().map { app.store.progress(it).readMark?.source }
 
     private fun selected(count: Int) = app.resources.getQuantityString(R.plurals.selection_count, count, count)
+
+    private fun top(text: String) = compose.onNode(hasText(text)).fetchSemanticsNode().positionInRoot.y
 
     private fun openMenu() = compose.onNode(hasContentDescription(app.getString(R.string.more_options))).performClick()
 
@@ -155,5 +158,18 @@ class ChapterSelectionTest {
         compose.onNode(hasText("Gantz")).performClick()
 
         waitFor(app.getString(R.string.chapter_reading, 35))
+    }
+
+    @Test
+    fun `dado a Obra, quando seguro o dedo num capítulo, então ele fica sob o dedo e as ações da seleção aparecem no pé da tela`() {
+        openGantz()
+        val before = top("Cap. 2")
+
+        compose.onNode(hasText("Cap. 2")).performTouchInput { longClick() }
+        waitFor(selected(1))
+
+        assertEquals(before, top("Cap. 2"), 1f)
+        assertTrue(top(app.getString(R.string.selection_read)) > top("Cap. 3"))
+        assertTrue(top(selected(1)) > top("Cap. 3"))
     }
 }
