@@ -8,6 +8,8 @@ import app.kamayoq.core.progress.BasisPoints
 import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.ReadMark
 import app.kamayoq.core.progress.ReadMarkSource
+import app.kamayoq.core.progress.ReadingState
+import app.kamayoq.core.progress.StateMark
 import app.kamayoq.core.progress.StripPosition
 import app.kamayoq.core.progress.TextPosition
 import kotlinx.serialization.Serializable
@@ -66,7 +68,22 @@ data class BackupWork(
     val source: String? = null,
     val remoteLibraryId: Int? = null,
     val alternatives: List<BackupAlternative> = emptyList(),
+    /** The work's reading state; null for a work that never had one. */
+    val readingState: BackupReadingState? = null,
 )
+
+/**
+ * A work's reading [state], null for none; [automatic] is the change the app made by itself and the
+ * person has not settled; [mark] is where a book's reading was when the state was last decided.
+ */
+data class BackupReadingState(
+    val state: ReadingState?,
+    val automatic: BackupAutomaticChange?,
+    val mark: StateMark?,
+)
+
+/** A change of state the app made by itself, at [at]; [from] is the state before, null for none. */
+data class BackupAutomaticChange(val from: ReadingState?, val at: Instant)
 
 /** A position the work could go back to, in the app's own identifiers. */
 data class BackupAlternative(

@@ -19,6 +19,7 @@ import app.kamayoq.core.progress.BasisPoints
 import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.ReadMark
 import app.kamayoq.core.progress.ReadMarkSource
+import app.kamayoq.core.progress.ReadingState
 import app.kamayoq.core.progress.StripPosition
 import app.kamayoq.core.progress.TextPosition
 import java.io.ByteArrayInputStream
@@ -125,6 +126,31 @@ class BackupRestoreTest {
         assertTrue(restored.restore(fileOf(original)))
 
         assertEquals(original.backup("r550", exportedAt), restored.backup("r550", exportedAt))
+    }
+
+    @Test
+    fun `dado obras com estado, mudança automática e um livro em pausa, quando restauro num app vazio, então os três voltam e o livro retoma só depois de 1 por cento`() {
+        val book = "Books/Dom Casmurro.epub"
+        val original = emptyStore()
+        original.importLocal(oldFolder, FolderConvention.read(listOf(cap1, book)), listOf(cap1, book).associateWith { FileStamp(1_000, 5) })
+        val comic = original.works().single { it.title == "Sakamoto Days" }.id
+        val dom = original.works().single { it.title == "Dom Casmurro" }.id
+        val domChapter = original.chapters(dom).single().id
+        original.setReadingState(comic, ReadingState.WANT_TO_READ)
+        original.saveProgress(original.chapters(comic).single().id, read)
+        original.saveProgress(domChapter, inTheBook)
+        original.setReadingState(dom, ReadingState.ON_HOLD)
+
+        val restored = emptyStore()
+        assertTrue(restored.restore(original.backup("r600", exportedAt)))
+
+        assertEquals(StoredReadingState(ReadingState.READING, AutomaticChange(ReadingState.WANT_TO_READ, at)), restored.readingState(comic))
+        assertEquals(StoredReadingState(ReadingState.ON_HOLD, null), restored.readingState(dom))
+        val place = inTheBook.position as TextPosition
+        restored.saveProgress(domChapter, inTheBook.copy(position = place.copy(fraction = BasisPoints.fromStored(4_050))))
+        assertEquals(ReadingState.ON_HOLD, restored.readingState(dom).state)
+        restored.saveProgress(domChapter, inTheBook.copy(position = place.copy(fraction = BasisPoints.fromStored(4_100))))
+        assertEquals(ReadingState.READING, restored.readingState(dom).state)
     }
 
     @Test

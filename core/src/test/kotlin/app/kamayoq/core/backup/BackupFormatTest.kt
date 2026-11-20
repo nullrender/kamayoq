@@ -7,6 +7,8 @@ import app.kamayoq.core.progress.BasisPoints
 import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.ReadMark
 import app.kamayoq.core.progress.ReadMarkSource
+import app.kamayoq.core.progress.ReadingState
+import app.kamayoq.core.progress.StateMark
 import app.kamayoq.core.progress.StripPosition
 import app.kamayoq.core.progress.TextPosition
 import kotlinx.serialization.json.Json
@@ -100,6 +102,45 @@ class BackupFormatTest {
         val text = BackupFormat.write(backup(work(chapters = emptyList())))
 
         assertEquals(4, Json.parseToJsonElement(text).jsonObject["formatVersion"]?.jsonPrimitive?.int)
+    }
+
+    private val states = listOf(
+        BackupReadingState(ReadingState.READING, BackupAutomaticChange(from = ReadingState.WANT_TO_READ, at = stoppedAt), mark = null),
+        BackupReadingState(ReadingState.ON_HOLD, automatic = null, mark = StateMark("chapter-x", BasisPoints.fromStored(3_000))),
+        BackupReadingState(state = null, BackupAutomaticChange(from = null, at = readAt), mark = null),
+    )
+
+    @Test
+    fun `dado obras com estado, mudança automática e marca de livro, quando gravadas e relidas, então voltam iguais`() {
+        val original = backup(
+            *states.mapIndexed { i, state -> work(title = "Obra $i", chapters = emptyList()).copy(readingState = state) }.toTypedArray(),
+            work(title = "Sem estado", chapters = emptyList()),
+        )
+
+        val text = BackupFormat.write(original)
+
+        assertTrue("\"state\": \"ON_HOLD\"" in text, text)
+        assertEquals(original, BackupFormat.read(text))
+    }
+
+    @Test
+    fun `dado um arquivo do formato 4, quando lido, então as obras chegam sem estado`() {
+        val original = backup(work(chapters = listOf(chapter("Comics/Sakamoto Days/Capítulo 2.cbz", halfway))))
+        val format4 = BackupFormat.write(original)
+            .replaceFirst("\"formatVersion\": ${BackupFormat.VERSION}", "\"formatVersion\": 4")
+            .replace(Regex(""",\s*"readingState": null"""), "")
+
+        assertTrue("\"formatVersion\": 4" in format4 && "readingState" !in format4, format4)
+        assertEquals(original, BackupFormat.read(format4))
+    }
+
+    @Test
+    fun `dado um arquivo que diz formato 4 mas traz o estado de uma obra, quando lido, então recusa em vez de apagá-lo`() {
+        val text = BackupFormat.write(backup(work(chapters = emptyList()).copy(readingState = states.first())))
+            .replaceFirst("\"formatVersion\": ${BackupFormat.VERSION}", "\"formatVersion\": 4")
+
+        assertTrue("\"formatVersion\": 4" in text && "readingState" in text, text)
+        assertFailsWith<IllegalArgumentException> { BackupFormat.read(text) }
     }
 
     private val compiled = "Novels/Release That Witch/Release That Witch.epub"
