@@ -223,4 +223,9 @@
     <string name="state_changed">State: %s. The chapters read didn\'t change.</string>
     <string name="state_cleared">No reading state. The chapters read didn\'t change.</string>
     <string name="undo">Undo</string>
+    <string name="state_auto_notice">State: %s. It changed by itself because you read on.</string>
+    <string name="state_changed_by_itself">Changed to %s by itself.</string>
+    <string name="state_back_to">Back to %s</string>
+    <string name="all_read">You\'ve read every chapter here. The state only changes if you want.</string>
+    <string name="mark_completed">Mark as Completed</string>
 </resources>

@@ -10,7 +10,12 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
+import app.kamayoq.core.progress.ChapterProgress
+import app.kamayoq.core.progress.ReadMark
+import app.kamayoq.core.progress.ReadMarkSource
 import app.kamayoq.core.progress.ReadingState
+import app.kamayoq.core.progress.StripPosition
+import java.time.Instant
 import app.kamayoq.data.StoredReadingState
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -49,6 +54,25 @@ class WorkStateTest {
             compose.onNode(node).performScrollTo()
         }
         compose.onNode(node).performClick()
+    }
+
+    private fun pressBack() = compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
+
+    private fun workId(title: String) = app.store.works().single { it.title == title }.id
+
+    /** Saves the work's only chapter read to its end, as the reader does at the end block. */
+    private fun readToEnd(title: String) {
+        val now = Instant.now()
+        val chapter = app.store.chapters(workId(title)).single().id
+        app.store.saveProgress(chapter, ChapterProgress(ReadMark(now, ReadMarkSource.READ_TO_END), StripPosition(10, 10, now, "test-device"), 1))
+    }
+
+    /** Opens Cap. 1 in the reader, reads it to its end there, and comes back to the Work screen. */
+    private fun readInReader(title: String) {
+        compose.onNode(hasText("Cap. 1")).performClick()
+        compose.waitForIdle()
+        readToEnd(title)
+        pressBack()
     }
 
     private fun name(state: ReadingState?) = app.getString(stateName(state))
@@ -99,5 +123,64 @@ class WorkStateTest {
 
         waitFor(app.getString(R.string.state_cleared))
         assertEquals(StoredReadingState.NONE, stateOf("Gantz"))
+    }
+
+    @Test
+    fun `dado uma obra sem estado, quando um capítulo chega ao fim no leitor e ele fecha, então a Obra avisa que mudou sozinho para Lendo e deixa a linha para voltar`() {
+        openWork("Sakamoto Days")
+
+        readInReader("Sakamoto Days")
+
+        waitFor(app.getString(R.string.state_auto_notice, name(ReadingState.READING)))
+        waitFor(app.getString(R.string.state_changed_by_itself, name(ReadingState.READING)))
+        compose.onNode(hasText(app.getString(R.string.state_clear))).assertIsDisplayed()
+        assertEquals(ReadingState.READING, stateOf("Sakamoto Days").state)
+    }
+
+    @Test
+    fun `dado o aviso de que mudou sozinho, quando toco em Desfazer, então a obra volta a ficar sem estado e a linha some`() {
+        openWork("Sakamoto Days")
+        readInReader("Sakamoto Days")
+        waitFor(app.getString(R.string.state_auto_notice, name(ReadingState.READING)))
+
+        tap(app.getString(R.string.undo))
+
+        waitUntilGone(app.getString(R.string.state_changed_by_itself, name(ReadingState.READING)))
+        waitFor(name(null))
+        assertEquals(StoredReadingState.NONE, stateOf("Sakamoto Days"))
+    }
+
+    @Test
+    fun `dado uma obra em Quero ler que mudou sozinha para Lendo, quando toco em Voltar a Quero ler na linha, então volta a Quero ler e a linha some`() {
+        val folder = FolderInMemory(app, listOf("Gantz"))
+        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        waitFor("Gantz")
+        app.store.setReadingState(workId("Gantz"), ReadingState.WANT_TO_READ)
+        compose.onNode(hasText("Gantz")).performClick()
+        waitFor("Cap. 1")
+        readInReader("Gantz")
+        val back = app.getString(R.string.state_back_to, name(ReadingState.WANT_TO_READ))
+        waitFor(back)
+
+        tap(back)
+
+        waitUntilGone(back)
+        assertEquals(StoredReadingState(ReadingState.WANT_TO_READ, null), stateOf("Gantz"))
+    }
+
+    @Test
+    fun `dado todos os capítulos lidos e a obra em Lendo, então a Obra oferece Marcar como Lido, e tocar põe a obra em Lido`() {
+        val folder = FolderInMemory(app, listOf("Gantz"))
+        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        waitFor("Gantz")
+        readToEnd("Gantz")
+        compose.onNode(hasText("Gantz")).performClick()
+        waitFor(app.getString(R.string.all_read))
+
+        tap(app.getString(R.string.mark_completed))
+
+        waitFor(name(ReadingState.COMPLETED))
+        waitUntilGone(app.getString(R.string.all_read))
+        assertEquals(StoredReadingState(ReadingState.COMPLETED, null), stateOf("Gantz"))
     }
 }

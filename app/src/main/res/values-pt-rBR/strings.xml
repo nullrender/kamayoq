@@ -169,4 +169,9 @@
     <string name="state_changed">Estado: %s. Os capítulos lidos não mudaram.</string>
     <string name="state_cleared">Sem estado de leitura. Os capítulos lidos não mudaram.</string>
     <string name="undo">Desfazer</string>
+    <string name="state_auto_notice">Estado: %s. Mudou sozinho porque você avançou na leitura.</string>
+    <string name="state_changed_by_itself">Mudou sozinho para %s.</string>
+    <string name="state_back_to">Voltar a %s</string>
+    <string name="all_read">Você leu todos os capítulos daqui. O estado só muda se você quiser.</string>
+    <string name="mark_completed">Marcar como Lido</string>
 </resources>

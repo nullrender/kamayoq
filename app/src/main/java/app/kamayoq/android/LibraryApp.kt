@@ -127,6 +127,9 @@ fun LibraryApp(
     var tab by rememberSaveable { mutableStateOf(AppTab.LIBRARY) }
     var query by rememberSaveable { mutableStateOf("") }
     var readingChapterId by rememberSaveable { mutableStateOf<String?>(null) }
+    // When the reader last opened, in milliseconds: a change of state the app made since then is
+    // told on the Work screen as the reader closes (FEATURES, part 3: always with a notice).
+    var readingSince by rememberSaveable { mutableStateOf<Long?>(null) }
     // Raised when the reader closes, so the work's chapters show the new progress.
     var progressVersion by remember { mutableStateOf(0) }
     // Kept here, above the screens: a screen that leaves takes its list position with it, and Back
@@ -317,7 +320,12 @@ fun LibraryApp(
                 workId = workId,
                 listState = chapterList,
                 progressVersion = progressVersion,
-                onOpenChapter = { readingChapterId = it },
+                readingSince = readingSince,
+                onNoticed = { readingSince = null },
+                onOpenChapter = {
+                    readingSince = System.currentTimeMillis()
+                    readingChapterId = it
+                },
                 onBack = { openWorkId = null },
             )
         }
@@ -662,6 +670,8 @@ private fun WorkScreen(
     workId: String,
     listState: LazyListState,
     progressVersion: Int,
+    readingSince: Long?,
+    onNoticed: () -> Unit,
     onOpenChapter: (String) -> Unit,
     onBack: () -> Unit,
 ) {
