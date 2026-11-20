@@ -833,6 +833,9 @@ class LibraryAppTest {
 
         waitFor(app.getString(R.string.restore_done))
         waitFor("Sakamoto Days")
+        // The folder is read again after the restore, and while it is read the store passes through
+        // the folder just chosen: it is asked once the reading is over.
+        waitUntilGone(app.getString(R.string.reading_folder))
         assertEquals("work-1", app.store.works().first { it.title == "Sakamoto Days" }.id)
         compose.onNodeWithText("Sakamoto Days").performClick()
         waitFor(app.getString(R.string.chapter_read))
