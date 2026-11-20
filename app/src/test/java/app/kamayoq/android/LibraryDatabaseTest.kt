@@ -3,6 +3,7 @@ package app.kamayoq.android
 import android.database.sqlite.SQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
 import app.kamayoq.core.progress.strip
+import app.kamayoq.data.StoredReadingState
 import java.io.File
 import java.io.RandomAccessFile
 import org.junit.Assert.assertArrayEquals
@@ -19,6 +20,7 @@ class LibraryDatabaseTest {
     private val database: File = app.getDatabasePath(NAME)
     private val copy = File(app.noBackupFilesDir, "kamayoq-v1.db")
     private val copyOf2 = File(app.noBackupFilesDir, "kamayoq-v2.db")
+    private val copyOf4 = File(app.noBackupFilesDir, "kamayoq-v4.db")
     private val unfinishedCopy = File(app.noBackupFilesDir, "kamayoq-v1.db.tmp")
 
     /** A library as version 1 left it, from the snapshot of that schema. */
@@ -54,6 +56,21 @@ class LibraryDatabaseTest {
         }
     }
 
+    /**
+     * A library as version 4 left it, the version on phones before the reading states: version 2
+     * plus the next two migrations' own files.
+     */
+    private fun version4() {
+        version2()
+        edit {
+            for (path in listOf(MIGRATION_2, MIGRATION_3)) {
+                val migration = File(path).readLines().filterNot { it.trimStart().startsWith("--") }.joinToString("\n")
+                migration.split(';').map(String::trim).filter(String::isNotEmpty).forEach(::execSQL)
+            }
+            version = 4
+        }
+    }
+
     private fun edit(change: SQLiteDatabase.() -> Unit) =
         SQLiteDatabase.openDatabase(database.path, null, SQLiteDatabase.OPEN_READWRITE).use { it.change() }
 
@@ -67,6 +84,10 @@ class LibraryDatabaseTest {
         }
     }
 
+    private fun hasTable(file: File, table: String): Boolean = read(file) {
+        rawQuery("SELECT name FROM sqlite_master WHERE type = 'table' AND name = '$table'", null).use { it.count == 1 }
+    }
+
     private fun hasColumn(file: File, table: String, column: String): Boolean = read(file) {
         rawQuery("SELECT name FROM pragma_table_info('$table') WHERE name = '$column'", null).use { it.count == 1 }
     }
@@ -76,7 +97,7 @@ class LibraryDatabaseTest {
         val library = LibraryDatabase.open(app, NAME)
 
         assertTrue(library is LibraryOpening.Opened)
-        assertEquals(4, read(database) { version })
+        assertEquals(5, read(database) { version })
         assertFalse(copy.exists())
     }
 
@@ -100,7 +121,7 @@ class LibraryDatabaseTest {
             listOf("Dom Casmurro"),
             (library as LibraryOpening.Opened).store.works().map { it.title },
         )
-        assertEquals(4, read(database) { version })
+        assertEquals(5, read(database) { version })
         assertEquals(1, read(copy) { version })
         assertEquals("Dom Casmurro", title(copy))
         assertFalse(hasColumn(copy, "chapter", "page_count"))
@@ -114,11 +135,26 @@ class LibraryDatabaseTest {
 
         val store = (library as LibraryOpening.Opened).store
         assertEquals(7, store.progress("chapter-1").position?.strip()?.page)
-        assertEquals(4, read(database) { version })
+        assertEquals(5, read(database) { version })
         assertTrue(hasColumn(database, "chapter_progress", "position_cfi"))
         assertEquals(2, read(copyOf2) { version })
         assertFalse(hasColumn(copyOf2, "chapter_progress", "position_cfi"))
         assertTrue(hasColumn(copyOf2, "chapter", "page_count"))
+    }
+
+    @Test
+    fun `dado um banco da versão 4, quando abro, então migra, a página continua, a obra fica sem estado e a cópia guarda a versão 4 intacta`() {
+        version4()
+
+        val library = LibraryDatabase.open(app, NAME)
+
+        val store = (library as LibraryOpening.Opened).store
+        assertEquals(7, store.progress("chapter-1").position?.strip()?.page)
+        assertEquals(StoredReadingState.NONE, store.readingState("work-1"))
+        assertEquals(5, read(database) { version })
+        assertEquals(4, read(copyOf4) { version })
+        assertFalse(hasTable(copyOf4, "reading_state"))
+        assertTrue(hasTable(copyOf4, "edition_offer"))
     }
 
     @Test
@@ -237,5 +273,7 @@ class LibraryDatabaseTest {
         const val NAME = "library-test.db"
         const val SCHEMA_1 = "../data/src/main/sqldelight/databases/1.db"
         const val MIGRATION_1 = "../data/src/main/sqldelight/migrations/1.sqm"
+        const val MIGRATION_2 = "../data/src/main/sqldelight/migrations/2.sqm"
+        const val MIGRATION_3 = "../data/src/main/sqldelight/migrations/3.sqm"
     }
 }

@@ -33,6 +33,7 @@ import app.kamayoq.core.progress.ReadingPosition
 import app.kamayoq.core.progress.ReadMark
 import app.kamayoq.core.progress.ReadMarkSource
 import app.kamayoq.core.progress.ReadingState
+import app.kamayoq.core.progress.StateMark
 import app.kamayoq.core.progress.StripPosition
 import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.progress.strip
@@ -892,10 +893,33 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         ChapterOpeningList(currentEdition(chapterId), chapters(workId))
     }
 
-    fun readingState(workId: String): StoredReadingState = StoredReadingState.NONE
+    fun readingState(workId: String): StoredReadingState =
+        database.readingStateQueries.stateOfWork(workId).executeAsOneOrNull()?.let { row ->
+            StoredReadingState(
+                state = row.state?.let(ReadingState::valueOf),
+                automatic = if (row.automatic == 1L) {
+                    AutomaticChange(row.state_before?.let(ReadingState::valueOf), Instant.ofEpochMilli(checkNotNull(row.changed_at)))
+                } else {
+                    null
+                },
+            )
+        } ?: StoredReadingState.NONE
 
-    /** The person's choice of [workId]'s state, null for none. */
-    fun setReadingState(workId: String, state: ReadingState?) = Unit
+    /**
+     * The person's choice of [workId]'s state, null for none. It settles any change the app made by
+     * itself, and a book's automatic changes count again from where its reading is now.
+     */
+    fun setReadingState(workId: String, state: ReadingState?) = database.transaction {
+        val mark = markNow(workId)
+        database.readingStateQueries.save(workId, state?.name, 0L, null, null, mark?.chapterId, mark?.fraction?.value?.toLong())
+    }
+
+    // A book's place where the work reopens; a chapter counts by its end, so it needs no mark.
+    private fun markNow(workId: String): StateMark? {
+        val chapter = resumeChapter(workId) ?: return null
+        val place = progress(chapter.id).position as? TextPosition ?: return null
+        return StateMark(chapter.id, place.fraction)
+    }
 
     /** The chapter the work reopens in, or null when nothing of it was read yet. */
     fun resumeChapter(workId: String): StoredChapter? =
