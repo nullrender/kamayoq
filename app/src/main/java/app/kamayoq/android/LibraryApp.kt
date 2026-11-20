@@ -31,6 +31,10 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -58,6 +62,7 @@ import app.kamayoq.core.library.FolderConvention
 import app.kamayoq.core.library.IgnoreReason
 import app.kamayoq.core.library.IgnoredFile
 import app.kamayoq.core.library.WorkType
+import app.kamayoq.core.progress.ReadingState
 import app.kamayoq.data.BackupExport
 import app.kamayoq.data.BackupRestore
 import app.kamayoq.data.BackupResult
@@ -673,7 +678,27 @@ private fun WorkScreen(
     // Raised by each change of state, so the screen reads it again from the store.
     var stateVersion by remember(workId) { mutableStateOf(0) }
     var choosingState by rememberSaveable(workId) { mutableStateOf(false) }
+    val notices = remember { SnackbarHostState() }
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    // The person's choice, said with Undo; the chapters read never change with the state.
+    fun choose(picked: ReadingState?) {
+        choosingState = false
+        val before = readingState.state
+        if (picked == before) return
+        scope.launch {
+            withContext(Dispatchers.IO) { store.setReadingState(workId, picked) }
+            stateVersion++
+            val message = if (picked == null) context.getString(R.string.state_cleared)
+            else context.getString(R.string.state_changed, context.getString(stateName(picked)))
+            val answer = notices.showSnackbar(message, actionLabel = context.getString(R.string.undo), duration = SnackbarDuration.Long)
+            if (answer == SnackbarResult.ActionPerformed) {
+                withContext(Dispatchers.IO) { store.setReadingState(workId, before) }
+                stateVersion++
+            }
+        }
+    }
     LaunchedEffect(workId, stateVersion, progressVersion) {
         readingState = withContext(Dispatchers.IO) { store.readingState(workId) }
     }
@@ -691,7 +716,7 @@ private fun WorkScreen(
         others = withContext(Dispatchers.IO) { store.alternatives(workId) }
         offers = withContext(Dispatchers.IO) { store.editionOffers(workId) }
     }
-    Screen(title = work?.title.orEmpty(), onBack = onBack) {
+    Screen(title = work?.title.orEmpty(), onBack = onBack, notices = notices) {
         val target = resume ?: chapters.firstOrNull()?.chapter
         // The two sides went to different chapters: where to reopen is the person's (contract, case 5).
         val crossing = others.firstOrNull { it.reason == LibraryStore.CONFLICT && resume != null && it.chapterId != resume?.id }
@@ -723,7 +748,7 @@ private fun WorkScreen(
         if (choosingState) {
             StateSheet(
                 current = readingState.state,
-                onPick = { choosingState = false },
+                onPick = { choose(it) },
                 onDismiss = { choosingState = false },
             )
         }
@@ -828,12 +853,16 @@ private fun IgnoredScreen(ignored: List<IgnoredFile>, onBack: () -> Unit) {
 }
 
 @Composable
-private fun Screen(title: String, onBack: () -> Unit, content: @Composable () -> Unit) {
-    Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
-        TextButton(onClick = onBack, modifier = Modifier.padding(start = 4.dp, top = 8.dp)) {
-            Text(stringResource(R.string.back))
+private fun Screen(title: String, onBack: () -> Unit, notices: SnackbarHostState? = null, content: @Composable () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
+            TextButton(onClick = onBack, modifier = Modifier.padding(start = 4.dp, top = 8.dp)) {
+                Text(stringResource(R.string.back))
+            }
+            Text(title, modifier = Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.headlineSmall)
+            content()
         }
-        Text(title, modifier = Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.headlineSmall)
-        content()
+        // Over the screen's foot, where a notice with Undo does not move what is under the finger.
+        notices?.let { SnackbarHost(it, modifier = Modifier.align(Alignment.BottomCenter).safeDrawingPadding()) }
     }
 }
