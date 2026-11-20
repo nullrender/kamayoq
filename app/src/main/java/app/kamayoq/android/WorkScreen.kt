@@ -82,6 +82,7 @@ private fun percentOf(position: ReadingPosition): Int = when (position) {
 internal fun WorkScreen(
     store: LibraryStore,
     covers: WorkCovers?,
+    @Suppress("UNUSED_PARAMETER") kavitaSync: KavitaSync?,
     workId: String,
     listState: LazyListState,
     progressVersion: Int,
@@ -427,6 +428,9 @@ internal fun WorkScreen(
         }
     }
 }
+
+// Where the selection's own buttons are, apart from the same words elsewhere on the screen.
+internal const val SELECTION_BAR = "selection-bar"
 
 /** The bar of the selection: how many, Select all and close, and what to do with them. */
 @Composable

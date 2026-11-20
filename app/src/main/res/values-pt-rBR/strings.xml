@@ -214,4 +214,43 @@
     </plurals>
     <string name="chapter_reading">Lendo · %d%%</string>
     <string name="chapter_select">Selecionar</string>
+    <string name="download">Baixar</string>
+    <string name="download_sheet_title">Baixar capítulos</string>
+    <string name="download_sheet_help">Os capítulos baixados abrem sem internet. O progresso não muda.</string>
+    <string name="download_next">Próximos %d</string>
+    <string name="download_unread">Não lidos</string>
+    <string name="download_all">Todos</string>
+    <plurals name="download_to_get">
+        <item quantity="one">%d a baixar</item>
+        <item quantity="other">%d a baixar</item>
+    </plurals>
+    <string name="download_nothing_new">Já estão no aparelho</string>
+    <plurals name="download_delete">
+        <item quantity="one">Apagar o %d baixado…</item>
+        <item quantity="other">Apagar os %d baixados…</item>
+    </plurals>
+    <plurals name="download_started">
+        <item quantity="one">%d capítulo vai ser baixado.</item>
+        <item quantity="other">%d capítulos vão ser baixados.</item>
+    </plurals>
+    <string name="download_none_new">Já estão todos no aparelho. Nada foi baixado.</string>
+    <string name="download_progress">Baixando %1$d de %2$d</string>
+    <plurals name="download_failed">
+        <item quantity="one">%d não baixou. Peça de novo em Baixar.</item>
+        <item quantity="other">%d não baixaram. Peça de novo em Baixar.</item>
+    </plurals>
+    <string name="chapter_downloaded">Baixado</string>
+    <plurals name="delete_downloads_title">
+        <item quantity="one">Apagar %d capítulo baixado?</item>
+        <item quantity="other">Apagar %d capítulos baixados?</item>
+    </plurals>
+    <string name="delete_downloads_text">Libera cerca de %s deste aparelho. O progresso e as marcas de lido ficam. Para ler sem internet de novo, é preciso baixar outra vez, enquanto o Kavita tiver o conteúdo.</string>
+    <string name="delete_downloads_confirm">Apagar %d</string>
+    <string name="delete_downloads_cancel">Cancelar</string>
+    <plurals name="downloads_deleted">
+        <item quantity="one">%d capítulo apagado do aparelho. O progresso ficou.</item>
+        <item quantity="other">%d capítulos apagados do aparelho. O progresso ficou.</item>
+    </plurals>
+    <string name="selection_delete_downloads">Apagar baixados</string>
+    <string name="selection_none_downloaded">Nenhum dos selecionados está baixado. Nada foi apagado.</string>
 </resources>

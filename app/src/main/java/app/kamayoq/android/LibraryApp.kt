@@ -318,6 +318,7 @@ fun LibraryApp(
             WorkScreen(
                 store = store,
                 covers = covers,
+                kavitaSync = kavitaSync,
                 workId = workId,
                 listState = chapterList,
                 progressVersion = progressVersion,

@@ -34,6 +34,7 @@ class KavitaSync(
     chapterFolder: File,
     private val client: KavitaClient = KavitaClient(),
     covers: WorkCovers? = null,
+    @Suppress("unused") downloadFolder: File? = null,
 ) : KavitaLibraryChoice {
     private val import = KavitaImport(client, store, covers)
     private val files = KavitaChapterFiles(client, chapterFolder)
@@ -44,6 +45,9 @@ class KavitaSync(
 
     // Address and key are one pair: a new connection waits for whatever is using the old one.
     private val connection = ReentrantReadWriteLock()
+
+    /** How the downloads asked on each work's screen go, by work (decision 5: no queue screen). */
+    val downloads = MutableStateFlow<Map<String, WorkDownloads>>(emptyMap())
 
     /** Raised each time the works or positions change, so open screens read them again. */
     val changes = MutableStateFlow(0)
@@ -170,6 +174,25 @@ class KavitaSync(
         }
     }
 
+    /** True when the person downloaded [chapter] to this device. */
+    @Suppress("UNUSED_PARAMETER")
+    fun isDownloaded(chapter: StoredChapter): Boolean = false
+
+    /** The bytes the downloaded copies of [chapters] take. */
+    @Suppress("UNUSED_PARAMETER")
+    fun downloadedBytes(chapters: List<StoredChapter>): Long = 0
+
+    /**
+     * Downloads the chapters of [chapters] not on this device yet, one after another, off the
+     * screen's own life; [downloads] says how it goes. Returns how many go in.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    fun download(workId: String, chapters: List<StoredChapter>): Int = 0
+
+    /** Deletes [chapters] from this device and returns the bytes freed; the progress stays. */
+    @Suppress("UNUSED_PARAMETER")
+    fun deleteDownloads(chapters: List<StoredChapter>): Long = 0
+
     // Asked only when a download is needed: what is kept can be read with no usable key.
     fun chapterFile(chapter: StoredChapter, stillWanted: () -> Boolean): KavitaChapterFile =
         files.file(chapter, stillWanted) { connection.read { address() to key() } }
@@ -199,4 +222,9 @@ class KavitaSync(
         if (address != store.kavitaServer()?.address) throw IOException("The saved key is for another address")
         return key
     }
+}
+
+/** The downloads asked on one work: [done] and [failed] of [total]; running until they add up. */
+data class WorkDownloads(val done: Int, val total: Int, val failed: Int) {
+    val running get() = done + failed < total
 }
