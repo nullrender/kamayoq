@@ -3,6 +3,7 @@ package app.kamayoq.core.kavita
 import app.kamayoq.core.library.ChapterFormat
 import app.kamayoq.core.library.ComicsSubtype
 import app.kamayoq.core.library.Publication
+import app.kamayoq.core.library.PublicationStatus
 import app.kamayoq.core.library.UnitKind
 import app.kamayoq.core.library.WorkDetails
 import app.kamayoq.core.library.WorkType
@@ -41,12 +42,48 @@ object KavitaTranslation {
     private val readableArchives = setOf("cbz", "zip")
 
     /** The series' metadata as the Work screen shows it. */
-    @Suppress("UNUSED_PARAMETER")
-    fun details(remote: RemoteDetails): WorkDetails = WorkDetails.NONE
+    fun details(remote: RemoteDetails): WorkDetails = WorkDetails(
+        authors = remote.writers.map(String::trim).filter(String::isNotEmpty),
+        summary = plainText(remote.summary),
+        // Kavita keeps genres and tags apart; the Work screen has one row of tags, genres first.
+        tags = (remote.genres + remote.tags).map(String::trim).filter(String::isNotEmpty)
+            .distinctBy { it.lowercase() },
+        publication = publication(remote),
+    )
 
     /** Kavita's publication status and counts, with what Kavita cannot tell kept unknown. */
-    @Suppress("UNUSED_PARAMETER")
-    fun publication(remote: RemoteDetails): Publication = Publication.UNKNOWN
+    fun publication(remote: RemoteDetails): Publication {
+        // Kavita says 0 also for a series nothing is known about: only a count or a lock set by
+        // whoever edits the series makes it a real "ongoing" (KavitaDetailsFactsTest).
+        val counted = remote.totalCount > 0 && remote.maxCount != NO_COUNT
+        val status = when (remote.status) {
+            STATUS_ONGOING -> PublicationStatus.ONGOING.takeIf { counted || remote.statusLocked }
+            STATUS_HIATUS -> PublicationStatus.HIATUS
+            STATUS_COMPLETED, STATUS_ENDED -> PublicationStatus.COMPLETED
+            STATUS_CANCELLED -> PublicationStatus.CANCELLED
+            else -> null
+        }
+        val missing = if (counted) maxOf(0, remote.totalCount - remote.maxCount) else null
+        return Publication(status, missing)
+    }
+
+    // Kavita keeps a summary as written, HTML included; the screen shows text.
+    private fun plainText(summary: String): String {
+        val lines = summary
+            .replace(Regex("(?i)<br\\s*/?>|</p>|</div>|</li>"), "\n")
+            .replace(Regex("<[^>]*>"), "")
+            .replace("&nbsp;", " ").replace("&lt;", "<").replace("&gt;", ">")
+            .replace("&quot;", "\"").replace("&#39;", "'").replace("&amp;", "&")
+        return lines.lines().map(String::trim).filter(String::isNotEmpty).joinToString("\n")
+    }
+
+    private const val NO_COUNT = -100000
+    private const val STATUS_ONGOING = 0
+    private const val STATUS_HIATUS = 1
+    private const val STATUS_COMPLETED = 2
+    private const val STATUS_CANCELLED = 3
+    // "Ended": a count is set and chapters are missing; the same publication, with missing ones.
+    private const val STATUS_ENDED = 4
 
     /** Throws [IllegalArgumentException] for a library type that did not exist when this was written. */
     fun work(library: RemoteLibrary, work: RemoteWork, chapters: List<RemoteChapter>): ImportedWork {
