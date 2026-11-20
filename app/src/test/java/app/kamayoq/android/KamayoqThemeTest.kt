@@ -87,4 +87,25 @@ class KamayoqThemeTest {
     fun `dado o tema claro, quando o app desenha, então fundo, texto, cartão e ação vêm da paleta clara`() {
         assertFollows(MossAndAmber.light, schemeOf(dark = false))
     }
+
+    // Material draws a notice's text in inverseOnSurface and its button, Undo, in inversePrimary, both
+    // over inverseSurface. On the S24, with build r598, Undo had the notice's own colour and could
+    // not be seen.
+    private fun assertNoticeReadable(name: String, scheme: ColorScheme) {
+        val failures = listOf("texto" to scheme.inverseOnSurface, "botão" to scheme.inversePrimary).mapNotNull { (part, colour) ->
+            val ratio = contrast(colour, scheme.inverseSurface)
+            "$name: $part do aviso sobre o aviso, %.2f".format(ratio).takeIf { ratio < 4.5 }
+        }
+        assertTrue(failures.joinToString("\n"), failures.isEmpty())
+    }
+
+    @Test
+    fun `dado o tema escuro, quando um aviso traz Desfazer, então o texto e o botão têm contraste de 4,5 para 1 sobre o aviso`() {
+        assertNoticeReadable("escuro", schemeOf(dark = true))
+    }
+
+    @Test
+    fun `dado o tema claro, quando um aviso traz Desfazer, então o texto e o botão têm contraste de 4,5 para 1 sobre o aviso`() {
+        assertNoticeReadable("claro", schemeOf(dark = false))
+    }
 }
