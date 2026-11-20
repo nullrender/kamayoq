@@ -201,4 +201,22 @@ class ChapterSelectionTest {
         val chapter = compose.onNode(hasText(pressed)).fetchSemanticsNode().boundsInRoot
         assertTrue("$pressed ends at ${chapter.bottom}, the bar starts at ${bar.top}", chapter.bottom <= bar.top + 1)
     }
+
+    @Test
+    fun `dado a leitura parada no capítulo 2, quando marco do 1 ao 3 como lidos, então o botão continua no 4, o primeiro não lido`() {
+        openGantz(count = 5)
+        app.store.saveProgress(chapterIds()[1], ChapterProgress(null, StripPosition(3, 20, Instant.now(), "test-device"), 0))
+        // Leaving and coming back reads the progress again.
+        pressBack()
+        waitFor("Gantz")
+        compose.onNode(hasText("Gantz")).performClick()
+        waitFor(app.getString(R.string.continue_reading, "Cap. 2"))
+
+        openMenu()
+        compose.onNode(hasText(app.getString(R.string.select_chapters))).performClick()
+        for (chapter in listOf("Cap. 1", "Cap. 2", "Cap. 3")) compose.onNode(hasText(chapter)).performClick()
+        compose.onNode(hasText(app.getString(R.string.selection_read))).performClick()
+
+        waitFor(app.getString(R.string.continue_reading, "Cap. 4"))
+    }
 }
