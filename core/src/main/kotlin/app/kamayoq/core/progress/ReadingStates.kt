@@ -1,6 +1,7 @@
 package app.kamayoq.core.progress
 
 import app.kamayoq.core.library.Publication
+import app.kamayoq.core.library.PublicationStatus
 import app.kamayoq.core.library.WorkType
 
 /**
@@ -50,14 +51,20 @@ object ReadingStates {
      * chapter there is (reading it to its end, or marking it read), and [everyChapterRead] that with
      * it every chapter is read. Null when the state stays.
      */
-    @Suppress("UNUSED_PARAMETER")
     fun afterFinishing(
         state: ReadingState?,
         type: WorkType,
         publication: Publication,
         finishedLast: Boolean,
         everyChapterRead: Boolean,
-    ): ReadingState? = null
+    ): ReadingState? {
+        // A finished book stays as it is: a book in volumes in the folder may be incomplete with no
+        // way for the app to know (his decision, 20/11/2026). Missing unknown never counts as zero.
+        val finished = type != WorkType.BOOKS && state != ReadingState.COMPLETED &&
+            publication.status == PublicationStatus.COMPLETED && publication.missing == 0 &&
+            finishedLast && everyChapterRead
+        return ReadingState.COMPLETED.takeIf { finished }
+    }
 
     // A book is one long reading unit: a chapter's end would come too late, so it counts how far in.
     private fun bookAdvanced(chapterId: String, after: ChapterProgress, mark: StateMark?, threshold: Int): Boolean {
