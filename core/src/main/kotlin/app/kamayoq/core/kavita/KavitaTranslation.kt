@@ -2,7 +2,9 @@ package app.kamayoq.core.kavita
 
 import app.kamayoq.core.library.ChapterFormat
 import app.kamayoq.core.library.ComicsSubtype
+import app.kamayoq.core.library.Publication
 import app.kamayoq.core.library.UnitKind
+import app.kamayoq.core.library.WorkDetails
 import app.kamayoq.core.library.WorkType
 
 /** A Kavita series as the Library keeps it. [path] is the series id. */
@@ -37,6 +39,14 @@ object KavitaTranslation {
     private const val FILE_PDF = 4
 
     private val readableArchives = setOf("cbz", "zip")
+
+    /** The series' metadata as the Work screen shows it. */
+    @Suppress("UNUSED_PARAMETER")
+    fun details(remote: RemoteDetails): WorkDetails = WorkDetails.NONE
+
+    /** Kavita's publication status and counts, with what Kavita cannot tell kept unknown. */
+    @Suppress("UNUSED_PARAMETER")
+    fun publication(remote: RemoteDetails): Publication = Publication.UNKNOWN
 
     /** Throws [IllegalArgumentException] for a library type that did not exist when this was written. */
     fun work(library: RemoteLibrary, work: RemoteWork, chapters: List<RemoteChapter>): ImportedWork {

@@ -4,6 +4,21 @@ data class RemoteLibrary(val id: Int, val name: String, val type: Int)
 
 data class RemoteWork(val id: Int, val name: String, val libraryId: Int)
 
+/**
+ * A series' metadata as Kavita gives it (KavitaDetailsFactsTest). [status] is Kavita's
+ * PublicationStatus number; [maxCount] is -100000 when the series has no count.
+ */
+data class RemoteDetails(
+    val summary: String,
+    val writers: List<String>,
+    val genres: List<String>,
+    val tags: List<String>,
+    val status: Int,
+    val statusLocked: Boolean,
+    val totalCount: Int,
+    val maxCount: Int,
+)
+
 /** One file of a chapter. [path] is absolute in the server; [kind] is Kavita's MangaFormat. */
 data class RemoteFile(val path: String, val kind: Int, val bytes: Long)
 
