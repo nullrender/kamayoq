@@ -150,4 +150,23 @@
     <string name="source_files_note">Uma pasta com arquivos CBZ e EPUB. Funciona sem internet.</string>
     <string name="source_kavita_note">Seu servidor. O progresso acompanha você em qualquer aparelho.</string>
     <string name="source_restore_note">Um backup deste app: a biblioteca e o seu progresso. As obras só abrem se a pasta ou o Kavita continuarem acessíveis.</string>
+    <!-- Estados de leitura (fatia 2 da UI da v1; nomes do FEATURES do reader-design, parte 3). -->
+    <string name="state_reading">Lendo</string>
+    <string name="state_want_to_read">Quero ler</string>
+    <string name="state_on_hold">Em pausa</string>
+    <string name="state_dropped">Abandonado</string>
+    <string name="state_completed">Lido</string>
+    <string name="state_none">Sem estado</string>
+    <string name="state_button_label">Estado de leitura: %s. Tocar para mudar</string>
+    <string name="state_sheet_title">Estado de leitura</string>
+    <string name="state_sheet_help">Não muda os capítulos lidos nem o progresso. Fica neste aparelho. Tocar aplica e fecha.</string>
+    <string name="state_help_reading">Novidades desta obra aparecem no Início.</string>
+    <string name="state_help_want_to_read">Novidades aparecem no Início.</string>
+    <string name="state_help_on_hold">Sem novidades no Início. Seu progresso continua guardado.</string>
+    <string name="state_help_dropped">Sem novidades no Início. A obra fica na Biblioteca.</string>
+    <string name="state_help_completed">Sem novidades no Início. Não marca os capítulos.</string>
+    <string name="state_clear">Deixar sem estado</string>
+    <string name="state_changed">Estado: %s. Os capítulos lidos não mudaram.</string>
+    <string name="state_cleared">Sem estado de leitura. Os capítulos lidos não mudaram.</string>
+    <string name="undo">Desfazer</string>
 </resources>

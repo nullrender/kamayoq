@@ -66,6 +66,7 @@ import app.kamayoq.data.LibraryStore
 import app.kamayoq.data.RestoreResult
 import app.kamayoq.data.StoredAlternative
 import app.kamayoq.data.StoredChapter
+import app.kamayoq.data.StoredReadingState
 import app.kamayoq.data.StoredWork
 import app.kamayoq.data.kavita.StoredKavitaKey
 import kotlinx.coroutines.CancellationException
@@ -668,7 +669,14 @@ private fun WorkScreen(
     var answered by remember(workId) { mutableStateOf(0) }
     // The question whose "Don't apply" waits for its confirmation.
     var dismissing by remember(workId) { mutableStateOf<EditionOffer?>(null) }
+    var readingState by remember(workId) { mutableStateOf(StoredReadingState.NONE) }
+    // Raised by each change of state, so the screen reads it again from the store.
+    var stateVersion by remember(workId) { mutableStateOf(0) }
+    var choosingState by rememberSaveable(workId) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    LaunchedEffect(workId, stateVersion, progressVersion) {
+        readingState = withContext(Dispatchers.IO) { store.readingState(workId) }
+    }
     LaunchedEffect(workId, progressVersion, usedOther, answered) {
         val loaded = withContext(Dispatchers.IO) {
             Triple(
@@ -710,6 +718,14 @@ private fun WorkScreen(
                 else stringResource(R.string.start_reading)
                 Text(label)
             }
+        }
+        StateButton(readingState.state, onClick = { choosingState = true }, modifier = Modifier.padding(horizontal = 16.dp))
+        if (choosingState) {
+            StateSheet(
+                current = readingState.state,
+                onPick = { choosingState = false },
+                onDismiss = { choosingState = false },
+            )
         }
         others.filter { it !== crossing }.forEach { other ->
             val place = if (other.page >= other.total) stringResource(R.string.position_end)

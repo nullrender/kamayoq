@@ -204,4 +204,23 @@
     <string name="source_files_note">A folder with CBZ and EPUB files. Works without internet.</string>
     <string name="source_kavita_note">Your server. Your progress follows you on any device.</string>
     <string name="source_restore_note">A backup of this app: the library and your progress. Works open only if their folder or Kavita can still be reached.</string>
+    <!-- Reading states (slice 2 of the v1 interface; names from reader-design FEATURES, part 3). -->
+    <string name="state_reading">Reading</string>
+    <string name="state_want_to_read">Want to read</string>
+    <string name="state_on_hold">On hold</string>
+    <string name="state_dropped">Dropped</string>
+    <string name="state_completed">Completed</string>
+    <string name="state_none">No state</string>
+    <string name="state_button_label">Reading state: %s. Tap to change</string>
+    <string name="state_sheet_title">Reading state</string>
+    <string name="state_sheet_help">Doesn\'t change the chapters read or the progress. Stays on this device. A tap applies and closes.</string>
+    <string name="state_help_reading">News of this work shows on Home.</string>
+    <string name="state_help_want_to_read">News shows on Home.</string>
+    <string name="state_help_on_hold">No news on Home. Your progress stays saved.</string>
+    <string name="state_help_dropped">No news on Home. The work stays in the Library.</string>
+    <string name="state_help_completed">No news on Home. Doesn\'t mark the chapters.</string>
+    <string name="state_clear">Leave without a state</string>
+    <string name="state_changed">State: %s. The chapters read didn\'t change.</string>
+    <string name="state_cleared">No reading state. The chapters read didn\'t change.</string>
+    <string name="undo">Undo</string>
 </resources>
