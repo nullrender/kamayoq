@@ -12,11 +12,14 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -44,6 +47,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.kamayoq.core.library.LibrarySections
+import app.kamayoq.core.library.StateFilter
 import app.kamayoq.core.library.WorkSearch
 import app.kamayoq.core.library.WorkType
 import app.kamayoq.data.LibraryStore
@@ -72,45 +76,82 @@ internal fun WorkList(
     onToggleSection: (WorkType) -> Unit,
     onOpenWork: (String) -> Unit,
     onOpenIgnored: () -> Unit,
+    stateFilter: StateFilter,
+    onStateFilter: (StateFilter) -> Unit,
 ) {
     val found = rows.filter { WorkSearch.matches(query, it.work.title, it.work.alternativeTitle) }
     val sections = LibrarySections.of(found, { it.work.type }, { it.work.title })
     val searching = query.isNotBlank()
-    LazyColumn(state = listState) {
-        if (searching && found.isEmpty() && rows.isNotEmpty()) {
-            item(key = "none") {
-                Text(
-                    stringResource(R.string.search_none),
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 24.dp).announced(),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            }
+    Column {
+        // Only once a work has a state: before that, every chip but two would count zero.
+        if (!searching && rows.any { it.state != null }) {
+            StateChips(StateFilter.counts(rows.map { it.state }), stateFilter, onStateFilter)
         }
-        if (ignoredCount > 0 && !searching) {
-            item(key = "ignored") {
-                Column(
-                    modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenIgnored).heightIn(min = 56.dp)
-                        .padding(horizontal = 18.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    Text(pluralStringResource(R.plurals.ignored_files, ignoredCount, ignoredCount), style = MaterialTheme.typography.titleSmall)
+        LazyColumn(state = listState) {
+            if (searching && found.isEmpty() && rows.isNotEmpty()) {
+                item(key = "none") {
                     Text(
-                        stringResource(R.string.see_ignored_files),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        stringResource(R.string.search_none),
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 24.dp).announced(),
+                        style = MaterialTheme.typography.bodyLarge,
                     )
                 }
             }
+            if (ignoredCount > 0 && !searching) {
+                item(key = "ignored") {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenIgnored).heightIn(min = 56.dp)
+                            .padding(horizontal = 18.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text(pluralStringResource(R.plurals.ignored_files, ignoredCount, ignoredCount), style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            stringResource(R.string.see_ignored_files),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            sections.forEach { section ->
+                // A folded section would hide what the search found.
+                val open = searching || section.type !in collapsed
+                item(key = "section-${section.type}") {
+                    SectionHeader(section.type, section.works.size, open) { onToggleSection(section.type) }
+                }
+                if (open) {
+                    items(section.works, key = { it.work.id }) { row -> WorkRowItem(row) { onOpenWork(row.work.id) } }
+                }
+            }
         }
-        sections.forEach { section ->
-            // A folded section would hide what the search found.
-            val open = searching || section.type !in collapsed
-            item(key = "section-${section.type}") {
-                SectionHeader(section.type, section.works.size, open) { onToggleSection(section.type) }
-            }
-            if (open) {
-                items(section.works, key = { it.work.id }) { row -> WorkRowItem(row) { onOpenWork(row.work.id) } }
-            }
+    }
+}
+
+@StringRes
+private fun chipName(chip: StateFilter): Int = when (chip) {
+    StateFilter.ALL -> R.string.state_all
+    else -> stateName(chip.state)
+}
+
+/** The chips by reading state, one chosen, each with how many works it keeps (board SinteseBiblioteca). */
+@Composable
+private fun StateChips(counts: Map<StateFilter, Int>, chosen: StateFilter, onChoose: (StateFilter) -> Unit) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(bottom = 4.dp),
+    ) {
+        items(StateFilter.entries.toList(), key = { it.name }) { chip ->
+            FilterChip(
+                selected = chip == chosen,
+                onClick = { onChoose(chip) },
+                label = {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(stringResource(chipName(chip)))
+                        Text((counts[chip] ?: 0).toString(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                },
+            )
         }
     }
 }

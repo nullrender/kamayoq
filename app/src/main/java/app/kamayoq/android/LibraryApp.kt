@@ -63,6 +63,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import app.kamayoq.core.library.FolderConvention
 import app.kamayoq.core.library.IgnoreReason
 import app.kamayoq.core.library.IgnoredFile
+import app.kamayoq.core.library.StateFilter
 import app.kamayoq.core.library.WorkType
 import app.kamayoq.core.progress.ReadingState
 import app.kamayoq.data.BackupExport
@@ -88,7 +89,7 @@ import java.time.format.FormatStyle
 
 private const val TAG = "Kamayoq"
 
-internal data class WorkRow(val work: StoredWork, val chapterCount: Int)
+internal data class WorkRow(val work: StoredWork, val chapterCount: Int, val state: ReadingState? = null)
 
 /**
  * The first percurso's screens: choose the folder, see its works, see a work's chapters and the
@@ -127,6 +128,7 @@ fun LibraryApp(
     // The app opens on the Library until Home has content of its own (slice 4).
     var tab by rememberSaveable { mutableStateOf(AppTab.LIBRARY) }
     var query by rememberSaveable { mutableStateOf("") }
+    var stateFilter by rememberSaveable { mutableStateOf(StateFilter.ALL) }
     var readingChapterId by rememberSaveable { mutableStateOf<String?>(null) }
     // When the reader last opened, in milliseconds: a change of state the app made since then is
     // told on the Work screen as the reader closes (FEATURES, part 3: always with a notice).
@@ -451,6 +453,8 @@ fun LibraryApp(
                                 searching = true
                             },
                             onQueryChange = { query = it },
+                            stateFilter = stateFilter,
+                            onStateFilter = { stateFilter = it },
                             onCloseSearch = {
                                 searching = false
                                 query = ""
@@ -516,6 +520,8 @@ private fun LibraryScreen(
     onOpenSearch: () -> Unit,
     onQueryChange: (String) -> Unit,
     onCloseSearch: () -> Unit,
+    stateFilter: StateFilter,
+    onStateFilter: (StateFilter) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
         if (searching) {
@@ -552,7 +558,7 @@ private fun LibraryScreen(
         when {
             accessRefused -> {
                 Notice(R.string.folder_access_refused, onChooseFolder)
-                WorkList(kavitaRows, 0, listState, collapsed, query, onToggleSection, onOpenWork, onOpenIgnored)
+                WorkList(kavitaRows, 0, listState, collapsed, query, onToggleSection, onOpenWork, onOpenIgnored, stateFilter, onStateFilter)
             }
             firstOpening -> FirstOpening(
                 restoreBusy = restores.reading || restores.restoring,
@@ -562,11 +568,11 @@ private fun LibraryScreen(
             )
             !hasFolder -> {
                 Notice(R.string.no_folder, onChooseFolder)
-                WorkList(kavitaRows, 0, listState, collapsed, query, onToggleSection, onOpenWork, onOpenIgnored)
+                WorkList(kavitaRows, 0, listState, collapsed, query, onToggleSection, onOpenWork, onOpenIgnored, stateFilter, onStateFilter)
             }
             accessLost -> {
                 Notice(R.string.folder_access_lost, onChooseFolder)
-                WorkList(kavitaRows, 0, listState, collapsed, query, onToggleSection, onOpenWork, onOpenIgnored)
+                WorkList(kavitaRows, 0, listState, collapsed, query, onToggleSection, onOpenWork, onOpenIgnored, stateFilter, onStateFilter)
             }
             else -> {
                 if (scanning) {
@@ -591,7 +597,7 @@ private fun LibraryScreen(
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }
-                WorkList(rows.orEmpty(), ignoredCount, listState, collapsed, query, onToggleSection, onOpenWork, onOpenIgnored)
+                WorkList(rows.orEmpty(), ignoredCount, listState, collapsed, query, onToggleSection, onOpenWork, onOpenIgnored, stateFilter, onStateFilter)
             }
         }
     }
