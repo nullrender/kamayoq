@@ -1,5 +1,6 @@
 package app.kamayoq.core.progress
 
+import app.kamayoq.core.library.Publication
 import app.kamayoq.core.library.WorkType
 
 /**
@@ -43,6 +44,20 @@ object ReadingStates {
         }
         return ReadingState.READING.takeIf { advanced }
     }
+
+    /**
+     * Completed, when an event finishes the work: [finishedLast] says the event finished the last
+     * chapter there is (reading it to its end, or marking it read), and [everyChapterRead] that with
+     * it every chapter is read. Null when the state stays.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    fun afterFinishing(
+        state: ReadingState?,
+        type: WorkType,
+        publication: Publication,
+        finishedLast: Boolean,
+        everyChapterRead: Boolean,
+    ): ReadingState? = null
 
     // A book is one long reading unit: a chapter's end would come too late, so it counts how far in.
     private fun bookAdvanced(chapterId: String, after: ChapterProgress, mark: StateMark?, threshold: Int): Boolean {
