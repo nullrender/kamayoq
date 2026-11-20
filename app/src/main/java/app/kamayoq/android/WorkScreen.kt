@@ -372,6 +372,9 @@ internal fun WorkScreen(
         // One list for the whole screen: the header scrolls away with it, as on the board. The
         // selection's bar lies over the foot of the screen instead of above the chapters, as the
         // board has it: there it pushed the chapter just pressed out from under the finger.
+        // Nothing until the work is loaded: an item drawn before the header would stay first when the
+        // header arrives above it, and the screen would open scrolled past the cover.
+        if (work == null) return@Screen
         Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(state = listState, contentPadding = PaddingValues(bottom = if (selecting) barHeight else 0.dp)) {
             work?.let { shown -> item(key = "header") { WorkHeader(shown, details, cover) } }
