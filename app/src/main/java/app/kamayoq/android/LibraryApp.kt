@@ -368,7 +368,21 @@ fun LibraryApp(
                 // The bar takes the navigation bar's inset; the screens above it must not add it again.
                 Box(modifier = Modifier.weight(1f).consumeWindowInsets(WindowInsets.navigationBars)) {
                     when (tab) {
-                        AppTab.HOME -> HomeScreen()
+                        // The empty app shows its ways in here too; what they lead to happens in the
+                        // Library, where the folder is read and a restore is confirmed.
+                        AppTab.HOME -> HomeScreen(
+                            firstOpening = empty && tree == null,
+                            restoreBusy = restores.reading || restores.restoring,
+                            onChooseFolder = {
+                                tab = AppTab.LIBRARY
+                                picker.launch(null)
+                            },
+                            onOpenKavita = { showKavita = true },
+                            onPickBackup = {
+                                tab = AppTab.LIBRARY
+                                backupPicker.launch(arrayOf("*/*"))
+                            },
+                        )
                         AppTab.SETTINGS -> SettingsScreen(
                             hasFolder = tree != null,
                             folderReadable = folderReadable,
@@ -399,6 +413,7 @@ fun LibraryApp(
                             onChooseFolder = { picker.launch(null) },
                             onOpenWork = { openWorkId = it },
                             onOpenIgnored = { showIgnored = true },
+                            onOpenKavita = { showKavita = true },
                             searching = searching,
                             query = query,
                             onOpenSearch = { searching = true },
@@ -461,6 +476,7 @@ private fun LibraryScreen(
     onChooseFolder: () -> Unit,
     onOpenWork: (String) -> Unit,
     onOpenIgnored: () -> Unit,
+    onOpenKavita: () -> Unit,
     searching: Boolean,
     query: String,
     onOpenSearch: () -> Unit,
@@ -493,8 +509,10 @@ private fun LibraryScreen(
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
+        // The empty app with no folder offers the restore among its ways in, below.
+        val firstOpening = canRestore && !hasFolder
         // Here until the Settings screen exists (its place there: Settings › Backup).
-        RestoreRow(canRestore, restores, hasFolder, onPickBackup, onConfirmRestore)
+        RestoreRow(canRestore && !firstOpening, restores, hasFolder, onPickBackup, onConfirmRestore)
         // Without a readable folder only Kavita's works can open; the local ones wait, stored.
         val kavitaRows = rows.orEmpty().filter { it.work.origin == LibraryStore.KAVITA }
         when {
@@ -502,6 +520,12 @@ private fun LibraryScreen(
                 Notice(R.string.folder_access_refused, onChooseFolder)
                 WorkList(kavitaRows, 0, listState, collapsed, query, onToggleSection, onOpenWork, onOpenIgnored)
             }
+            firstOpening -> FirstOpening(
+                restoreBusy = restores.reading || restores.restoring,
+                onChooseFolder = onChooseFolder,
+                onOpenKavita = onOpenKavita,
+                onPickBackup = onPickBackup,
+            )
             !hasFolder -> {
                 Notice(R.string.no_folder, onChooseFolder)
                 WorkList(kavitaRows, 0, listState, collapsed, query, onToggleSection, onOpenWork, onOpenIgnored)

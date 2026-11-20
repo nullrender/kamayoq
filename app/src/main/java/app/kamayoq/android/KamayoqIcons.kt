@@ -47,6 +47,18 @@ internal object KamayoqIcons {
         "M10 16a2 2 0 1 1-4 0a2 2 0 1 1 4 0",
     )
 
+    val folder = stroked("folder", 2f, "M3.5 7.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z")
+
+    val server = stroked(
+        "server",
+        2f,
+        "M5.5 4h13a1.5 1.5 0 0 1 1.5 1.5V9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 9V5.5A1.5 1.5 0 0 1 5.5 4z",
+        "M5.5 13.5h13a1.5 1.5 0 0 1 1.5 1.5v3.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5V15a1.5 1.5 0 0 1 1.5-1.5z",
+        "M8 7.2h.01M8 16.8h.01",
+    )
+
+    val restore = stroked("restore", 2f, "M4.5 12a7.5 7.5 0 1 0 2.2-5.3", "M4 4v4h4", "M12 8v4l2.5 2")
+
     /** A section header's arrow, pointing right; turned down while the section is open. */
     val chevron = stroked("chevron", 2.2f, "M9 6l6 6-6 6")
 

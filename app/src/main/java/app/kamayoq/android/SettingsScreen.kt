@@ -72,7 +72,17 @@ private fun Group(@StringRes title: Int, content: @Composable () -> Unit) {
 
 /** Home until slice 4 brings Continue reading, new chapters and recently added works. */
 @Composable
-internal fun HomeScreen() {
+internal fun HomeScreen(
+    firstOpening: Boolean,
+    restoreBusy: Boolean,
+    onChooseFolder: () -> Unit,
+    onOpenKavita: () -> Unit,
+    onPickBackup: () -> Unit,
+) {
+    if (firstOpening) {
+        FirstOpening(restoreBusy, onChooseFolder, onOpenKavita, onPickBackup, Modifier.fillMaxSize().safeDrawingPadding())
+        return
+    }
     Column(
         modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
