@@ -585,6 +585,10 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         database.workDetailsQueries.saveCover(stamp, workId)
     }
 
+    /** The work of each Kavita series of [server], by the series id. */
+    fun kavitaWorks(server: String): Map<String, String> =
+        database.workVersionQueries.remoteVersions(KAVITA, server).executeAsList().associate { it.path to it.work_id }
+
     private fun lines(text: String): List<String> = text.lines().filter(String::isNotEmpty)
 
     fun kavitaServer(): StoredServer? = database.transactionWithResult {

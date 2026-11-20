@@ -2,6 +2,7 @@ package app.kamayoq.android
 
 import android.app.Application
 import app.kamayoq.data.LibraryStore
+import app.kamayoq.data.WorkCovers
 import java.io.File
 import kotlinx.coroutines.MainScope
 
@@ -26,6 +27,8 @@ open class KamayoqApp : Application() {
         private set
     lateinit var kavitaSync: KavitaSync
         private set
+    lateinit var covers: WorkCovers
+        private set
 
     // Set instead of everything above when the library cannot open: only the failure screen runs.
     var failure: LibraryFailure? = null
@@ -45,7 +48,8 @@ open class KamayoqApp : Application() {
         store = library
         folder = ChosenFolder(this)
         kavita = KavitaAccess(this)
-        kavitaSync = KavitaSync(store, kavita, File(cacheDir, "kavita"))
+        covers = WorkCovers(File(filesDir, "covers"))
+        kavitaSync = KavitaSync(store, kavita, File(cacheDir, "kavita"), covers = covers)
         opening = ChapterOpening(this, folder, store, kavitaSync::chapterFile)
         // Lives as long as the app: a backup started on a screen that goes away still ends.
         backups = Backups(MainScope())

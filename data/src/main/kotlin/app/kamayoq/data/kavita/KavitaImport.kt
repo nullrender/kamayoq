@@ -1,8 +1,10 @@
 package app.kamayoq.data.kavita
 
 import app.kamayoq.core.kavita.KavitaTranslation
+import app.kamayoq.core.kavita.RemoteWork
 import app.kamayoq.data.LibraryStore
 import app.kamayoq.data.WorkCovers
+import java.io.IOException
 
 /**
  * Brings the marked libraries to the Library, whole, with what Kavita says about each work. [covers]
@@ -11,7 +13,7 @@ import app.kamayoq.data.WorkCovers
 class KavitaImport(
     private val client: KavitaClient,
     private val store: LibraryStore,
-    @Suppress("unused") private val covers: WorkCovers? = null,
+    private val covers: WorkCovers? = null,
 ) {
 
     /**
@@ -23,19 +25,42 @@ class KavitaImport(
         val server = store.kavitaServer() ?: return emptyMap()
         val pagesRead = mutableMapOf<String, Int>()
         val libraries = client.libraries(server.address, key).filter { it.id in server.marked }
+        val remotes = mutableListOf<RemoteWork>()
         val works = libraries.flatMap { library ->
             client.works(server.address, key, library.id).map { work ->
+                remotes += work
                 val chapters = client.chapters(server.address, key, work.id)
                 chapters.forEach { pagesRead[it.id.toString()] = it.pagesRead }
+                val details = KavitaTranslation.details(client.details(server.address, key, work.id))
                 try {
-                    KavitaTranslation.work(library, work, chapters)
+                    KavitaTranslation.work(library, work, chapters).copy(details = details)
                 } catch (_: IllegalArgumentException) {
                     throw KavitaListingFailed(HTTP_OK)
                 }
             }
         }
         store.importKavita(server.id, works, markedAtStart = server.marked)
+        covers?.let { keepCovers(it, server.id, server.address, key, remotes) }
         return pagesRead
+    }
+
+    // Only a new cover name, or a cover file gone, costs a download.
+    private fun keepCovers(covers: WorkCovers, serverId: String, address: String, key: String, remotes: List<RemoteWork>) {
+        val workIds = store.kavitaWorks(serverId)
+        for (remote in remotes) {
+            val workId = workIds[remote.id.toString()] ?: continue
+            val stamp = remote.coverImage.ifEmpty { null }
+            if (stamp != null && stamp == store.coverStamp(workId) && covers.file(workId) != null) continue
+            val bytes = try {
+                stamp?.let { client.cover(address, key, remote.id) }
+            } catch (_: IOException) {
+                // The work keeps the cover it had, or the provisional one, and its stamp stays as it
+                // was, so the next import asks again: one cover must not stop the progress sync after it.
+                continue
+            }
+            if (bytes == null) covers.drop(workId) else covers.keep(workId, bytes)
+            store.saveCover(workId, stamp.takeIf { bytes != null })
+        }
     }
 
     private companion object {

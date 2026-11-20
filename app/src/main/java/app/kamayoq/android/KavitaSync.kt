@@ -6,6 +6,7 @@ import app.kamayoq.core.kavita.KavitaPlace
 import app.kamayoq.core.kavita.RemoteLibrary
 import app.kamayoq.data.LibraryStore
 import app.kamayoq.data.StoredChapter
+import app.kamayoq.data.WorkCovers
 import app.kamayoq.data.kavita.KavitaChapterFile
 import app.kamayoq.data.kavita.KavitaChapterFiles
 import app.kamayoq.data.kavita.KavitaClient
@@ -32,8 +33,9 @@ class KavitaSync(
     private val access: KavitaAccess,
     chapterFolder: File,
     private val client: KavitaClient = KavitaClient(),
+    covers: WorkCovers? = null,
 ) : KavitaLibraryChoice {
-    private val import = KavitaImport(client, store)
+    private val import = KavitaImport(client, store, covers)
     private val files = KavitaChapterFiles(client, chapterFolder)
     private val progress = KavitaProgressSync(client, store)
 
