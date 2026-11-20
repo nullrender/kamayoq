@@ -2,9 +2,17 @@ package app.kamayoq.data.kavita
 
 import app.kamayoq.core.kavita.KavitaTranslation
 import app.kamayoq.data.LibraryStore
+import app.kamayoq.data.WorkCovers
 
-/** Brings the marked libraries to the Library, whole. */
-class KavitaImport(private val client: KavitaClient, private val store: LibraryStore) {
+/**
+ * Brings the marked libraries to the Library, whole, with what Kavita says about each work. [covers]
+ * keeps each work's cover; without it, none is fetched.
+ */
+class KavitaImport(
+    private val client: KavitaClient,
+    private val store: LibraryStore,
+    @Suppress("unused") private val covers: WorkCovers? = null,
+) {
 
     /**
      * Reads everything before writing anything: a failure halfway would otherwise take for gone what
