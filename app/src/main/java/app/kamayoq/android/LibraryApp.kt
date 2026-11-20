@@ -65,6 +65,7 @@ import app.kamayoq.data.BackupResult
 import app.kamayoq.data.LibraryStore
 import app.kamayoq.data.RestoreResult
 import app.kamayoq.data.StoredWork
+import app.kamayoq.data.WorkCovers
 import app.kamayoq.data.kavita.StoredKavitaKey
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -94,6 +95,7 @@ fun LibraryApp(
     kavitaSync: KavitaSync,
     deviceId: String,
     restores: Restores,
+    covers: WorkCovers? = null,
 ) {
     val scope = rememberCoroutineScope()
     var tree by remember { mutableStateOf(folder.saved()) }
@@ -314,6 +316,7 @@ fun LibraryApp(
             BackHandler { openWorkId = null }
             WorkScreen(
                 store = store,
+                covers = covers,
                 workId = workId,
                 listState = chapterList,
                 progressVersion = progressVersion,

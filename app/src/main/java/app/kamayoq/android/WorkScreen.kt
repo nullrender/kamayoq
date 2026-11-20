@@ -41,6 +41,7 @@ import app.kamayoq.data.StoredAlternative
 import app.kamayoq.data.StoredChapter
 import app.kamayoq.data.StoredReadingState
 import app.kamayoq.data.StoredWork
+import app.kamayoq.data.WorkCovers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -50,6 +51,7 @@ private class ChapterRow(val chapter: StoredChapter, val read: Boolean)
 @Composable
 internal fun WorkScreen(
     store: LibraryStore,
+    @Suppress("UNUSED_PARAMETER") covers: WorkCovers?,
     workId: String,
     listState: LazyListState,
     progressVersion: Int,

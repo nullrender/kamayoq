@@ -26,7 +26,7 @@ class MainActivity : ComponentActivity() {
                     if (failure != null) {
                         LibraryFailureScreen(failure)
                     } else {
-                        LibraryApp(app.store, app.folder, opening, backups, app.kavita, app.kavitaSync, deviceId, app.restores)
+                        LibraryApp(app.store, app.folder, opening, backups, app.kavita, app.kavitaSync, deviceId, app.restores, app.covers)
                     }
                 }
             }

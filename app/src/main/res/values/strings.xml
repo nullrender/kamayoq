@@ -231,4 +231,14 @@
     <string name="state_all">All</string>
     <string name="filter_empty">No works with these filters.</string>
     <string name="filter_clear">Clear filters</string>
+    <string name="publication_ongoing">Ongoing</string>
+    <string name="publication_hiatus">On hiatus</string>
+    <string name="publication_completed">Completed</string>
+    <string name="publication_cancelled">Cancelled</string>
+    <plurals name="publication_missing">
+        <item quantity="one">%1$s · %2$d missing from this source</item>
+        <item quantity="other">%1$s · %2$d missing from this source</item>
+    </plurals>
+    <string name="summary_more">More</string>
+    <string name="summary_less">Less</string>
 </resources>

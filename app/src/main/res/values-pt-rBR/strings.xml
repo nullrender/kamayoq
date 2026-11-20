@@ -177,4 +177,14 @@
     <string name="state_all">Todas</string>
     <string name="filter_empty">Nenhuma obra com esses filtros.</string>
     <string name="filter_clear">Limpar filtros</string>
+    <string name="publication_ongoing">Em andamento</string>
+    <string name="publication_hiatus">Em hiato</string>
+    <string name="publication_completed">Concluída</string>
+    <string name="publication_cancelled">Cancelada</string>
+    <plurals name="publication_missing">
+        <item quantity="one">%1$s · falta %2$d nesta origem</item>
+        <item quantity="other">%1$s · faltam %2$d nesta origem</item>
+    </plurals>
+    <string name="summary_more">Mais</string>
+    <string name="summary_less">Menos</string>
 </resources>
