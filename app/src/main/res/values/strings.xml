@@ -196,4 +196,12 @@
     <string name="settings_backup">Backup</string>
     <!-- Home has no content of its own until a later build; this says so plainly. -->
     <string name="home_later">Continue reading, new chapters and recently added works will be here in a coming build. Your works are in the Library.</string>
+    <!-- The first opening (board PrimeiraAbertura), in the order decided on 24/10/2026: files, Kavita, restore. -->
+    <string name="empty_title">Your library is empty.</string>
+    <string name="empty_humor">The shelves are in place. The works are missing.</string>
+    <string name="empty_where">Where do the works come from? You can add another source later, in Settings.</string>
+    <string name="source_files">Files on this device</string>
+    <string name="source_files_note">A folder with CBZ and EPUB files. Works without internet.</string>
+    <string name="source_kavita_note">Your server. Your progress follows you on any device.</string>
+    <string name="source_restore_note">A backup of this app: the library and your progress. Works open only if their folder or Kavita can still be reached.</string>
 </resources>

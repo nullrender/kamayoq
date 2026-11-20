@@ -262,6 +262,58 @@ class LibraryAppTest {
         tab(R.string.nav_settings).assertExists()
     }
 
+    // The first opening (board PrimeiraAbertura), in the order decided on 24/10/2026.
+
+    private fun assertFirstOpening() {
+        waitFor(app.getString(R.string.empty_title))
+        val files = top(app.getString(R.string.source_files))
+        val kavita = top(app.getString(R.string.kavita_connect))
+        val restore = top(app.getString(R.string.restore_backup))
+        assertTrue("Arquivos antes do Kavita", files < kavita)
+        assertTrue("Kavita antes de Restaurar", kavita < restore)
+    }
+
+    @Test
+    fun `dado o app vazio e sem pasta, então a Biblioteca diz que está vazia e mostra Arquivos, Kavita e Restaurar nessa ordem`() {
+        showWithoutFolder()
+
+        assertFirstOpening()
+        compose.onNodeWithText(app.getString(R.string.no_folder)).assertDoesNotExist()
+    }
+
+    @Test
+    fun `dado o app vazio, quando vou ao Início, então ele mostra os mesmos três caminhos`() {
+        showWithoutFolder()
+        waitFor(app.getString(R.string.empty_title))
+
+        openTab(R.string.nav_home)
+
+        assertFirstOpening()
+        compose.onNodeWithText(app.getString(R.string.home_later)).assertDoesNotExist()
+    }
+
+    @Test
+    fun `dado o app vazio, quando toco em Arquivos deste aparelho, então o seletor de pasta do Android abre`() {
+        showWithoutFolder()
+        waitFor(app.getString(R.string.source_files))
+
+        compose.onNodeWithText(app.getString(R.string.source_files)).performClick()
+        compose.waitForIdle()
+
+        val started = checkNotNull(shadowOf(compose.activity).nextStartedActivityForResult) { "No picker was opened" }
+        assertEquals(Intent.ACTION_OPEN_DOCUMENT_TREE, started.intent.action)
+    }
+
+    @Test
+    fun `dado o app vazio, quando toco em Conectar ao Kavita, então a tela de conexão abre`() {
+        showWithoutFolder()
+        waitFor(app.getString(R.string.empty_title))
+
+        compose.onNodeWithText(app.getString(R.string.kavita_connect)).performClick()
+
+        waitFor(app.getString(R.string.kavita_address))
+    }
+
     @Test
     fun `dado uma obra do Kavita e nenhuma pasta escolhida, quando abro a Biblioteca, então vejo a obra com o selo Kavita`() {
         // A title without the word Kavita: only the badge can say where the work comes from.

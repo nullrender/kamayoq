@@ -143,4 +143,11 @@
     <string name="settings_kavita">Kavita</string>
     <string name="settings_backup">Backup</string>
     <string name="home_later">Continuar lendo, capítulos novos e obras adicionadas vão ficar aqui numa próxima versão. Suas obras estão na Biblioteca.</string>
+    <string name="empty_title">Sua biblioteca está vazia.</string>
+    <string name="empty_humor">As estantes já estão no lugar. Faltam as obras.</string>
+    <string name="empty_where">De onde vêm as obras? Dá para juntar mais de uma origem depois, nos Ajustes.</string>
+    <string name="source_files">Arquivos deste aparelho</string>
+    <string name="source_files_note">Uma pasta com arquivos CBZ e EPUB. Funciona sem internet.</string>
+    <string name="source_kavita_note">Seu servidor. O progresso acompanha você em qualquer aparelho.</string>
+    <string name="source_restore_note">Um backup deste app: a biblioteca e o seu progresso. As obras só abrem se a pasta ou o Kavita continuarem acessíveis.</string>
 </resources>
