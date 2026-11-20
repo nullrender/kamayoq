@@ -979,11 +979,34 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         val row = database.readingStateQueries.stateOfWork(owner.id).executeAsOneOrNull()
         val state = row?.state?.let(ReadingState::valueOf)
         val mark = row?.mark_chapter_id?.let { StateMark(it, BasisPoints.fromStored(checkNotNull(row.mark_fraction).toInt())) }
-        val next = ReadingStates.afterSave(state, WorkType.valueOf(owner.type), chapterId, before, after, mark) ?: return
+        val type = WorkType.valueOf(owner.type)
+        val next = finishedBy(owner.id, state, type, chapterId, before, after)
+            ?: ReadingStates.afterSave(state, type, chapterId, before, after, mark) ?: return
         val newMark = (after.position as? TextPosition)?.let { StateMark(chapterId, it.fraction) }
         database.readingStateQueries.save(
             owner.id, next.name, 1L, state?.name, at.toEpochMilli(), newMark?.chapterId, newMark?.fraction?.value?.toLong(),
         )
+    }
+
+    /**
+     * Completed by itself when this save finished [chapterId] (a new read mark or one more complete
+     * read) and it is the last chapter there is, with every other one read (core ReadingStates).
+     */
+    private fun finishedBy(
+        workId: String,
+        state: ReadingState?,
+        type: WorkType,
+        chapterId: String,
+        before: ChapterProgress,
+        after: ChapterProgress,
+    ): ReadingState? {
+        val finishedThis = after.readMark != null && (before.readMark == null || after.completeReads > before.completeReads)
+        // Most saves are a page turn: the chapters are read only when a chapter has just ended.
+        if (!finishedThis) return null
+        val chapters = chapters(workId)
+        val finishedLast = chapters.lastOrNull()?.id == chapterId
+        val everyRead = finishedLast && chapters.all { it.id == chapterId || progress(it.id).readMark != null }
+        return ReadingStates.afterFinishing(state, type, details(workId).publication, finishedLast, everyRead)
     }
 
     // A book's place where the work reopens; a chapter counts by its end, so it needs no mark.
