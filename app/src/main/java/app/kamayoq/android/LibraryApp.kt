@@ -125,6 +125,10 @@ fun LibraryApp(
     // Kept here, above the screens: a screen that leaves takes its list position with it, and Back
     // must find it again (AGENTS.md).
     val libraryList = rememberLazyListState()
+    // Where the list was before a search: the results move it, and closing the search brings it back.
+    var listIndexBefore by rememberSaveable { mutableStateOf(0) }
+    var listOffsetBefore by rememberSaveable { mutableStateOf(0) }
+    var listToRestore by remember { mutableStateOf(false) }
     val chapterList = rememberSaveable(openWorkId, saver = LazyListState.Saver) { LazyListState() }
     val context = LocalContext.current
 
@@ -360,6 +364,15 @@ fun LibraryApp(
             BackHandler(enabled = tab == AppTab.LIBRARY && searching) {
                 searching = false
                 query = ""
+                listToRestore = true
+            }
+            // After the screen has the whole list again, not before: scrolling the list of results
+            // would stop at its last one.
+            LaunchedEffect(searching) {
+                if (!searching && listToRestore) {
+                    listToRestore = false
+                    libraryList.scrollToItem(listIndexBefore, listOffsetBefore)
+                }
             }
             val folderReadable = tree != null && !accessLost && !accessRefused
             // The content ends above the bar instead of passing under it: on a short screen the
@@ -416,11 +429,16 @@ fun LibraryApp(
                             onOpenKavita = { showKavita = true },
                             searching = searching,
                             query = query,
-                            onOpenSearch = { searching = true },
+                            onOpenSearch = {
+                                listIndexBefore = libraryList.firstVisibleItemIndex
+                                listOffsetBefore = libraryList.firstVisibleItemScrollOffset
+                                searching = true
+                            },
                             onQueryChange = { query = it },
                             onCloseSearch = {
                                 searching = false
                                 query = ""
+                                listToRestore = true
                             },
                         )
                     }
