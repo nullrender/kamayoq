@@ -3,11 +3,13 @@ package app.kamayoq.android
 import android.util.Base64
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import app.kamayoq.core.kavita.ImportedChapter
 import app.kamayoq.core.kavita.ImportedWork
@@ -120,6 +122,18 @@ class WorkHeaderTest {
         open("Gantz")
 
         waitForTag(COVER_IMAGE)
+    }
+
+    @Test
+    fun `dado a Obra, então o botão de estado fica a pelo menos 16 dp abaixo da capa, sem encostar nela`() {
+        open("Sakamoto Days", local = listOf("Sakamoto Days"))
+        waitForTag(COVER_PROVISIONAL)
+
+        val cover = compose.onNode(hasTestTag(COVER_PROVISIONAL)).fetchSemanticsNode().boundsInRoot
+        val state = compose.onNode(hasContentDescription(app.getString(R.string.state_button_label, app.getString(stateName(null)))))
+            .fetchSemanticsNode().boundsInRoot
+
+        assertTrue(state.top - cover.bottom >= with(compose.density) { 16.dp.toPx() })
     }
 
     private companion object {
