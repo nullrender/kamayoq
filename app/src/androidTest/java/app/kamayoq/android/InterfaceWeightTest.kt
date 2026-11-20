@@ -25,7 +25,8 @@ import org.junit.runner.RunWith
 
 /**
  * The interface's weights drawn by the real Android text stack, which Robolectric does not run.
- * Found on the S24 with build r576: every text came out in the same heavy weight.
+ * On a phone with the system's bold text on (font weight adjustment), every weight comes out
+ * heavier, as the person asked; this test runs without it, so the weights must differ.
  */
 @RunWith(AndroidJUnit4::class)
 class InterfaceWeightTest {
