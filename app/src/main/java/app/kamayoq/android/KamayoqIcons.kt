@@ -27,4 +27,8 @@ internal object KamayoqIcons {
 
     /** A section header's arrow, pointing right; turned down while the section is open. */
     val chevron = stroked("chevron", 2.2f, "M9 6l6 6-6 6")
+
+    val search = stroked("search", 2f, "M17 10.5a6.5 6.5 0 1 1-13 0a6.5 6.5 0 1 1 13 0", "M15.5 15.5l5 5")
+
+    val back = stroked("back", 2f, "M15 5l-7 7 7 7")
 }

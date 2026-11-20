@@ -13,18 +13,25 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -32,10 +39,12 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.kamayoq.core.library.LibrarySections
+import app.kamayoq.core.library.WorkSearch
 import app.kamayoq.core.library.WorkType
 import app.kamayoq.data.LibraryStore
 
@@ -59,13 +68,25 @@ internal fun WorkList(
     ignoredCount: Int,
     listState: LazyListState,
     collapsed: Set<WorkType>,
+    query: String,
     onToggleSection: (WorkType) -> Unit,
     onOpenWork: (String) -> Unit,
     onOpenIgnored: () -> Unit,
 ) {
-    val sections = LibrarySections.of(rows, { it.work.type }, { it.work.title })
+    val found = rows.filter { WorkSearch.matches(query, it.work.title, it.work.alternativeTitle) }
+    val sections = LibrarySections.of(found, { it.work.type }, { it.work.title })
+    val searching = query.isNotBlank()
     LazyColumn(state = listState) {
-        if (ignoredCount > 0) {
+        if (searching && found.isEmpty() && rows.isNotEmpty()) {
+            item(key = "none") {
+                Text(
+                    stringResource(R.string.search_none),
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 24.dp).announced(),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
+        }
+        if (ignoredCount > 0 && !searching) {
             item(key = "ignored") {
                 Column(
                     modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenIgnored).heightIn(min = 56.dp)
@@ -82,7 +103,8 @@ internal fun WorkList(
             }
         }
         sections.forEach { section ->
-            val open = section.type !in collapsed
+            // A folded section would hide what the search found.
+            val open = searching || section.type !in collapsed
             item(key = "section-${section.type}") {
                 SectionHeader(section.type, section.works.size, open) { onToggleSection(section.type) }
             }
@@ -153,4 +175,35 @@ private fun WorkRowItem(row: WorkRow, onOpen: () -> Unit) {
             )
         }
     }
+}
+
+@Composable
+internal fun SearchButton(onOpen: () -> Unit) {
+    IconButton(onClick = onOpen, modifier = Modifier.size(48.dp)) {
+        Icon(KamayoqIcons.search, contentDescription = stringResource(R.string.search_open), modifier = Modifier.size(22.dp))
+    }
+}
+
+/** The Library's header while searching: a way back and the field, which takes the keyboard at once. */
+@Composable
+internal fun SearchBar(query: String, onQueryChange: (String) -> Unit, onClose: () -> Unit) {
+    val focus = remember { FocusRequester() }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 12.dp, top = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = onClose, modifier = Modifier.size(48.dp)) {
+            Icon(KamayoqIcons.back, contentDescription = stringResource(R.string.search_close), modifier = Modifier.size(22.dp))
+        }
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            modifier = Modifier.weight(1f).focusRequester(focus),
+            placeholder = { Text(stringResource(R.string.search_field)) },
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        )
+    }
+    LaunchedEffect(Unit) { focus.requestFocus() }
 }

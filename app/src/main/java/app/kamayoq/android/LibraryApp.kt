@@ -110,6 +110,9 @@ fun LibraryApp(
     var showIgnored by rememberSaveable { mutableStateOf(false) }
     var showKavita by rememberSaveable { mutableStateOf(false) }
     var collapsed by rememberSaveable(stateSaver = COLLAPSED_SAVER) { mutableStateOf(emptySet<WorkType>()) }
+    // Kept above the screens, so a work opened from the results comes back to them.
+    var searching by rememberSaveable { mutableStateOf(false) }
+    var query by rememberSaveable { mutableStateOf("") }
     var readingChapterId by rememberSaveable { mutableStateOf<String?>(null) }
     // Raised when the reader closes, so the work's chapters show the new progress.
     var progressVersion by remember { mutableStateOf(0) }
@@ -344,32 +347,47 @@ fun LibraryApp(
                 )
             }
         }
-        else -> LibraryScreen(
-            rows = rows,
-            ignoredCount = ignored.size,
-            hasFolder = tree != null,
-            accessLost = accessLost,
-            accessRefused = accessRefused,
-            scanning = scanning,
-            scanFailed = scanFailed,
-            kavitaFailed = kavitaFailed,
-            kavitaKeyFor = kavitaKeyFor,
-            canRestore = empty,
-            restores = restores,
-            backingUp = backups.running,
-            backupResult = backups.result,
-            backupPlace = backups.place,
-            listState = libraryList,
-            collapsed = collapsed,
-            onToggleSection = { type -> collapsed = if (type in collapsed) collapsed - type else collapsed + type },
-            onBackUp = { currentTree?.let(::backUp) },
-            onPickBackup = { backupPicker.launch(arrayOf("*/*")) },
-            onConfirmRestore = { restores.confirm { backup -> withContext(Dispatchers.IO) { BackupRestore(store).apply(backup) } } },
-            onChooseFolder = { picker.launch(null) },
-            onOpenWork = { openWorkId = it },
-            onOpenIgnored = { showIgnored = true },
-            onOpenKavita = { showKavita = true },
-        )
+        else -> {
+            // Back closes the search first, as it closes a sheet (AGENTS.md).
+            BackHandler(enabled = searching) {
+                searching = false
+                query = ""
+            }
+            LibraryScreen(
+                rows = rows,
+                ignoredCount = ignored.size,
+                hasFolder = tree != null,
+                accessLost = accessLost,
+                accessRefused = accessRefused,
+                scanning = scanning,
+                scanFailed = scanFailed,
+                kavitaFailed = kavitaFailed,
+                kavitaKeyFor = kavitaKeyFor,
+                canRestore = empty,
+                restores = restores,
+                backingUp = backups.running,
+                backupResult = backups.result,
+                backupPlace = backups.place,
+                listState = libraryList,
+                collapsed = collapsed,
+                onToggleSection = { type -> collapsed = if (type in collapsed) collapsed - type else collapsed + type },
+                onBackUp = { currentTree?.let(::backUp) },
+                onPickBackup = { backupPicker.launch(arrayOf("*/*")) },
+                onConfirmRestore = { restores.confirm { backup -> withContext(Dispatchers.IO) { BackupRestore(store).apply(backup) } } },
+                onChooseFolder = { picker.launch(null) },
+                onOpenWork = { openWorkId = it },
+                onOpenIgnored = { showIgnored = true },
+                onOpenKavita = { showKavita = true },
+                searching = searching,
+                query = query,
+                onOpenSearch = { searching = true },
+                onQueryChange = { query = it },
+                onCloseSearch = {
+                    searching = false
+                    query = ""
+                },
+            )
+        }
     }
 }
 
@@ -423,16 +441,25 @@ private fun LibraryScreen(
     onOpenWork: (String) -> Unit,
     onOpenIgnored: () -> Unit,
     onOpenKavita: () -> Unit,
+    searching: Boolean,
+    query: String,
+    onOpenSearch: () -> Unit,
+    onQueryChange: (String) -> Unit,
+    onCloseSearch: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(stringResource(R.string.library_title), style = MaterialTheme.typography.headlineMedium)
-            if (hasFolder && !accessLost && !accessRefused) {
-                TextButton(onClick = onChooseFolder) { Text(stringResource(R.string.change_folder)) }
+        if (searching) {
+            SearchBar(query, onQueryChange, onCloseSearch)
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 6.dp, top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(stringResource(R.string.library_title), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
+                if (hasFolder && !accessLost && !accessRefused) {
+                    TextButton(onClick = onChooseFolder) { Text(stringResource(R.string.change_folder)) }
+                }
+                SearchButton(onOpenSearch)
             }
         }
         // Here until the Settings screen exists (its place there: Settings › Sources › Kavita).
@@ -460,15 +487,15 @@ private fun LibraryScreen(
         when {
             accessRefused -> {
                 Notice(R.string.folder_access_refused, onChooseFolder)
-                WorkList(kavitaRows, 0, listState, collapsed, onToggleSection, onOpenWork, onOpenIgnored)
+                WorkList(kavitaRows, 0, listState, collapsed, query, onToggleSection, onOpenWork, onOpenIgnored)
             }
             !hasFolder -> {
                 Notice(R.string.no_folder, onChooseFolder)
-                WorkList(kavitaRows, 0, listState, collapsed, onToggleSection, onOpenWork, onOpenIgnored)
+                WorkList(kavitaRows, 0, listState, collapsed, query, onToggleSection, onOpenWork, onOpenIgnored)
             }
             accessLost -> {
                 Notice(R.string.folder_access_lost, onChooseFolder)
-                WorkList(kavitaRows, 0, listState, collapsed, onToggleSection, onOpenWork, onOpenIgnored)
+                WorkList(kavitaRows, 0, listState, collapsed, query, onToggleSection, onOpenWork, onOpenIgnored)
             }
             else -> {
                 // Here until the Settings screen exists (its place there: Settings › Backup).
@@ -495,7 +522,7 @@ private fun LibraryScreen(
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }
-                WorkList(rows.orEmpty(), ignoredCount, listState, collapsed, onToggleSection, onOpenWork, onOpenIgnored)
+                WorkList(rows.orEmpty(), ignoredCount, listState, collapsed, query, onToggleSection, onOpenWork, onOpenIgnored)
             }
         }
     }
