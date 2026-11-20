@@ -20,7 +20,7 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.StateRestorationTester
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -138,6 +138,9 @@ class LibraryAppTest {
         waitFor("Dom Casmurro")
         val comics = app.getString(R.string.section_comics)
         val books = app.getString(R.string.section_books)
+        // Each place is read at its own moment: the folder's reading must be over, or its message
+        // leaves between two readings and the list moves up under them.
+        waitUntilGone(app.getString(R.string.reading_folder))
 
         assertTrue(top(comics) < top("Sakamoto Days"))
         assertTrue(top("Sakamoto Days") < top(books))
