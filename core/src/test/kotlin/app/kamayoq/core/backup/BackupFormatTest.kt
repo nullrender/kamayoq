@@ -98,10 +98,10 @@ class BackupFormatTest {
     }
 
     @Test
-    fun `dado uma cópia gravada, então o arquivo diz a versão do formato, 4`() {
+    fun `dado uma cópia gravada, então o arquivo diz a versão do formato, 5`() {
         val text = BackupFormat.write(backup(work(chapters = emptyList())))
 
-        assertEquals(4, Json.parseToJsonElement(text).jsonObject["formatVersion"]?.jsonPrimitive?.int)
+        assertEquals(5, Json.parseToJsonElement(text).jsonObject["formatVersion"]?.jsonPrimitive?.int)
     }
 
     private val states = listOf(
@@ -165,7 +165,8 @@ class BackupFormatTest {
     fun `dado um arquivo do formato 3, quando lido, então todo capítulo é o arquivo inteiro`() {
         val original = backup(work(chapters = listOf(chapter("Comics/Sakamoto Days/Capítulo 2.cbz", halfway))))
         val format3 = BackupFormat.write(original)
-            .replaceFirst("\"formatVersion\": 4", "\"formatVersion\": 3")
+            .replaceFirst("\"formatVersion\": 5", "\"formatVersion\": 3")
+            .replace(Regex(""",\s*"readingState": null"""), "")
             .replace(Regex(""",\s*"tocKey": "[^"]*""""), "")
 
         assertTrue("\"formatVersion\": 3" in format3 && "tocKey" !in format3, format3)
@@ -175,7 +176,8 @@ class BackupFormatTest {
     @Test
     fun `dado um arquivo que diz formato 3 mas traz a chave de um capítulo, quando lido, então recusa em vez de apagá-la`() {
         val text = BackupFormat.write(backup(work(title = "Release That Witch", chapters = splitChapters())))
-            .replaceFirst("\"formatVersion\": 4", "\"formatVersion\": 3")
+            .replaceFirst("\"formatVersion\": 5", "\"formatVersion\": 3")
+            .replace(Regex(""",\s*"readingState": null"""), "")
 
         assertTrue("\"formatVersion\": 3" in text && "tocKey" in text, text)
         assertFailsWith<IllegalArgumentException> { BackupFormat.read(text) }
@@ -389,9 +391,9 @@ class BackupFormatTest {
     @Test
     fun `dado um arquivo de uma versão do formato que este app não conhece, quando lido, então recusa`() {
         val text = BackupFormat.write(backup(work(chapters = emptyList())))
-            .replaceFirst("\"formatVersion\": 4", "\"formatVersion\": 5")
+            .replaceFirst("\"formatVersion\": 5", "\"formatVersion\": 6")
 
-        assertTrue("\"formatVersion\": 5" in text, text)
+        assertTrue("\"formatVersion\": 6" in text, text)
         assertFailsWith<IllegalArgumentException> { BackupFormat.read(text) }
     }
 
@@ -446,7 +448,8 @@ class BackupFormatTest {
             completeReads = 0,
         )
         val text = BackupFormat.write(backup(work(chapters = listOf(chapter("Books/Dom Casmurro.epub", place, format = ChapterFormat.EPUB)))))
-            .replaceFirst("\"formatVersion\": 4", "\"formatVersion\": 2")
+            .replaceFirst("\"formatVersion\": 5", "\"formatVersion\": 2")
+            .replace(Regex(""",\s*"readingState": null"""), "")
 
         assertTrue("\"formatVersion\": 2" in text && "\"section\": 2" in text, text)
         assertFailsWith<IllegalArgumentException> { BackupFormat.read(text) }

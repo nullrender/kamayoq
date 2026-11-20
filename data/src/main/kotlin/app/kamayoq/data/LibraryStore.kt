@@ -6,8 +6,10 @@ import app.cash.sqldelight.db.SqlSchema
 import app.kamayoq.core.backup.Backup
 import app.kamayoq.core.backup.BackupAgreement
 import app.kamayoq.core.backup.BackupAlternative
+import app.kamayoq.core.backup.BackupAutomaticChange
 import app.kamayoq.core.backup.BackupChapter
 import app.kamayoq.core.backup.BackupOutbox
+import app.kamayoq.core.backup.BackupReadingState
 import app.kamayoq.core.backup.BackupServer
 import app.kamayoq.core.backup.BackupWork
 import app.kamayoq.core.kavita.ImportedChapter
@@ -1001,6 +1003,7 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
                         tocKey = chapter.toc_href,
                     )
                 },
+                readingState = backupState(version.work_id),
             )
         }
         val servers = database.kavitaServerQueries.all().executeAsList().map { server ->
@@ -1009,6 +1012,19 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         }
         Backup(appVersion, exportedAt, works, servers)
     }
+
+    private fun backupState(workId: String): BackupReadingState? =
+        database.readingStateQueries.stateOfWork(workId).executeAsOneOrNull()?.let { row ->
+            BackupReadingState(
+                state = row.state?.let(ReadingState::valueOf),
+                automatic = if (row.automatic == 1L) {
+                    BackupAutomaticChange(row.state_before?.let(ReadingState::valueOf), Instant.ofEpochMilli(checkNotNull(row.changed_at)))
+                } else {
+                    null
+                },
+                mark = row.mark_chapter_id?.let { StateMark(it, BasisPoints.fromStored(checkNotNull(row.mark_fraction).toInt())) },
+            )
+        }
 
     /** Nothing stored: no work and no Kavita server (docs/decisions/backup-restore-2026-11-18.md, choice 1). */
     fun isEmpty(): Boolean = database.transactionWithResult {
@@ -1058,6 +1074,10 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
                 else -> throw IllegalArgumentException("Work ${work.id} comes from ${work.origin}")
             }
             require(work.chapters.count { it.resume } <= 1) { "Work ${work.id} reopens in more than one chapter" }
+            // The database finds any chapter; only this check keeps the mark inside its own work.
+            work.readingState?.mark?.let { mark ->
+                require(work.chapters.any { it.id == mark.chapterId }) { "Work ${work.id} marks its state in a chapter not in it" }
+            }
             require(work.alternatives.map { it.reason }.toSet().size == work.alternatives.size) {
                 "Work ${work.id} keeps two positions aside for the same reason"
             }
@@ -1120,6 +1140,13 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
             database.alternativePositionQueries.keep(
                 work.versionId, position.reason, position.chapterId, position.page.toLong(), position.total.toLong(),
                 position.at.toEpochMilli(), position.device,
+            )
+        }
+        // After the chapters: the mark names one of them.
+        work.readingState?.let { saved ->
+            database.readingStateQueries.save(
+                work.id, saved.state?.name, if (saved.automatic != null) 1L else 0L, saved.automatic?.from?.name,
+                saved.automatic?.at?.toEpochMilli(), saved.mark?.chapterId, saved.mark?.fraction?.value?.toLong(),
             )
         }
     }

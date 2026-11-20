@@ -144,10 +144,11 @@ data class BackupOutbox(
 /** The backup file: JSON, so a person can read it, with a format version (decision of 27/10/2026). */
 object BackupFormat {
     /**
-     * 4 carries a chapter's key in a split file (step 4, milestone B); 3 a book's place (piece 22);
-     * 2 added Kavita (step 3); 1 is from 28/10/2026.
+     * 5 carries a work's reading state (slice 2 of the v1 interface); 4 a chapter's key in a split
+     * file (step 4, milestone B); 3 a book's place (piece 22); 2 added Kavita (step 3); 1 is from
+     * 28/10/2026.
      */
-    const val VERSION = 4
+    const val VERSION = 5
 
     // Pretty and with accents as they are, so the file reads in any text editor. Nulls are written
     // out, so every field shows even when empty.
@@ -171,6 +172,7 @@ object BackupFormat {
         if (version < 2) current = toFormat2(current)
         if (version < 3) current = toFormat3(current)
         if (version < 4) current = toFormat4(current)
+        if (version < 5) current = toFormat5(current)
         return try {
             json.decodeFromJsonElement(BackupFile.serializer(), current).toBackup()
         } catch (e: DateTimeException) {
@@ -200,6 +202,10 @@ object BackupFormat {
     /** Format 4 added the key of a chapter inside a split file; every chapter before it is a whole file. */
     private fun toFormat4(file: JsonObject): JsonObject =
         file.withWorks { work -> work.withChapters { it.adding("tocKey" to JsonPrimitive("")) } }
+
+    /** Format 5 added the reading states; every work before it has none. */
+    private fun toFormat5(file: JsonObject): JsonObject =
+        file.withWorks { it.adding("readingState" to JsonNull) }
 
     // A field the declared format could not have was not written by it: replacing it would drop it
     // without a word, so the file is refused instead.
@@ -278,6 +284,7 @@ private class WorkEntry(
     val source: String?,
     val remoteLibraryId: Int?,
     val alternatives: List<AlternativeEntry>,
+    val readingState: ReadingStateEntry?,
 ) {
     fun toWork() = BackupWork(
         id = id,
@@ -293,6 +300,7 @@ private class WorkEntry(
         source = source,
         remoteLibraryId = remoteLibraryId,
         alternatives = alternatives.map { it.toAlternative() },
+        readingState = readingState?.toState(),
     )
 
     companion object {
@@ -310,9 +318,34 @@ private class WorkEntry(
             source = work.source,
             remoteLibraryId = work.remoteLibraryId,
             alternatives = work.alternatives.map(AlternativeEntry::of),
+            readingState = work.readingState?.let(ReadingStateEntry::of),
         )
     }
 }
+
+/** States by name; [MarkEntry.fraction] in basis points, as the app keeps it. */
+@Serializable
+private class ReadingStateEntry(val state: String?, val automatic: AutomaticEntry?, val mark: MarkEntry?) {
+    fun toState() = BackupReadingState(
+        state = state?.let(ReadingState::valueOf),
+        automatic = automatic?.let { BackupAutomaticChange(it.from?.let(ReadingState::valueOf), Instant.parse(it.at)) },
+        mark = mark?.let { StateMark(it.chapterId, BasisPoints.fromStored(it.fraction)) },
+    )
+
+    companion object {
+        fun of(state: BackupReadingState) = ReadingStateEntry(
+            state = state.state?.name,
+            automatic = state.automatic?.let { AutomaticEntry(it.from?.name, it.at.toString()) },
+            mark = state.mark?.let { MarkEntry(it.chapterId, it.fraction.value) },
+        )
+    }
+}
+
+@Serializable
+private class AutomaticEntry(val from: String?, val at: String)
+
+@Serializable
+private class MarkEntry(val chapterId: String, val fraction: Int)
 
 @Serializable
 private class AlternativeEntry(
