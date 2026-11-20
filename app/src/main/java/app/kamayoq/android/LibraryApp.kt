@@ -189,10 +189,11 @@ fun LibraryApp(
         } catch (e: Exception) {
             Log.e(TAG, "Reading the chosen folder failed", e)
             if (latest()) {
-                scanFailed = true
                 // The folder just left is already out of the store: a list kept from before would
-                // show works that open empty.
+                // show works that open empty. Said after the list is read again, so the message
+                // never sits next to that list.
                 show(withContext(Dispatchers.IO) { readRows() })
+                scanFailed = true
             }
         } finally {
             if (latest()) scanning = false
