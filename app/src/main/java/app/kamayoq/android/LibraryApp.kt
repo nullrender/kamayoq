@@ -51,6 +51,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -679,7 +680,7 @@ private fun WorkScreen(
     var stateVersion by remember(workId) { mutableStateOf(0) }
     var choosingState by rememberSaveable(workId) { mutableStateOf(false) }
     val notices = remember { SnackbarHostState() }
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
 
     // The person's choice, said with Undo; the chapters read never change with the state.
@@ -690,9 +691,9 @@ private fun WorkScreen(
         scope.launch {
             withContext(Dispatchers.IO) { store.setReadingState(workId, picked) }
             stateVersion++
-            val message = if (picked == null) context.getString(R.string.state_cleared)
-            else context.getString(R.string.state_changed, context.getString(stateName(picked)))
-            val answer = notices.showSnackbar(message, actionLabel = context.getString(R.string.undo), duration = SnackbarDuration.Long)
+            val message = if (picked == null) resources.getString(R.string.state_cleared)
+            else resources.getString(R.string.state_changed, resources.getString(stateName(picked)))
+            val answer = notices.showSnackbar(message, actionLabel = resources.getString(R.string.undo), duration = SnackbarDuration.Long)
             if (answer == SnackbarResult.ActionPerformed) {
                 withContext(Dispatchers.IO) { store.setReadingState(workId, before) }
                 stateVersion++
