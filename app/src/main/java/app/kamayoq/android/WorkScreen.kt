@@ -278,7 +278,10 @@ internal fun WorkScreen(
             }
         },
     ) {
-        val target = resume ?: chapters.firstOrNull()?.chapter
+        // With nothing opened yet, chapters marked read still say where the reading is: it goes on at
+        // the first one not read.
+        val markedOnly = resume == null && chapters.any { it.read }
+        val target = resume ?: (if (markedOnly) chapters.firstOrNull { !it.read } ?: chapters.lastOrNull() else chapters.firstOrNull())?.chapter
         val fromKavita = work?.origin == LibraryStore.KAVITA && kavitaSync != null
         // The two sides went to different chapters: where to reopen is the person's (contract, case 5).
         val crossing = others.firstOrNull { it.reason == LibraryStore.CONFLICT && resume != null && it.chapterId != resume?.id }
@@ -423,7 +426,7 @@ internal fun WorkScreen(
                     }
                 } else if (target != null) {
                     Button(onClick = { onOpenChapter(target.id) }, modifier = Modifier.padding(16.dp)) {
-                        val label = if (resume != null) stringResource(R.string.continue_reading, target.name)
+                        val label = if (resume != null || markedOnly) stringResource(R.string.continue_reading, target.name)
                         else stringResource(R.string.start_reading)
                         Text(label)
                     }
