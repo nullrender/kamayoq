@@ -62,6 +62,8 @@ import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.IOException
 import java.time.Instant
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import javax.crypto.KeyGenerator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -71,6 +73,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
+import kotlin.concurrent.thread
 
 @RunWith(RobolectricTestRunner::class)
 class LibraryAppTest {
@@ -595,6 +598,40 @@ class LibraryAppTest {
         compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
 
         waitFor(app.getString(R.string.reading_folder_failed))
+        compose.onNodeWithText("Obra").assertDoesNotExist()
+    }
+
+    // Found in CI on 20/11/2026 (run 44837006306): the message that the reading failed showed next
+    // to works already out of the store, because the list was read again only after it.
+    @Test
+    fun `dado uma leitura da pasta que falha, então o aviso só aparece com a lista já relida do banco`() {
+        val folder = showLibrary(listOf("Obra"))
+        waitFor("Obra")
+        waitUntilGone(app.getString(R.string.reading_folder))
+        app.store.importLocal(folder.tree.toString(), LocalLibrary(emptyList(), emptyList()), emptyMap())
+        // The store is held as the reading fails, so the list cannot be read again until released:
+        // a transaction that waits and then writes nothing. The wait has its own limit in case a
+        // screen reads the store on its own thread.
+        val holding = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        folder.beforeFailing = {
+            folder.beforeFailing = {}
+            thread { app.store.keepOnlyFolder("held", stillChosen = { holding.countDown(); release.await(5, TimeUnit.SECONDS); false }) }
+            holding.await()
+        }
+        folder.failing = true
+        val failed = app.getString(R.string.reading_folder_failed)
+        compose.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+        compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+
+        // Shown before the list is read again, the message comes within a frame; shown with it, not
+        // while the store is held.
+        val shownEarly = runCatching { compose.waitUntil(2_000) { compose.onAllNodes(hasText(failed)).fetchSemanticsNodes().isNotEmpty() } }.isSuccess
+        val staleWork = compose.onAllNodes(hasText("Obra")).fetchSemanticsNodes().isNotEmpty()
+        release.countDown()
+        assertFalse("the message showed with the list from before", shownEarly && staleWork)
+
+        waitFor(failed)
         compose.onNodeWithText("Obra").assertDoesNotExist()
     }
 

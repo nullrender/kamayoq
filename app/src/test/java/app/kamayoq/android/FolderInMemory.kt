@@ -15,6 +15,9 @@ class FolderInMemory(context: Context, var titles: List<String>) : ChosenFolder(
     /** The next readings fail, as a folder that stopped answering. */
     var failing = false
 
+    /** Runs on the reading's thread just before a failing reading fails. */
+    var beforeFailing: () -> Unit = {}
+
     /** A folder the app can only read, with no `Library` in it: creating one fails. */
     var readOnlyWithoutLibrary = false
 
@@ -42,6 +45,7 @@ class FolderInMemory(context: Context, var titles: List<String>) : ChosenFolder(
     }
 
     override fun children(tree: Uri, folderId: String): List<FolderEntry> {
+        if (failing) beforeFailing()
         check(!failing) { "The folder stopped answering" }
         return when (folderId) {
             rootId(tree) -> emptyList()
