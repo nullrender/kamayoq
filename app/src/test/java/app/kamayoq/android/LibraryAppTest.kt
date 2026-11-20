@@ -585,6 +585,8 @@ class LibraryAppTest {
     fun `dado obras que saíram da lista e uma leitura da pasta que falha, então a lista mostra só o que continua no banco`() {
         val folder = showLibrary(listOf("Obra"))
         waitFor("Obra")
+        // A first reading still running would write "Obra" back after the store is emptied below.
+        waitUntilGone(app.getString(R.string.reading_folder))
 
         // What choosing another folder does before reading it.
         app.store.importLocal(folder.tree.toString(), LocalLibrary(emptyList(), emptyList()), emptyMap())
