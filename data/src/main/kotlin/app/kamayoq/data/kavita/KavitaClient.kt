@@ -98,7 +98,9 @@ open class KavitaClient(
             ofTheRightShape {
                 answer.body.jsonArray.mapTo(works) {
                     val work = it.jsonObject
-                    RemoteWork(work.int("id"), work.text("name"), work.int("libraryId"))
+                    // A series with no cover may come with null here.
+                    val cover = (work["coverImage"] as? JsonPrimitive)?.takeIf { it.isString }?.content.orEmpty()
+                    RemoteWork(work.int("id"), work.text("name"), work.int("libraryId"), cover)
                 }
             }
             val pages = answer.totalPages ?: throw KavitaListingFailed(HTTP_OK)
@@ -134,13 +136,37 @@ open class KavitaClient(
     }
 
     /** The series' metadata (KavitaDetailsFactsTest). */
-    @Suppress("UNUSED_PARAMETER")
-    open fun details(address: String, key: String, workId: Int): RemoteDetails =
-        RemoteDetails("", emptyList(), emptyList(), emptyList(), 0, false, 0, NO_COUNT)
+    open fun details(address: String, key: String, workId: Int): RemoteDetails {
+        val answer = fetch(address, key, "/api/Series/metadata?seriesId=$workId")
+        return ofTheRightShape {
+            val metadata = answer.body.jsonObject
+            fun names(field: String, part: String) =
+                metadata[field]?.jsonArray.orEmpty().map { it.jsonObject.text(part) }
+            RemoteDetails(
+                // A series never edited may have no summary at all.
+                summary = (metadata["summary"] as? JsonPrimitive)?.takeIf { it.isString }?.content.orEmpty(),
+                writers = names("writers", "name"),
+                genres = names("genres", "title"),
+                tags = names("tags", "title"),
+                status = metadata.int("publicationStatus"),
+                statusLocked = metadata.getValue("publicationStatusLocked").jsonPrimitive.boolean,
+                totalCount = metadata.int("totalCount"),
+                maxCount = metadata.int("maxCount"),
+            )
+        }
+    }
 
-    /** The series' cover image, or null when the series has none. */
-    @Suppress("UNUSED_PARAMETER")
-    open fun cover(address: String, key: String, workId: Int): ByteArray? = null
+    /** The series' cover image, or null when the series has none: Kavita answers 404 then. */
+    open fun cover(address: String, key: String, workId: Int): ByteArray? {
+        val url = "${normalizeKavitaAddress(address)}/api/Image/series-cover?seriesId=$workId".toHttpUrlOrNull()
+            ?: throw IOException("Not an address")
+        val request = Request.Builder().url(url).header("x-api-key", key.trim()).build()
+        http.newCall(request).execute().use { response ->
+            if (response.code == HTTP_NOT_FOUND) return null
+            if (response.code != HTTP_OK) throw KavitaListingFailed(response.code)
+            return response.body.bytes()
+        }
+    }
 
     open fun progress(address: String, key: String, chapterId: Int): RemoteProgress {
         val answer = fetch(address, key, "/api/Reader/get-progress?chapterId=$chapterId")
@@ -241,7 +267,7 @@ open class KavitaClient(
 
     private companion object {
         const val HTTP_OK = 200
-        const val NO_COUNT = -100000
+        const val HTTP_NOT_FOUND = 404
         val JSON = "application/json".toMediaType()
 
         // Kavita's series filter: SeriesFilterField.Libraries, FilterComparison.Equal, FilterCombination.And.
