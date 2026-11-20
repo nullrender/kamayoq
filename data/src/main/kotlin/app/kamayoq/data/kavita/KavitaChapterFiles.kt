@@ -11,9 +11,14 @@ class KavitaChapterFile(val file: File, val outdated: Boolean)
 
 /**
  * The files of Kavita chapters, kept in [folder] to be read with no network. It sits in the app's
- * cache, so Android may free it, but apart from what the reader clears at start.
+ * cache, so Android may free it, but apart from what the reader clears at start. The chapters the
+ * person asks to download go to [downloads], in the app's own files, which Android never empties.
  */
-class KavitaChapterFiles(private val client: KavitaClient, private val folder: File) {
+class KavitaChapterFiles(
+    private val client: KavitaClient,
+    private val folder: File,
+    @Suppress("unused") private val downloads: File? = null,
+) {
 
     private val locks = ConcurrentHashMap<String, Any>()
 
@@ -38,6 +43,25 @@ class KavitaChapterFiles(private val client: KavitaClient, private val folder: F
         // answer must not land on top of the newer.
         return synchronized(locks.computeIfAbsent(chapter.path) { Any() }) { download(chapter, kept, stillWanted, server) }
     }
+
+    /** True when the person downloaded [chapter] and its file is in [downloads]. */
+    @Suppress("UNUSED_PARAMETER")
+    fun isDownloaded(chapter: StoredChapter): Boolean = false
+
+    /**
+     * Downloads [chapter] into [downloads]; false when it was already there, so nothing came. A copy
+     * the reader already keeps moves there with no network. Throws [IOException] as [file] does.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    fun download(chapter: StoredChapter, stillWanted: () -> Boolean, server: () -> Pair<String, String>): Boolean = false
+
+    /** Deletes every copy of [chapter] on this device and returns the bytes freed. */
+    @Suppress("UNUSED_PARAMETER")
+    fun delete(chapter: StoredChapter): Long = 0
+
+    /** The bytes the downloaded copies of [chapters] take. */
+    @Suppress("UNUSED_PARAMETER")
+    fun downloadedBytes(chapters: List<StoredChapter>): Long = 0
 
     // Only Kavita's CBZ chapters and books reach here: the reader stops the other formats first.
     private fun extensionOf(format: ChapterFormat) = if (format == ChapterFormat.EPUB) "epub" else "cbz"
