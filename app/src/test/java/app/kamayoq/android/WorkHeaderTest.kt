@@ -19,6 +19,7 @@ import app.kamayoq.core.library.PublicationStatus
 import app.kamayoq.core.library.UnitKind
 import app.kamayoq.core.library.WorkDetails
 import app.kamayoq.core.library.WorkType
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -134,6 +135,18 @@ class WorkHeaderTest {
             .fetchSemanticsNode().boundsInRoot
 
         assertTrue(state.top - cover.bottom >= with(compose.density) { 16.dp.toPx() })
+    }
+
+    @Test
+    fun `dado uma sinopse longa, então Mais começa na mesma margem que o texto da sinopse`() {
+        kavitaWork("Gantz", gantz.copy(summary = (1..12).joinToString("\n") { "Parágrafo $it da sinopse." }))
+        open("Gantz")
+        waitFor(app.getString(R.string.summary_more))
+
+        val summary = compose.onNode(hasText("Parágrafo 1", substring = true), useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val more = compose.onNode(hasText(app.getString(R.string.summary_more)), useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+
+        assertEquals(summary.left, more.left, 1f)
     }
 
     private companion object {
