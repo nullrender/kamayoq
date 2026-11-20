@@ -35,9 +35,6 @@ enum class AppTab(@StringRes val label: Int, val icon: ImageVector) {
     SETTINGS(R.string.nav_settings, KamayoqIcons.settings),
 }
 
-/** Room the floating bar takes at the bottom, so the end of a list can scroll above it. */
-internal val BAR_ROOM = 96.dp
-
 /**
  * The floating bar of the boards (DESIGN.md, "Barra de navegação"): every item labelled, the chosen
  * one in the text colour on the inverted background, the others in the secondary text colour.

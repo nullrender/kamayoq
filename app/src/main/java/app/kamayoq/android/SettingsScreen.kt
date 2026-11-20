@@ -37,7 +37,7 @@ internal fun SettingsScreen(
 ) {
     Column(
         modifier = Modifier.fillMaxSize().safeDrawingPadding().verticalScroll(rememberScrollState())
-            .padding(PaddingValues(start = 18.dp, end = 18.dp, top = 8.dp, bottom = BAR_ROOM)),
+            .padding(PaddingValues(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 16.dp)),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(
@@ -74,7 +74,7 @@ private fun Group(@StringRes title: Int, content: @Composable () -> Unit) {
 @Composable
 internal fun HomeScreen() {
     Column(
-        modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = BAR_ROOM),
+        modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(

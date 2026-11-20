@@ -12,6 +12,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -359,50 +362,55 @@ fun LibraryApp(
                 query = ""
             }
             val folderReadable = tree != null && !accessLost && !accessRefused
-            Box(modifier = Modifier.fillMaxSize()) {
-                when (tab) {
-                    AppTab.HOME -> HomeScreen()
-                    AppTab.SETTINGS -> SettingsScreen(
-                        hasFolder = tree != null,
-                        folderReadable = folderReadable,
-                        backingUp = backups.running,
-                        backupResult = backups.result,
-                        backupPlace = backups.place,
-                        onChooseFolder = { picker.launch(null) },
-                        onOpenKavita = { showKavita = true },
-                        onBackUp = { currentTree?.let(::backUp) },
-                    )
-                    AppTab.LIBRARY -> LibraryScreen(
-                        rows = rows,
-                        ignoredCount = ignored.size,
-                        hasFolder = tree != null,
-                        accessLost = accessLost,
-                        accessRefused = accessRefused,
-                        scanning = scanning,
-                        scanFailed = scanFailed,
-                        kavitaFailed = kavitaFailed,
-                        kavitaKeyFor = kavitaKeyFor,
-                        canRestore = empty,
-                        restores = restores,
-                        listState = libraryList,
-                        collapsed = collapsed,
-                        onToggleSection = { type -> collapsed = if (type in collapsed) collapsed - type else collapsed + type },
-                        onPickBackup = { backupPicker.launch(arrayOf("*/*")) },
-                        onConfirmRestore = { restores.confirm { backup -> withContext(Dispatchers.IO) { BackupRestore(store).apply(backup) } } },
-                        onChooseFolder = { picker.launch(null) },
-                        onOpenWork = { openWorkId = it },
-                        onOpenIgnored = { showIgnored = true },
-                        searching = searching,
-                        query = query,
-                        onOpenSearch = { searching = true },
-                        onQueryChange = { query = it },
-                        onCloseSearch = {
-                            searching = false
-                            query = ""
-                        },
-                    )
+            // The content ends above the bar instead of passing under it: on a short screen the
+            // bar would cover a work, and a tap meant for the work would reach the bar.
+            Column(modifier = Modifier.fillMaxSize()) {
+                // The bar takes the navigation bar's inset; the screens above it must not add it again.
+                Box(modifier = Modifier.weight(1f).consumeWindowInsets(WindowInsets.navigationBars)) {
+                    when (tab) {
+                        AppTab.HOME -> HomeScreen()
+                        AppTab.SETTINGS -> SettingsScreen(
+                            hasFolder = tree != null,
+                            folderReadable = folderReadable,
+                            backingUp = backups.running,
+                            backupResult = backups.result,
+                            backupPlace = backups.place,
+                            onChooseFolder = { picker.launch(null) },
+                            onOpenKavita = { showKavita = true },
+                            onBackUp = { currentTree?.let(::backUp) },
+                        )
+                        AppTab.LIBRARY -> LibraryScreen(
+                            rows = rows,
+                            ignoredCount = ignored.size,
+                            hasFolder = tree != null,
+                            accessLost = accessLost,
+                            accessRefused = accessRefused,
+                            scanning = scanning,
+                            scanFailed = scanFailed,
+                            kavitaFailed = kavitaFailed,
+                            kavitaKeyFor = kavitaKeyFor,
+                            canRestore = empty,
+                            restores = restores,
+                            listState = libraryList,
+                            collapsed = collapsed,
+                            onToggleSection = { type -> collapsed = if (type in collapsed) collapsed - type else collapsed + type },
+                            onPickBackup = { backupPicker.launch(arrayOf("*/*")) },
+                            onConfirmRestore = { restores.confirm { backup -> withContext(Dispatchers.IO) { BackupRestore(store).apply(backup) } } },
+                            onChooseFolder = { picker.launch(null) },
+                            onOpenWork = { openWorkId = it },
+                            onOpenIgnored = { showIgnored = true },
+                            searching = searching,
+                            query = query,
+                            onOpenSearch = { searching = true },
+                            onQueryChange = { query = it },
+                            onCloseSearch = {
+                                searching = false
+                                query = ""
+                            },
+                        )
+                    }
                 }
-                AppBar(current = tab, onSelect = { tab = it }, modifier = Modifier.align(Alignment.BottomCenter))
+                AppBar(current = tab, onSelect = { tab = it })
             }
         }
     }

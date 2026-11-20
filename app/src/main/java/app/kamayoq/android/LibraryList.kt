@@ -6,7 +6,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -77,7 +76,7 @@ internal fun WorkList(
     val found = rows.filter { WorkSearch.matches(query, it.work.title, it.work.alternativeTitle) }
     val sections = LibrarySections.of(found, { it.work.type }, { it.work.title })
     val searching = query.isNotBlank()
-    LazyColumn(state = listState, contentPadding = PaddingValues(bottom = BAR_ROOM)) {
+    LazyColumn(state = listState) {
         if (searching && found.isEmpty() && rows.isNotEmpty()) {
             item(key = "none") {
                 Text(
