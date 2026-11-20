@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -710,8 +711,27 @@ private fun WorkScreen(
             }
         }
     }
+    fun undoAutomatic() {
+        scope.launch {
+            withContext(Dispatchers.IO) { store.undoAutomatic(workId) }
+            stateVersion++
+        }
+    }
     LaunchedEffect(workId, stateVersion, progressVersion) {
-        readingState = withContext(Dispatchers.IO) { store.readingState(workId) }
+        val loaded = withContext(Dispatchers.IO) { store.readingState(workId) }
+        readingState = loaded
+        // A change the app made while the reader was open is told once, as the reader closes; the
+        // line below stays for the way back after the notice goes.
+        val change = loaded.automatic
+        val since = readingSince
+        if (change != null && since != null && change.at.toEpochMilli() >= since) {
+            onNoticed()
+            scope.launch {
+                val message = resources.getString(R.string.state_auto_notice, resources.getString(stateName(loaded.state)))
+                val answer = notices.showSnackbar(message, actionLabel = resources.getString(R.string.undo), duration = SnackbarDuration.Long)
+                if (answer == SnackbarResult.ActionPerformed) undoAutomatic()
+            }
+        }
     }
     LaunchedEffect(workId, progressVersion, usedOther, answered) {
         val loaded = withContext(Dispatchers.IO) {
@@ -756,6 +776,35 @@ private fun WorkScreen(
             }
         }
         StateButton(readingState.state, onClick = { choosingState = true }, modifier = Modifier.padding(horizontal = 16.dp))
+        readingState.automatic?.let { change ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stringResource(R.string.state_changed_by_itself, stringResource(stateName(readingState.state))),
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                TextButton(onClick = { undoAutomatic() }, modifier = Modifier.sizeIn(minHeight = 48.dp)) {
+                    val from = change.from
+                    Text(if (from == null) stringResource(R.string.state_clear) else stringResource(R.string.state_back_to, stringResource(stateName(from))))
+                }
+            }
+        }
+        // Completed by itself needs the publication finished, which the app does not know yet: with
+        // everything here read, the person decides (FEATURES, part 3).
+        if (chapters.isNotEmpty() && chapters.all { it.read } && readingState.state != ReadingState.COMPLETED) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(stringResource(R.string.all_read), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                TextButton(onClick = { choose(ReadingState.COMPLETED) }, modifier = Modifier.sizeIn(minHeight = 48.dp)) {
+                    Text(stringResource(R.string.mark_completed))
+                }
+            }
+        }
         if (choosingState) {
             StateSheet(
                 current = readingState.state,
