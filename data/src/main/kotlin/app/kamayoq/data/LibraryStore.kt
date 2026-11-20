@@ -970,8 +970,9 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
     /** Puts back the marks [change] found, and the state its marking changed by itself. */
     fun undoMarks(change: MarkChange) = database.transaction {
         change.marksBefore.forEach { (chapterId, mark) -> writeProgress(chapterId, progress(chapterId).copy(readMark = mark)) }
-        // Only the change this marking made: a later one is the reading's, and stays.
-        if (readingState(change.workId).automatic?.at == change.at) undoAutomatic(change.workId)
+        // Only the change this marking made: a later one is the reading's, and stays. Compared in
+        // milliseconds, as the database keeps it: the phone's clock gives more digits.
+        if (readingState(change.workId).automatic?.at?.toEpochMilli() == change.at.toEpochMilli()) undoAutomatic(change.workId)
     }
 
     /**
