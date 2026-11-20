@@ -172,4 +172,18 @@ class ChapterSelectionTest {
         assertTrue(top(app.getString(R.string.selection_read)) > top("Cap. 3"))
         assertTrue(top(selected(1)) > top("Cap. 3"))
     }
+
+    @Test
+    fun `dado uma obra nunca aberta, quando marco os dois primeiros como lidos, então o botão continua no terceiro, não em Começar a ler`() {
+        openGantz()
+        compose.onNode(hasText(app.getString(R.string.start_reading))).assertIsDisplayed()
+
+        openMenu()
+        compose.onNode(hasText(app.getString(R.string.select_chapters))).performClick()
+        compose.onNode(hasText("Cap. 1")).performClick()
+        compose.onNode(hasText("Cap. 2")).performClick()
+        compose.onNode(hasText(app.getString(R.string.selection_read))).performClick()
+
+        waitFor(app.getString(R.string.continue_reading, "Cap. 3"))
+    }
 }
