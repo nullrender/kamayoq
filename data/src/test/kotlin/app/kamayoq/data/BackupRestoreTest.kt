@@ -3,6 +3,7 @@ package app.kamayoq.data
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import app.kamayoq.core.backup.Backup
 import app.kamayoq.core.backup.BackupFormat
+import app.kamayoq.core.backup.BackupReadingState
 import app.kamayoq.core.backup.BackupWork
 import app.kamayoq.core.kavita.ImportedChapter
 import app.kamayoq.core.kavita.ImportedWork
@@ -20,6 +21,7 @@ import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.ReadMark
 import app.kamayoq.core.progress.ReadMarkSource
 import app.kamayoq.core.progress.ReadingState
+import app.kamayoq.core.progress.StateMark
 import app.kamayoq.core.progress.StripPosition
 import app.kamayoq.core.progress.TextPosition
 import java.io.ByteArrayInputStream
@@ -472,6 +474,9 @@ class BackupRestoreTest {
             },
             "duas posições pelo mesmo motivo" to file.changingWork("Kaiju No. 8") { work ->
                 work.copy(alternatives = work.alternatives + work.alternatives)
+            },
+            "estado marcado num capítulo de outra obra" to file.changingWork("Kaiju No. 8") { work ->
+                work.copy(readingState = BackupReadingState(ReadingState.ON_HOLD, automatic = null, StateMark(current.id, BasisPoints.fromStored(100))))
             },
         )
     }
