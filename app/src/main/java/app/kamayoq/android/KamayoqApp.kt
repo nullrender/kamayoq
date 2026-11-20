@@ -49,7 +49,7 @@ open class KamayoqApp : Application() {
         folder = ChosenFolder(this)
         kavita = KavitaAccess(this)
         covers = WorkCovers(File(filesDir, "covers"))
-        kavitaSync = KavitaSync(store, kavita, File(cacheDir, "kavita"), covers = covers)
+        kavitaSync = KavitaSync(store, kavita, File(cacheDir, "kavita"), covers = covers, downloadFolder = File(filesDir, "downloads"))
         opening = ChapterOpening(this, folder, store, kavitaSync::chapterFile)
         // Lives as long as the app: a backup started on a screen that goes away still ends.
         backups = Backups(MainScope())

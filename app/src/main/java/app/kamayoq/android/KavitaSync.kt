@@ -34,10 +34,13 @@ class KavitaSync(
     chapterFolder: File,
     private val client: KavitaClient = KavitaClient(),
     covers: WorkCovers? = null,
-    @Suppress("unused") downloadFolder: File? = null,
+    downloadFolder: File? = null,
 ) : KavitaLibraryChoice {
     private val import = KavitaImport(client, store, covers)
-    private val files = KavitaChapterFiles(client, chapterFolder)
+    private val files = KavitaChapterFiles(client, chapterFolder, downloadFolder)
+
+    // One download at a time, in the order asked, apart from the screens that asked.
+    private val downloading = Executors.newSingleThreadExecutor()
     private val progress = KavitaProgressSync(client, store)
 
     // Closings in the order they happen, apart from the screen that goes away.
@@ -175,23 +178,48 @@ class KavitaSync(
     }
 
     /** True when the person downloaded [chapter] to this device. */
-    @Suppress("UNUSED_PARAMETER")
-    fun isDownloaded(chapter: StoredChapter): Boolean = false
+    fun isDownloaded(chapter: StoredChapter): Boolean = files.isDownloaded(chapter)
 
     /** The bytes the downloaded copies of [chapters] take. */
-    @Suppress("UNUSED_PARAMETER")
-    fun downloadedBytes(chapters: List<StoredChapter>): Long = 0
+    fun downloadedBytes(chapters: List<StoredChapter>): Long = files.downloadedBytes(chapters)
 
     /**
      * Downloads the chapters of [chapters] not on this device yet, one after another, off the
      * screen's own life; [downloads] says how it goes. Returns how many go in.
      */
-    @Suppress("UNUSED_PARAMETER")
-    fun download(workId: String, chapters: List<StoredChapter>): Int = 0
+    fun download(workId: String, chapters: List<StoredChapter>): Int {
+        val wanted = chapters.filterNot(files::isDownloaded)
+        if (wanted.isEmpty()) return 0
+        // A new request while one runs adds to it; otherwise the count starts again.
+        downloads.update { all ->
+            val now = all[workId]?.takeIf { it.running }
+            all + (workId to (now?.copy(total = now.total + wanted.size) ?: WorkDownloads(0, wanted.size, 0)))
+        }
+        downloading.execute {
+            for (chapter in wanted) {
+                val came = try {
+                    files.download(chapter, stillWanted = { true }) { connection.read { address() to key() } }
+                    true
+                } catch (e: IOException) {
+                    Log.e("Kamayoq", "Downloading a chapter failed", e)
+                    false
+                }
+                downloads.update { all ->
+                    val now = all[workId] ?: return@update all
+                    all + (workId to if (came) now.copy(done = now.done + 1) else now.copy(failed = now.failed + 1))
+                }
+                changed()
+            }
+        }
+        return wanted.size
+    }
 
     /** Deletes [chapters] from this device and returns the bytes freed; the progress stays. */
-    @Suppress("UNUSED_PARAMETER")
-    fun deleteDownloads(chapters: List<StoredChapter>): Long = 0
+    fun deleteDownloads(chapters: List<StoredChapter>): Long {
+        val freed = chapters.sumOf(files::delete)
+        changed()
+        return freed
+    }
 
     // Asked only when a download is needed: what is kept can be read with no usable key.
     fun chapterFile(chapter: StoredChapter, stillWanted: () -> Boolean): KavitaChapterFile =

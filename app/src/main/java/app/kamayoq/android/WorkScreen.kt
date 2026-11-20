@@ -1,8 +1,10 @@
 package app.kamayoq.android
 
 import android.graphics.BitmapFactory
+import android.text.format.Formatter
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,23 +17,30 @@ import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,11 +51,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.dp
 import app.kamayoq.core.library.FolderConvention
 import app.kamayoq.core.library.WorkDetails
@@ -67,7 +79,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private class ChapterRow(val chapter: StoredChapter, val progress: ChapterProgress) {
+private class ChapterRow(val chapter: StoredChapter, val progress: ChapterProgress, val downloaded: Boolean = false) {
     val read get() = progress.readMark != null
 }
 
@@ -82,7 +94,7 @@ private fun percentOf(position: ReadingPosition): Int = when (position) {
 internal fun WorkScreen(
     store: LibraryStore,
     covers: WorkCovers?,
-    @Suppress("UNUSED_PARAMETER") kavitaSync: KavitaSync?,
+    kavitaSync: KavitaSync?,
     workId: String,
     listState: LazyListState,
     progressVersion: Int,
@@ -111,6 +123,9 @@ internal fun WorkScreen(
     var menuOpen by remember(workId) { mutableStateOf(false) }
     // Raised by each marking and its Undo, so the chapters are read again from the store.
     var marked by remember(workId) { mutableStateOf(0) }
+    var downloadSheet by rememberSaveable(workId) { mutableStateOf(false) }
+    // The chapters whose deletion waits for its confirmation; there is no Undo for a deleted file.
+    var deleting by remember(workId) { mutableStateOf<List<StoredChapter>?>(null) }
     var details by remember(workId) { mutableStateOf(WorkDetails.NONE) }
     var cover by remember(workId) { mutableStateOf<ImageBitmap?>(null) }
     val notices = remember { SnackbarHostState() }
@@ -181,13 +196,37 @@ internal fun WorkScreen(
             }
         }
     }
+    fun notify(message: String) {
+        scope.launch { notices.showSnackbar(message, duration = SnackbarDuration.Long) }
+    }
+    // Only what is not on the device yet goes in; asking for what is there says so and does nothing.
+    fun download(rows: List<ChapterRow>) {
+        downloadSheet = false
+        closeSelection()
+        val sync = kavitaSync ?: return
+        scope.launch {
+            val count = withContext(Dispatchers.IO) { sync.download(workId, rows.map { it.chapter }) }
+            notify(
+                if (count == 0) resources.getString(R.string.download_none_new)
+                else resources.getQuantityString(R.plurals.download_started, count, count),
+            )
+        }
+    }
+    fun askToDelete(rows: List<ChapterRow>) {
+        downloadSheet = false
+        closeSelection()
+        val there = rows.filter { it.downloaded }
+        if (there.isEmpty()) notify(resources.getString(R.string.selection_none_downloaded)) else deleting = there.map { it.chapter }
+    }
     // Back closes the selection first and keeps the Work screen, as a sheet does.
     BackHandler(enabled = selecting) { closeSelection() }
+    val allDownloads = kavitaSync?.downloads?.collectAsState()
+    val downloading = allDownloads?.value?.get(workId)
     LaunchedEffect(workId, progressVersion, usedOther, answered, marked) {
         val loaded = withContext(Dispatchers.IO) {
             Triple(
                 store.works().firstOrNull { it.id == workId },
-                store.chapters(workId).map { ChapterRow(it, store.progress(it.id)) },
+                store.chapters(workId).map { ChapterRow(it, store.progress(it.id), kavitaSync?.isDownloaded(it) == true) },
                 store.resumeChapter(workId)?.takeIf { it.present },
             )
         }
@@ -232,9 +271,43 @@ internal fun WorkScreen(
         },
     ) {
         val target = resume ?: chapters.firstOrNull()?.chapter
+        val fromKavita = work?.origin == LibraryStore.KAVITA && kavitaSync != null
         // The two sides went to different chapters: where to reopen is the person's (contract, case 5).
         val crossing = others.firstOrNull { it.reason == LibraryStore.CONFLICT && resume != null && it.chapterId != resume?.id }
         val here = resume
+        if (downloadSheet) {
+            val resumeAt = chapters.indexOfFirst { it.chapter.id == resume?.id }.coerceAtLeast(0)
+            DownloadSheet(
+                // "Next" counts from where the reading is, in reading order, leaving out what is read.
+                next = chapters.drop(resumeAt).filterNot { it.read },
+                unread = chapters.filterNot { it.read },
+                all = chapters,
+                onPick = { download(it) },
+                onDelete = { askToDelete(chapters) },
+                onDismiss = { downloadSheet = false },
+            )
+        }
+        deleting?.let { doomed ->
+            val bytes = kavitaSync?.downloadedBytes(doomed) ?: 0L
+            AlertDialog(
+                onDismissRequest = { deleting = null },
+                title = { Text(pluralStringResource(R.plurals.delete_downloads_title, doomed.size, doomed.size)) },
+                text = { Text(stringResource(R.string.delete_downloads_text, Formatter.formatShortFileSize(LocalContext.current, bytes))) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        deleting = null
+                        scope.launch {
+                            withContext(Dispatchers.IO) { kavitaSync?.deleteDownloads(doomed) }
+                            marked++
+                            notify(resources.getQuantityString(R.plurals.downloads_deleted, doomed.size, doomed.size))
+                        }
+                    }) { Text(stringResource(R.string.delete_downloads_confirm, doomed.size)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { deleting = null }) { Text(stringResource(R.string.delete_downloads_cancel)) }
+                },
+            )
+        }
         if (choosingState) {
             StateSheet(
                 current = readingState.state,
@@ -276,13 +349,34 @@ internal fun WorkScreen(
                 onRead = { mark(selection.toList(), read = true, R.plurals.marked_read, selection.size) },
                 onUnread = { mark(selection.toList(), read = false, R.plurals.marked_unread, selection.size) },
                 onEarlier = { before -> mark(chapters.take(before).map { it.chapter.id }, read = true, R.plurals.marked_previous, before) },
+                onDownload = if (fromKavita) {
+                    { download(chapters.filter { it.chapter.id in selection }) }
+                } else {
+                    null
+                },
+                onDeleteDownloads = if (fromKavita) {
+                    { askToDelete(chapters.filter { it.chapter.id in selection }) }
+                } else {
+                    null
+                },
             )
         }
         // One list for the whole screen: the header scrolls away with it, as on the board.
         LazyColumn(state = listState) {
             work?.let { shown -> item(key = "header") { WorkHeader(shown, details, cover) } }
             item(key = "state") {
-                StateButton(readingState.state, onClick = { choosingState = true }, modifier = Modifier.padding(horizontal = 16.dp))
+                Row(modifier = Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Download only where the origin offers it: a local file is already on the device (FEATURES, part 4).
+                    if (fromKavita) {
+                        OutlinedButton(onClick = { downloadSheet = true }, modifier = Modifier.sizeIn(minHeight = 48.dp)) {
+                            Text(stringResource(R.string.download))
+                        }
+                    }
+                    StateButton(readingState.state, onClick = { choosingState = true })
+                }
+            }
+            downloading?.let { progress ->
+                item(key = "downloads") { DownloadProgress(progress) }
             }
             readingState.automatic?.let { change ->
                 item(key = "automatic") {
@@ -388,10 +482,11 @@ internal fun WorkScreen(
                 val checked = selecting && row.chapter.id in selection
                 ListItem(
                     headlineContent = { Text(row.chapter.name) },
-                    supportingContent = if (row.read || place != null || undivided) {
+                    supportingContent = if (row.read || place != null || undivided || row.downloaded) {
                         {
                             Column {
                                 if (row.read) Text(stringResource(R.string.chapter_read))
+                                if (row.downloaded) Text(stringResource(R.string.chapter_downloaded))
                                 if (place != null) Text(stringResource(R.string.chapter_reading, percentOf(place)))
                                 if (undivided) Text(stringResource(R.string.file_undivided))
                             }
@@ -442,8 +537,10 @@ private fun SelectionBar(
     onRead: () -> Unit,
     onUnread: () -> Unit,
     onEarlier: (Int) -> Unit,
+    onDownload: (() -> Unit)?,
+    onDeleteDownloads: (() -> Unit)?,
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).semantics { testTag = SELECTION_BAR }) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onClose, modifier = Modifier.size(48.dp)) {
                 Icon(KamayoqIcons.close, contentDescription = stringResource(R.string.selection_close), modifier = Modifier.size(20.dp))
@@ -463,10 +560,97 @@ private fun SelectionBar(
                 Text(stringResource(R.string.selection_unread))
             }
         }
+        if (onDownload != null && onDeleteDownloads != null) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onDownload, enabled = count > 0, modifier = Modifier.weight(1f).sizeIn(minHeight = 48.dp)) {
+                    Text(stringResource(R.string.download))
+                }
+                OutlinedButton(onClick = onDeleteDownloads, enabled = count > 0, modifier = Modifier.weight(1f).sizeIn(minHeight = 48.dp)) {
+                    Text(stringResource(R.string.selection_delete_downloads))
+                }
+            }
+        }
         earlier?.let { before ->
             TextButton(onClick = { onEarlier(before) }, modifier = Modifier.sizeIn(minHeight = 48.dp)) {
                 Text(stringResource(R.string.mark_previous_read, before))
             }
         }
+    }
+}
+
+/** How the downloads asked here go: a bar while they run, and what failed once they end. */
+@Composable
+private fun DownloadProgress(progress: WorkDownloads) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp).announced()) {
+        if (progress.running) {
+            Text(
+                stringResource(R.string.download_progress, minOf(progress.done + progress.failed + 1, progress.total), progress.total),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            LinearProgressIndicator(
+                progress = { (progress.done + progress.failed).toFloat() / progress.total },
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+            )
+        } else if (progress.failed > 0) {
+            Text(
+                pluralStringResource(R.plurals.download_failed, progress.failed, progress.failed),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
+
+/**
+ * The Download sheet (board SinteseObra): each option says how many would come, leaving out what
+ * is already here; the deletion, in the error colour, asks before it deletes.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DownloadSheet(
+    next: List<ChapterRow>,
+    unread: List<ChapterRow>,
+    all: List<ChapterRow>,
+    onPick: (List<ChapterRow>) -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) {
+        Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 20.dp)) {
+            Text(stringResource(R.string.download_sheet_title), style = MaterialTheme.typography.titleLarge)
+            Text(
+                stringResource(R.string.download_sheet_help),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
+            )
+            if (next.isNotEmpty()) DownloadOption(stringResource(R.string.download_next, 5), next.take(5), onPick)
+            // Next 10 only when it brings more than Next 5 (board, correction of 11/10).
+            if (next.size > 5) DownloadOption(stringResource(R.string.download_next, 10), next.take(10), onPick)
+            if (unread.isNotEmpty()) DownloadOption(stringResource(R.string.download_unread), unread, onPick)
+            DownloadOption(stringResource(R.string.download_all), all, onPick)
+            val there = all.count { it.downloaded }
+            if (there > 0) {
+                TextButton(onClick = onDelete, modifier = Modifier.fillMaxWidth().sizeIn(minHeight = 48.dp)) {
+                    Text(pluralStringResource(R.plurals.download_delete, there, there), color = MaterialTheme.colorScheme.error)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DownloadOption(label: String, rows: List<ChapterRow>, onPick: (List<ChapterRow>) -> Unit) {
+    val missing = rows.count { !it.downloaded }
+    Column(
+        modifier = Modifier.fillMaxWidth().sizeIn(minHeight = 52.dp).clickable(role = Role.Button) { onPick(rows) }.padding(vertical = 6.dp),
+    ) {
+        Text(label, style = MaterialTheme.typography.titleMedium)
+        Text(
+            if (missing == 0) stringResource(R.string.download_nothing_new) else pluralStringResource(R.plurals.download_to_get, missing, missing),
+            style = MaterialTheme.typography.bodySmall,
+        )
     }
 }
