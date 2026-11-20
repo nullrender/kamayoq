@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,6 +51,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
@@ -128,6 +130,8 @@ internal fun WorkScreen(
     var menuOpen by remember(workId) { mutableStateOf(false) }
     // The bar's height, kept free at the list's end so the last chapters can come above it.
     var barHeight by remember(workId) { mutableStateOf(0.dp) }
+    // The chapter a long press just chose, to keep in sight above the bar that opens with it.
+    var pressed by remember(workId) { mutableStateOf<String?>(null) }
     val density = LocalDensity.current
     // Raised by each marking and its Undo, so the chapters are read again from the store.
     var marked by remember(workId) { mutableStateOf(0) }
@@ -225,6 +229,19 @@ internal fun WorkScreen(
         closeSelection()
         val there = rows.filter { it.downloaded }
         if (there.isEmpty()) notify(resources.getString(R.string.selection_none_downloaded)) else deleting = there.map { it.chapter }
+    }
+    // The bar covers the foot of the screen: a chapter pressed there scrolls up just above it.
+    LaunchedEffect(pressed, barHeight) {
+        val id = pressed ?: return@LaunchedEffect
+        if (barHeight == 0.dp) return@LaunchedEffect
+        // One frame, so the list has the room the bar needs at its end.
+        withFrameNanos { }
+        val layout = listState.layoutInfo
+        layout.visibleItemsInfo.firstOrNull { it.key == id }?.let { item ->
+            val hidden = item.offset + item.size - (layout.viewportSize.height - with(density) { barHeight.roundToPx() })
+            if (hidden > 0) listState.scrollBy(hidden.toFloat())
+        }
+        pressed = null
     }
     // Back closes the selection first and keeps the Work screen, as a sheet does.
     BackHandler(enabled = selecting) { closeSelection() }
@@ -500,6 +517,7 @@ internal fun WorkScreen(
                                 {
                                     selecting = true
                                     selection = arrayListOf(row.chapter.id)
+                                    pressed = row.chapter.id
                                 }
                             },
                             onClick = {
