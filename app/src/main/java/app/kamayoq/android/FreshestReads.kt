@@ -12,10 +12,15 @@ import java.util.concurrent.atomic.AtomicLong
  */
 class FreshestReads {
     private val begun = AtomicLong()
+    private var shown = 0L
 
     /** Called on the read's own thread, just before it reads. */
     fun begin(): Long = begun.incrementAndGet()
 
     /** Called on the screen's thread with the read's ticket: true when its result may be shown. */
-    fun accept(ticket: Long): Boolean = true
+    fun accept(ticket: Long): Boolean {
+        if (ticket <= shown) return false
+        shown = ticket
+        return true
+    }
 }

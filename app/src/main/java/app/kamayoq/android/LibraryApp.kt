@@ -110,6 +110,7 @@ fun LibraryApp(
     // A restore is offered only while nothing is stored (docs/decisions/backup-restore-2026-11-18.md).
     var empty by remember { mutableStateOf(false) }
     var rows by remember { mutableStateOf<List<WorkRow>?>(null) }
+    val reads = remember { FreshestReads() }
     var ignored by rememberSaveable(stateSaver = IGNORED_SAVER) { mutableStateOf<List<IgnoredFile>>(emptyList()) }
     var openWorkId by rememberSaveable { mutableStateOf<String?>(null) }
     var showIgnored by rememberSaveable { mutableStateOf(false) }
@@ -160,6 +161,13 @@ fun LibraryApp(
         }
     }
 
+    // Every list read from the store goes through these two: reads that end out of order would
+    // otherwise leave an older list on screen (FreshestReads).
+    fun readRows() = reads.begin() to loadRows(store)
+    fun show(read: Pair<Long, List<WorkRow>>) {
+        if (reads.accept(read.first)) rows = read.second
+    }
+
     suspend fun refresh(current: Uri) {
         // A reading that ends after a newer one started changes nothing, on screen or in the store.
         val round = folder.readings.incrementAndGet()
@@ -170,11 +178,12 @@ fun LibraryApp(
             val (left, loaded) = withContext(Dispatchers.IO) {
                 // A folder no longer chosen keeps its works and progress, out of the list (rule E1).
                 store.keepOnlyFolder(current.toString(), latest)
-                LibraryScan.run(folder, current, store, latest) { opening.contents(current, it) } to loadRows(store)
+                val left = LibraryScan.run(folder, current, store, latest) { opening.contents(current, it) }
+                left to readRows()
             }
             if (!latest()) return
             ignored = left
-            rows = loaded
+            show(loaded)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -183,7 +192,7 @@ fun LibraryApp(
                 scanFailed = true
                 // The folder just left is already out of the store: a list kept from before would
                 // show works that open empty.
-                rows = withContext(Dispatchers.IO) { loadRows(store) }
+                show(withContext(Dispatchers.IO) { readRows() })
             }
         } finally {
             if (latest()) scanning = false
@@ -198,10 +207,10 @@ fun LibraryApp(
             kavitaKeyFor = waiting
             // Nothing can be read without the key: the Library asks for it instead of saying Kavita failed.
             if (waiting != null) return
-            rows = withContext(Dispatchers.IO) {
+            show(withContext(Dispatchers.IO) {
                 kavitaSync.importNow()
-                loadRows(store)
-            }
+                readRows()
+            })
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -251,7 +260,7 @@ fun LibraryApp(
             is RestoreResult.Unreadable -> Log.e(TAG, "The backup picked could not be read as one", taken.cause)
             is RestoreResult.ReadFailed -> Log.e(TAG, "Reading the backup picked failed", taken.cause)
             is RestoreResult.Restored -> {
-                rows = withContext(Dispatchers.IO) { loadRows(store) }
+                show(withContext(Dispatchers.IO) { readRows() })
                 importKavita()
                 // A folder already chosen is read again at once: its works meet the restored ones by path.
                 tree?.let { if (folder.canRead(it)) refresh(it) }
@@ -263,10 +272,10 @@ fun LibraryApp(
     LaunchedEffect(Unit) {
         val stored = withContext(Dispatchers.IO) {
             opening.clearLeftovers()
-            loadRows(store)
+            readRows()
         }
         // The reading of the folder runs at the same time and may have ended first, with fresher works.
-        if (rows == null) rows = stored
+        show(stored)
     }
 
     // At every return, not only when the screen is made: Back only sends the app to the background
@@ -279,14 +288,14 @@ fun LibraryApp(
 
     // A state chosen on the Work screen, or changed by reading, shows in the Library's chips on return.
     LaunchedEffect(openWorkId) {
-        if (openWorkId == null && rows != null) rows = withContext(Dispatchers.IO) { loadRows(store) }
+        if (openWorkId == null && rows != null) show(withContext(Dispatchers.IO) { readRows() })
     }
 
     // A sync may finish after the screen that asked for it is gone, and it changes what any screen shows.
     val kavitaChanges by kavitaSync.changes.collectAsState()
     LaunchedEffect(kavitaChanges) {
         if (kavitaChanges > 0) {
-            rows = withContext(Dispatchers.IO) { loadRows(store) }
+            show(withContext(Dispatchers.IO) { readRows() })
             progressVersion++
         }
     }
