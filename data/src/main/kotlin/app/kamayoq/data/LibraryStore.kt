@@ -951,16 +951,48 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
      * already read keeps the mark it had; the position and the complete reads never change. Marking
      * counts for the "start" and "finish" rules, not for "resume" (contract, section 5).
      */
-    @Suppress("UNUSED_PARAMETER")
-    fun markRead(workId: String, chapterIds: List<String>, at: Instant): MarkChange = MarkChange(workId, emptyMap(), at)
+    fun markRead(workId: String, chapterIds: List<String>, at: Instant): MarkChange = database.transactionWithResult {
+        val before = chapterIds.associateWith { progress(it).readMark }
+        // Repeating a mark that exists is not an event (contract, section 5).
+        val marked = chapterIds.filter { before[it] == null }
+        marked.forEach { writeProgress(it, progress(it).copy(readMark = ReadMark(at, ReadMarkSource.PERSON))) }
+        if (marked.isNotEmpty()) moveStateByMarking(workId, marked, at)
+        MarkChange(workId, before, at)
+    }
 
     /** The person takes the read mark off [chapterIds]; the position and the state stay. */
-    @Suppress("UNUSED_PARAMETER")
-    fun markUnread(workId: String, chapterIds: List<String>, at: Instant): MarkChange = MarkChange(workId, emptyMap(), at)
+    fun markUnread(workId: String, chapterIds: List<String>, at: Instant): MarkChange = database.transactionWithResult {
+        val before = chapterIds.associateWith { progress(it).readMark }
+        chapterIds.filter { before[it] != null }.forEach { writeProgress(it, progress(it).copy(readMark = null)) }
+        MarkChange(workId, before, at)
+    }
 
     /** Puts back the marks [change] found, and the state its marking changed by itself. */
-    @Suppress("UNUSED_PARAMETER")
-    fun undoMarks(change: MarkChange) = Unit
+    fun undoMarks(change: MarkChange) = database.transaction {
+        change.marksBefore.forEach { (chapterId, mark) -> writeProgress(chapterId, progress(chapterId).copy(readMark = mark)) }
+        // Only the change this marking made: a later one is the reading's, and stays.
+        if (readingState(change.workId).automatic?.at == change.at) undoAutomatic(change.workId)
+    }
+
+    /**
+     * A marking by hand counts for "finish" and for "start", never for "resume": marking on this
+     * device is not reading on (contract, section 5).
+     */
+    private fun moveStateByMarking(workId: String, marked: List<String>, at: Instant) {
+        val row = database.readingStateQueries.stateOfWork(workId).executeAsOneOrNull()
+        val state = row?.state?.let(ReadingState::valueOf)
+        val type = WorkType.valueOf(database.readingStateQueries.workOfChapter(marked.first()).executeAsOne().type)
+        val chapters = chapters(workId)
+        val finishedLast = chapters.lastOrNull()?.id in marked
+        val everyRead = finishedLast && chapters.all { progress(it.id).readMark != null }
+        val next = ReadingStates.afterFinishing(state, type, details(workId).publication, finishedLast, everyRead)
+            ?: ReadingState.READING.takeIf { state == null || state == ReadingState.WANT_TO_READ }
+            ?: return
+        val mark = markNow(workId)
+        database.readingStateQueries.save(
+            workId, next.name, 1L, state?.name, at.toEpochMilli(), mark?.chapterId, mark?.fraction?.value?.toLong(),
+        )
+    }
 
     fun readingState(workId: String): StoredReadingState =
         database.readingStateQueries.stateOfWork(workId).executeAsOneOrNull()?.let { row ->
