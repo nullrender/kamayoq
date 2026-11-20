@@ -24,6 +24,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -560,8 +561,11 @@ internal fun WorkScreen(
     }
 }
 
-/** The colour of the selection's action labels on the bar. */
-internal fun selectionLabel(palette: Palette): Color = palette.secondaryText
+/**
+ * The colour of the selection's action labels on the bar: the palette's action colour. Material's
+ * outlined buttons take the grey of secondary text, which on the bar reads as disabled.
+ */
+internal fun selectionLabel(palette: Palette): Color = palette.action
 
 // Where the selection's own buttons are, apart from the same words elsewhere on the screen.
 internal const val SELECTION_BAR = "selection-bar"
@@ -580,6 +584,7 @@ private fun SelectionBar(
     onDownload: (() -> Unit)?,
     onDeleteDownloads: (() -> Unit)?,
 ) {
+    val actions = ButtonDefaults.outlinedButtonColors(contentColor = selectionLabel(LocalPalette.current))
     Surface(modifier = modifier.fillMaxWidth().semantics { testTag = SELECTION_BAR }, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
     Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -594,19 +599,19 @@ private fun SelectionBar(
             TextButton(onClick = onAll, modifier = Modifier.sizeIn(minHeight = 48.dp)) { Text(stringResource(R.string.selection_all)) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = onRead, enabled = count > 0, modifier = Modifier.weight(1f).sizeIn(minHeight = 48.dp)) {
+            OutlinedButton(onClick = onRead, enabled = count > 0, colors = actions, modifier = Modifier.weight(1f).sizeIn(minHeight = 48.dp)) {
                 Text(stringResource(R.string.selection_read))
             }
-            OutlinedButton(onClick = onUnread, enabled = count > 0, modifier = Modifier.weight(1f).sizeIn(minHeight = 48.dp)) {
+            OutlinedButton(onClick = onUnread, enabled = count > 0, colors = actions, modifier = Modifier.weight(1f).sizeIn(minHeight = 48.dp)) {
                 Text(stringResource(R.string.selection_unread))
             }
         }
         if (onDownload != null && onDeleteDownloads != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onDownload, enabled = count > 0, modifier = Modifier.weight(1f).sizeIn(minHeight = 48.dp)) {
+                OutlinedButton(onClick = onDownload, enabled = count > 0, colors = actions, modifier = Modifier.weight(1f).sizeIn(minHeight = 48.dp)) {
                     Text(stringResource(R.string.download))
                 }
-                OutlinedButton(onClick = onDeleteDownloads, enabled = count > 0, modifier = Modifier.weight(1f).sizeIn(minHeight = 48.dp)) {
+                OutlinedButton(onClick = onDeleteDownloads, enabled = count > 0, colors = actions, modifier = Modifier.weight(1f).sizeIn(minHeight = 48.dp)) {
                     Text(stringResource(R.string.selection_delete_downloads))
                 }
             }
