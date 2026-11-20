@@ -158,4 +158,16 @@ class ManualMarksStoreTest {
 
         assertEquals(StoredReadingState(ReadingState.COMPLETED, null), store.readingState(work()))
     }
+
+    @Test
+    fun `dado uma marcação feita na hora do relógio, com mais casas que o milissegundo, quando desfaço, então o estado que ela mudou volta junto`() {
+        import()
+        // Android's clock gives micro- and nanoseconds; the database keeps milliseconds.
+        val now = Instant.parse("2026-11-20T13:00:00.123456789Z")
+
+        store.undoMarks(store.markRead(work(), ids().take(2), now))
+
+        assertEquals(StoredReadingState.NONE, store.readingState(work()))
+        assertEquals(listOf(null, null, null), ids().map { store.progress(it).readMark })
+    }
 }
