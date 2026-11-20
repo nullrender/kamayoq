@@ -18,9 +18,13 @@ enum class StateFilter(val state: ReadingState?) {
 
     companion object {
         /** How many of [states] each chip shows, every chip present, zero included. */
-        fun counts(states: List<ReadingState?>): Map<StateFilter, Int> = emptyMap()
+        fun counts(states: List<ReadingState?>): Map<StateFilter, Int> =
+            entries.associateWith { chip -> states.count(chip::matches) }
     }
 
     /** The items whose state, by [stateOf], this chip keeps, in the order given. */
-    fun <T> keep(items: List<T>, stateOf: (T) -> ReadingState?): List<T> = items
+    fun <T> keep(items: List<T>, stateOf: (T) -> ReadingState?): List<T> = items.filter { matches(stateOf(it)) }
+
+    // NONE and ALL both carry no state; only ALL takes every work.
+    private fun matches(state: ReadingState?): Boolean = this == ALL || state == this.state
 }
