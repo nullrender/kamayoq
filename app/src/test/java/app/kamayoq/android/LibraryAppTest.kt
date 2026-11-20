@@ -9,9 +9,13 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -193,6 +197,69 @@ class LibraryAppTest {
 
         waitFor(app.getString(R.string.search_none))
         compose.onNodeWithText("Sakamoto Days").assertDoesNotExist()
+    }
+
+    // The bar's items, not the screen title of the same name.
+    private fun tab(label: Int) = compose.onNode(hasText(app.getString(label)) and isSelectable())
+
+    private fun openTab(label: Int) {
+        compose.waitUntil(30_000) { compose.onAllNodes(hasText(app.getString(label)) and isSelectable()).fetchSemanticsNodes().isNotEmpty() }
+        tab(label).performClick()
+    }
+
+    @Test
+    fun `dado a Biblioteca, então a barra mostra Início, Biblioteca e Ajustes, com a Biblioteca escolhida`() {
+        showLibrary(listOf("Obra"))
+        waitFor("Obra")
+
+        openTab(R.string.nav_library)
+
+        tab(R.string.nav_home).assertIsNotSelected()
+        tab(R.string.nav_library).assertIsSelected()
+        tab(R.string.nav_settings).assertIsNotSelected()
+        assertTrue(top(app.getString(R.string.nav_home)) > top("Obra"))
+    }
+
+    @Test
+    fun `dado a Biblioteca, quando toco em Ajustes, então vejo a pasta, o Kavita e o backup e Voltar volta à Biblioteca`() {
+        showLibrary(listOf("Obra"))
+        waitFor("Obra")
+
+        openTab(R.string.nav_settings)
+
+        waitFor(app.getString(R.string.kavita_connect))
+        compose.onNodeWithText(app.getString(R.string.back_up)).assertExists()
+        compose.onNodeWithText(app.getString(R.string.change_folder)).assertExists()
+        compose.onNodeWithText("Obra").assertDoesNotExist()
+        pressBack()
+        waitFor("Obra")
+        tab(R.string.nav_library).assertIsSelected()
+    }
+
+    @Test
+    fun `dado o Início com obras na biblioteca, então ele diz que o conteúdo dele vem depois e aponta a Biblioteca`() {
+        showLibrary(listOf("Obra"))
+        waitFor("Obra")
+
+        openTab(R.string.nav_home)
+
+        waitFor(app.getString(R.string.home_later))
+        tab(R.string.nav_home).assertIsSelected()
+    }
+
+    @Test
+    fun `dado uma obra aberta da Biblioteca, então a barra não aparece, e volta com a lista`() {
+        showLibrary(listOf("Obra"))
+        waitFor("Obra")
+        openTab(R.string.nav_library)
+
+        compose.onNodeWithText("Obra").performClick()
+        waitFor("Cap. 1")
+
+        compose.onAllNodes(hasText(app.getString(R.string.nav_settings)) and isSelectable()).assertCountEquals(0)
+        pressBack()
+        waitFor("Obra")
+        tab(R.string.nav_settings).assertExists()
     }
 
     @Test
@@ -390,21 +457,24 @@ class LibraryAppTest {
     }
 
     @Test
-    fun `dado a Biblioteca, quando toco em Conectar ao Kavita, então a tela de conexão abre e Voltar retorna`() {
+    fun `dado os Ajustes, quando toco em Conectar ao Kavita, então a tela de conexão abre e Voltar retorna aos Ajustes`() {
         showLibrary(listOf("Obra"))
         waitFor("Obra")
+        openTab(R.string.nav_settings)
 
         compose.onNodeWithText(app.getString(R.string.kavita_connect)).performClick()
         waitFor(app.getString(R.string.kavita_address))
         compose.onNodeWithText(app.getString(R.string.back)).performClick()
 
-        waitFor("Obra")
+        waitFor(app.getString(R.string.kavita_connect))
+        tab(R.string.nav_settings).assertIsSelected()
     }
 
     @Test
     fun `dado o resultado de um backup, quando ele aparece, então o TalkBack anuncia a mensagem`() {
         showLibrary(listOf("Obra"))
         waitFor("Obra")
+        openTab(R.string.nav_settings)
 
         compose.runOnUiThread { app.backups.start { "Kamayoq" to BackupResult.Mismatch } }
 
@@ -728,6 +798,7 @@ class LibraryAppTest {
 
         waitFor(app.getString(R.string.kavita_key_again, "http://kavita.example:5000"))
         compose.onNodeWithText(app.getString(R.string.kavita_read_failed)).assertDoesNotExist()
+        openTab(R.string.nav_settings)
         compose.onNodeWithText(app.getString(R.string.kavita_connect)).performClick()
 
         waitFor(app.getString(R.string.kavita_address))
@@ -747,10 +818,12 @@ class LibraryAppTest {
         val askingForKey = app.getString(R.string.kavita_key_again, "http://kavita.example:5000")
         waitFor(askingForKey)
 
+        openTab(R.string.nav_settings)
         compose.onNodeWithText(app.getString(R.string.kavita_connect)).performClick()
         waitFor(app.getString(R.string.kavita_address))
         sync.connect("http://kavita.example:5000", "key-of-kavita-1234")
         compose.onNodeWithText(app.getString(R.string.back)).performClick()
+        openTab(R.string.nav_library)
 
         waitFor("Kaiju No. 8")
         waitUntilGone(askingForKey)

@@ -135,4 +135,12 @@
     <string name="search_close">Fechar a busca</string>
     <string name="search_field">Título ou título alternativo</string>
     <string name="search_none">Nenhuma obra com esse nome.</string>
+    <string name="nav_home">Início</string>
+    <string name="nav_library">Biblioteca</string>
+    <string name="nav_settings">Ajustes</string>
+    <string name="settings_title">Ajustes</string>
+    <string name="settings_folder">Pasta deste aparelho</string>
+    <string name="settings_kavita">Kavita</string>
+    <string name="settings_backup">Backup</string>
+    <string name="home_later">Continuar lendo, capítulos novos e obras adicionadas vão ficar aqui numa próxima versão. Suas obras estão na Biblioteca.</string>
 </resources>
