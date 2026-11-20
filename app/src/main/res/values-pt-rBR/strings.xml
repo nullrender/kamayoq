@@ -124,4 +124,11 @@
     <string name="restore_read_failed">Não foi possível ler o arquivo. Nada mudou.</string>
     <string name="restore_failed">Não foi possível restaurar este backup. Nada mudou.</string>
     <string name="kavita_key_again">O Kavita em %1$s precisa da chave de novo: a chave nunca vai no backup.</string>
+    <string name="section_comics">Quadrinhos</string>
+    <string name="section_novels">Novels</string>
+    <string name="section_books">Livros</string>
+    <string name="section_expanded">Aberta</string>
+    <string name="section_collapsed">Recolhida</string>
+    <string name="section_hide">Esconder obras</string>
+    <string name="section_show">Mostrar obras</string>
 </resources>

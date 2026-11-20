@@ -107,6 +107,42 @@ class LibraryAppTest {
         waitFor("Obra 46")
     }
 
+    private fun top(text: String) = compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot.top
+
+    @Test
+    fun `dado quadrinhos e livros na pasta, então cada obra aparece sob a seção do seu tipo e recolher Quadrinhos esconde só as obras dele`() {
+        val folder = FolderInMemory(app, listOf("Sakamoto Days")).apply { books = listOf("Dom Casmurro") }
+        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        waitFor("Sakamoto Days")
+        waitFor("Dom Casmurro")
+        val comics = app.getString(R.string.section_comics)
+        val books = app.getString(R.string.section_books)
+
+        assertTrue(top(comics) < top("Sakamoto Days"))
+        assertTrue(top("Sakamoto Days") < top(books))
+        assertTrue(top(books) < top("Dom Casmurro"))
+        compose.onNodeWithText(comics).performClick()
+
+        waitUntilGone("Sakamoto Days")
+        compose.onNodeWithText("Dom Casmurro").assertExists()
+        compose.onNodeWithText(comics).assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, app.getString(R.string.section_collapsed)))
+    }
+
+    @Test
+    fun `dado uma seção recolhida, quando a tela é recriada, então ela continua recolhida`() {
+        val folder = FolderInMemory(app, listOf("Sakamoto Days")).apply { books = listOf("Dom Casmurro") }
+        val restoration = StateRestorationTester(compose)
+        restoration.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        waitFor("Sakamoto Days")
+        compose.onNodeWithText(app.getString(R.string.section_comics)).performClick()
+        waitUntilGone("Sakamoto Days")
+
+        restoration.emulateSavedInstanceStateRestore()
+
+        waitFor("Dom Casmurro")
+        compose.onNodeWithText("Sakamoto Days").assertDoesNotExist()
+    }
+
     @Test
     fun `dado uma obra do Kavita e nenhuma pasta escolhida, quando abro a Biblioteca, então vejo a obra com o selo Kavita`() {
         // A title without the word Kavita: only the badge can say where the work comes from.

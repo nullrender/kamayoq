@@ -173,4 +173,12 @@
     <string name="restore_failed">Couldn\'t restore this backup. Nothing was changed.</string>
     <!-- %1$s is the Kavita server's address. -->
     <string name="kavita_key_again">Kavita at %1$s needs its key again: the key never goes in the backup.</string>
+    <!-- The Library's sections, one per type (reader-design, FEATURES.md: Quadrinhos · Novels · Livros). -->
+    <string name="section_comics">Comics</string>
+    <string name="section_novels">Novels</string>
+    <string name="section_books">Books</string>
+    <string name="section_expanded">Expanded</string>
+    <string name="section_collapsed">Collapsed</string>
+    <string name="section_hide">Hide works</string>
+    <string name="section_show">Show works</string>
 </resources>
