@@ -12,6 +12,8 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
@@ -21,6 +23,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTextInput
 import androidx.lifecycle.Lifecycle
@@ -114,7 +117,17 @@ class LibraryAppTest {
         waitFor("Obra 46")
     }
 
-    private fun top(text: String) = compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot.top
+    // Unclipped: a node below the fold of the test's small screen still has its real place.
+    private fun top(text: String) = compose.onNodeWithText(text).fetchSemanticsNode().positionInRoot.y
+
+    /** Taps a node, scrolling to it first when it sits in a scrolling screen, as a person would. */
+    private fun tap(text: String) {
+        val node = hasText(text)
+        if (compose.onAllNodes(node and hasAnyAncestor(hasScrollAction())).fetchSemanticsNodes().isNotEmpty()) {
+            compose.onNode(node).performScrollTo()
+        }
+        compose.onNode(node).performClick()
+    }
 
     @Test
     fun `dado quadrinhos e livros na pasta, então cada obra aparece sob a seção do seu tipo e recolher Quadrinhos esconde só as obras dele`() {
@@ -297,7 +310,7 @@ class LibraryAppTest {
         showWithoutFolder()
         waitFor(app.getString(R.string.source_files))
 
-        compose.onNodeWithText(app.getString(R.string.source_files)).performClick()
+        tap(app.getString(R.string.source_files))
         compose.waitForIdle()
 
         val started = checkNotNull(shadowOf(compose.activity).nextStartedActivityForResult) { "No picker was opened" }
@@ -309,7 +322,7 @@ class LibraryAppTest {
         showWithoutFolder()
         waitFor(app.getString(R.string.empty_title))
 
-        compose.onNodeWithText(app.getString(R.string.kavita_connect)).performClick()
+        tap(app.getString(R.string.kavita_connect))
 
         waitFor(app.getString(R.string.kavita_address))
     }
@@ -750,7 +763,7 @@ class LibraryAppTest {
     /** Taps Restore backup and answers Android's file picker with a file holding [text]. */
     private fun pickBackup(text: String) {
         waitFor(app.getString(R.string.restore_backup))
-        compose.onNodeWithText(app.getString(R.string.restore_backup)).performClick()
+        tap(app.getString(R.string.restore_backup))
         compose.waitForIdle()
         val started = checkNotNull(shadowOf(compose.activity).nextStartedActivityForResult) { "No picker was opened" }
         val file = Uri.parse("content://com.android.externalstorage.documents/document/primary%3AKamayoq%2FBackups%2Fkamayoq_2026-11-18_19-00.json")
@@ -763,7 +776,7 @@ class LibraryAppTest {
         showWithoutFolder()
         waitFor(app.getString(R.string.restore_backup))
 
-        compose.onNodeWithText(app.getString(R.string.restore_backup)).performClick()
+        tap(app.getString(R.string.restore_backup))
         compose.waitForIdle()
 
         val started = checkNotNull(shadowOf(compose.activity).nextStartedActivityForResult) { "No picker was opened" }
