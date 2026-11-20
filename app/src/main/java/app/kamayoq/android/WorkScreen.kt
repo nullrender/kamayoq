@@ -54,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.onSizeChanged
@@ -558,6 +559,9 @@ internal fun WorkScreen(
         }
     }
 }
+
+/** The colour of the selection's action labels on the bar. */
+internal fun selectionLabel(palette: Palette): Color = palette.secondaryText
 
 // Where the selection's own buttons are, apart from the same words elsewhere on the screen.
 internal const val SELECTION_BAR = "selection-bar"
