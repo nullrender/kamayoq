@@ -43,7 +43,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -54,6 +53,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import app.kamayoq.core.library.FolderConvention
 import app.kamayoq.core.library.IgnoreReason
 import app.kamayoq.core.library.IgnoredFile
+import app.kamayoq.core.library.WorkType
 import app.kamayoq.data.BackupExport
 import app.kamayoq.data.BackupRestore
 import app.kamayoq.data.BackupResult
@@ -76,7 +76,7 @@ import java.time.format.FormatStyle
 
 private const val TAG = "Kamayoq"
 
-private data class WorkRow(val work: StoredWork, val chapterCount: Int)
+internal data class WorkRow(val work: StoredWork, val chapterCount: Int)
 
 /**
  * The first percurso's screens: choose the folder, see its works, see a work's chapters and the
@@ -109,6 +109,7 @@ fun LibraryApp(
     var openWorkId by rememberSaveable { mutableStateOf<String?>(null) }
     var showIgnored by rememberSaveable { mutableStateOf(false) }
     var showKavita by rememberSaveable { mutableStateOf(false) }
+    var collapsed by rememberSaveable(stateSaver = COLLAPSED_SAVER) { mutableStateOf(emptySet<WorkType>()) }
     var readingChapterId by rememberSaveable { mutableStateOf<String?>(null) }
     // Raised when the reader closes, so the work's chapters show the new progress.
     var progressVersion by remember { mutableStateOf(0) }
@@ -359,6 +360,8 @@ fun LibraryApp(
             backupResult = backups.result,
             backupPlace = backups.place,
             listState = libraryList,
+            collapsed = collapsed,
+            onToggleSection = { type -> collapsed = if (type in collapsed) collapsed - type else collapsed + type },
             onBackUp = { currentTree?.let(::backUp) },
             onPickBackup = { backupPicker.launch(arrayOf("*/*")) },
             onConfirmRestore = { restores.confirm { backup -> withContext(Dispatchers.IO) { BackupRestore(store).apply(backup) } } },
@@ -411,6 +414,8 @@ private fun LibraryScreen(
     backupResult: BackupResult?,
     backupPlace: String,
     listState: LazyListState,
+    collapsed: Set<WorkType>,
+    onToggleSection: (WorkType) -> Unit,
     onBackUp: () -> Unit,
     onPickBackup: () -> Unit,
     onConfirmRestore: () -> Unit,
@@ -455,15 +460,15 @@ private fun LibraryScreen(
         when {
             accessRefused -> {
                 Notice(R.string.folder_access_refused, onChooseFolder)
-                WorkList(kavitaRows, 0, listState, onOpenWork, onOpenIgnored)
+                WorkList(kavitaRows, 0, listState, collapsed, onToggleSection, onOpenWork, onOpenIgnored)
             }
             !hasFolder -> {
                 Notice(R.string.no_folder, onChooseFolder)
-                WorkList(kavitaRows, 0, listState, onOpenWork, onOpenIgnored)
+                WorkList(kavitaRows, 0, listState, collapsed, onToggleSection, onOpenWork, onOpenIgnored)
             }
             accessLost -> {
                 Notice(R.string.folder_access_lost, onChooseFolder)
-                WorkList(kavitaRows, 0, listState, onOpenWork, onOpenIgnored)
+                WorkList(kavitaRows, 0, listState, collapsed, onToggleSection, onOpenWork, onOpenIgnored)
             }
             else -> {
                 // Here until the Settings screen exists (its place there: Settings › Backup).
@@ -490,42 +495,8 @@ private fun LibraryScreen(
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }
-                WorkList(rows.orEmpty(), ignoredCount, listState, onOpenWork, onOpenIgnored)
+                WorkList(rows.orEmpty(), ignoredCount, listState, collapsed, onToggleSection, onOpenWork, onOpenIgnored)
             }
-        }
-    }
-}
-
-@Composable
-private fun WorkList(
-    rows: List<WorkRow>,
-    ignoredCount: Int,
-    listState: LazyListState,
-    onOpenWork: (String) -> Unit,
-    onOpenIgnored: () -> Unit,
-) {
-    LazyColumn(state = listState) {
-        if (ignoredCount > 0) {
-            item {
-                ListItem(
-                    headlineContent = {
-                        Text(pluralStringResource(R.plurals.ignored_files, ignoredCount, ignoredCount))
-                    },
-                    supportingContent = { Text(stringResource(R.string.see_ignored_files)) },
-                    modifier = Modifier.clickable(onClick = onOpenIgnored),
-                )
-            }
-        }
-        items(rows, key = { it.work.id }) { row ->
-            val chapters = pluralStringResource(R.plurals.chapter_count, row.chapterCount, row.chapterCount)
-            val origin = if (row.work.origin == LibraryStore.KAVITA) stringResource(R.string.origin_kavita) else null
-            ListItem(
-                headlineContent = { Text(row.work.title) },
-                supportingContent = {
-                    Text(listOfNotNull(row.work.alternativeTitle, chapters, origin).joinToString(" · "))
-                },
-                modifier = Modifier.clickable { onOpenWork(row.work.id) },
-            )
         }
     }
 }
