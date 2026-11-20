@@ -52,7 +52,8 @@ class ChapterDownloadTest {
 
     private lateinit var sync: KavitaSync
 
-    private fun open(title: String, kavita: Boolean = true) {
+    /** [beforeShowing] runs once the work is in the store and before the screen first reads it. */
+    private fun open(title: String, kavita: Boolean = true, beforeShowing: () -> Unit = {}) {
         val secret = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
         val access = KavitaAccess(app, { _, _ -> KavitaConnection.Connected("0.9.1.4") }) { secret }
         sync = KavitaSync(app.store, access, File(app.cacheDir, "download-test"), client, downloadFolder = File(app.filesDir, "download-test"))
@@ -63,6 +64,7 @@ class ChapterDownloadTest {
             }
             app.store.importKavita(checkNotNull(app.store.kavitaServer()).id, listOf(ImportedWork("12", title, WorkType.COMICS, null, 2, chapters)))
         }
+        beforeShowing()
         val folder = FolderInMemory(app, if (kavita) emptyList() else listOf(title))
         compose.setContent {
             LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, sync, "test-device", app.restores, app.covers)
@@ -100,8 +102,7 @@ class ChapterDownloadTest {
 
     @Test
     fun `dado o primeiro capítulo lido, quando escolho Não lidos, então só os dois outros são baixados`() {
-        open("Gantz")
-        app.store.markRead(app.store.works().single().id, listOf(chapters().first().id), Instant.now())
+        open("Gantz") { app.store.markRead(app.store.works().single().id, listOf(chapters().first().id), Instant.now()) }
 
         openSheet()
         compose.onNode(hasText(app.getString(R.string.download_unread))).performClick()
