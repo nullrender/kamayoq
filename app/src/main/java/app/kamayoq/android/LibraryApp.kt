@@ -11,6 +11,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -112,6 +113,8 @@ fun LibraryApp(
     var collapsed by rememberSaveable(stateSaver = COLLAPSED_SAVER) { mutableStateOf(emptySet<WorkType>()) }
     // Kept above the screens, so a work opened from the results comes back to them.
     var searching by rememberSaveable { mutableStateOf(false) }
+    // The app opens on the Library until Home has content of its own (slice 4).
+    var tab by rememberSaveable { mutableStateOf(AppTab.LIBRARY) }
     var query by rememberSaveable { mutableStateOf("") }
     var readingChapterId by rememberSaveable { mutableStateOf<String?>(null) }
     // Raised when the reader closes, so the work's chapters show the new progress.
@@ -348,45 +351,59 @@ fun LibraryApp(
             }
         }
         else -> {
+            // Back from Home or Settings goes to the Library, the place the app opens on.
+            BackHandler(enabled = tab != AppTab.LIBRARY) { tab = AppTab.LIBRARY }
             // Back closes the search first, as it closes a sheet (AGENTS.md).
-            BackHandler(enabled = searching) {
+            BackHandler(enabled = tab == AppTab.LIBRARY && searching) {
                 searching = false
                 query = ""
             }
-            LibraryScreen(
-                rows = rows,
-                ignoredCount = ignored.size,
-                hasFolder = tree != null,
-                accessLost = accessLost,
-                accessRefused = accessRefused,
-                scanning = scanning,
-                scanFailed = scanFailed,
-                kavitaFailed = kavitaFailed,
-                kavitaKeyFor = kavitaKeyFor,
-                canRestore = empty,
-                restores = restores,
-                backingUp = backups.running,
-                backupResult = backups.result,
-                backupPlace = backups.place,
-                listState = libraryList,
-                collapsed = collapsed,
-                onToggleSection = { type -> collapsed = if (type in collapsed) collapsed - type else collapsed + type },
-                onBackUp = { currentTree?.let(::backUp) },
-                onPickBackup = { backupPicker.launch(arrayOf("*/*")) },
-                onConfirmRestore = { restores.confirm { backup -> withContext(Dispatchers.IO) { BackupRestore(store).apply(backup) } } },
-                onChooseFolder = { picker.launch(null) },
-                onOpenWork = { openWorkId = it },
-                onOpenIgnored = { showIgnored = true },
-                onOpenKavita = { showKavita = true },
-                searching = searching,
-                query = query,
-                onOpenSearch = { searching = true },
-                onQueryChange = { query = it },
-                onCloseSearch = {
-                    searching = false
-                    query = ""
-                },
-            )
+            val folderReadable = tree != null && !accessLost && !accessRefused
+            Box(modifier = Modifier.fillMaxSize()) {
+                when (tab) {
+                    AppTab.HOME -> HomeScreen()
+                    AppTab.SETTINGS -> SettingsScreen(
+                        hasFolder = tree != null,
+                        folderReadable = folderReadable,
+                        backingUp = backups.running,
+                        backupResult = backups.result,
+                        backupPlace = backups.place,
+                        onChooseFolder = { picker.launch(null) },
+                        onOpenKavita = { showKavita = true },
+                        onBackUp = { currentTree?.let(::backUp) },
+                    )
+                    AppTab.LIBRARY -> LibraryScreen(
+                        rows = rows,
+                        ignoredCount = ignored.size,
+                        hasFolder = tree != null,
+                        accessLost = accessLost,
+                        accessRefused = accessRefused,
+                        scanning = scanning,
+                        scanFailed = scanFailed,
+                        kavitaFailed = kavitaFailed,
+                        kavitaKeyFor = kavitaKeyFor,
+                        canRestore = empty,
+                        restores = restores,
+                        listState = libraryList,
+                        collapsed = collapsed,
+                        onToggleSection = { type -> collapsed = if (type in collapsed) collapsed - type else collapsed + type },
+                        onPickBackup = { backupPicker.launch(arrayOf("*/*")) },
+                        onConfirmRestore = { restores.confirm { backup -> withContext(Dispatchers.IO) { BackupRestore(store).apply(backup) } } },
+                        onChooseFolder = { picker.launch(null) },
+                        onOpenWork = { openWorkId = it },
+                        onOpenIgnored = { showIgnored = true },
+                        searching = searching,
+                        query = query,
+                        onOpenSearch = { searching = true },
+                        onQueryChange = { query = it },
+                        onCloseSearch = {
+                            searching = false
+                            query = ""
+                        },
+                    )
+                }
+                AppBar(current = tab, onSelect = { tab = it }, modifier = Modifier.align(Alignment.BottomCenter))
+            }
         }
     }
 }
@@ -428,19 +445,14 @@ private fun LibraryScreen(
     kavitaKeyFor: String?,
     canRestore: Boolean,
     restores: Restores,
-    backingUp: Boolean,
-    backupResult: BackupResult?,
-    backupPlace: String,
     listState: LazyListState,
     collapsed: Set<WorkType>,
     onToggleSection: (WorkType) -> Unit,
-    onBackUp: () -> Unit,
     onPickBackup: () -> Unit,
     onConfirmRestore: () -> Unit,
     onChooseFolder: () -> Unit,
     onOpenWork: (String) -> Unit,
     onOpenIgnored: () -> Unit,
-    onOpenKavita: () -> Unit,
     searching: Boolean,
     query: String,
     onOpenSearch: () -> Unit,
@@ -456,15 +468,8 @@ private fun LibraryScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(stringResource(R.string.library_title), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
-                if (hasFolder && !accessLost && !accessRefused) {
-                    TextButton(onClick = onChooseFolder) { Text(stringResource(R.string.change_folder)) }
-                }
                 SearchButton(onOpenSearch)
             }
-        }
-        // Here until the Settings screen exists (its place there: Settings › Sources › Kavita).
-        TextButton(onClick = onOpenKavita, modifier = Modifier.padding(start = 4.dp)) {
-            Text(stringResource(R.string.kavita_connect))
         }
         if (kavitaFailed) {
             Text(
@@ -498,8 +503,6 @@ private fun LibraryScreen(
                 WorkList(kavitaRows, 0, listState, collapsed, query, onToggleSection, onOpenWork, onOpenIgnored)
             }
             else -> {
-                // Here until the Settings screen exists (its place there: Settings › Backup).
-                BackupRow(backingUp, backupResult, backupPlace, onBackUp)
                 if (scanning) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp))
                     Text(
@@ -529,8 +532,8 @@ private fun LibraryScreen(
 }
 
 @Composable
-private fun BackupRow(backingUp: Boolean, result: BackupResult?, place: String, onBackUp: () -> Unit) {
-    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+internal fun BackupRow(backingUp: Boolean, result: BackupResult?, place: String, onBackUp: () -> Unit) {
+    Column {
         TextButton(onClick = onBackUp, enabled = !backingUp) { Text(stringResource(R.string.back_up)) }
         val message = when {
             backingUp -> stringResource(R.string.backup_writing)
