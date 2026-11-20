@@ -241,4 +241,31 @@
     </plurals>
     <string name="summary_more">More</string>
     <string name="summary_less">Less</string>
+    <string name="more_options">More options</string>
+    <string name="select_chapters">Select chapters</string>
+    <string name="mark_all_read">Mark all as read</string>
+    <string name="selection_none">Tap to select</string>
+    <plurals name="selection_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <string name="selection_close">Close selection</string>
+    <string name="selection_all">Select all</string>
+    <string name="selection_read">Mark read</string>
+    <string name="selection_unread">Mark unread</string>
+    <string name="mark_previous_read">Mark the earlier ones as read · %d</string>
+    <plurals name="marked_read">
+        <item quantity="one">%d marked as read.</item>
+        <item quantity="other">%d marked as read.</item>
+    </plurals>
+    <plurals name="marked_unread">
+        <item quantity="one">%d marked as unread.</item>
+        <item quantity="other">%d marked as unread.</item>
+    </plurals>
+    <plurals name="marked_previous">
+        <item quantity="one">%d earlier chapter marked as read.</item>
+        <item quantity="other">%d earlier chapters marked as read.</item>
+    </plurals>
+    <string name="chapter_reading">Reading · %d%%</string>
+    <string name="chapter_select">Select</string>
 </resources>

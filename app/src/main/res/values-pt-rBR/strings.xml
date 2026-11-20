@@ -187,4 +187,31 @@
     </plurals>
     <string name="summary_more">Mais</string>
     <string name="summary_less">Menos</string>
+    <string name="more_options">Mais opções</string>
+    <string name="select_chapters">Selecionar capítulos</string>
+    <string name="mark_all_read">Marcar tudo como lido</string>
+    <string name="selection_none">Toque para selecionar</string>
+    <plurals name="selection_count">
+        <item quantity="one">%d selecionado</item>
+        <item quantity="other">%d selecionados</item>
+    </plurals>
+    <string name="selection_close">Fechar seleção</string>
+    <string name="selection_all">Selecionar tudo</string>
+    <string name="selection_read">Lidos</string>
+    <string name="selection_unread">Não lidos</string>
+    <string name="mark_previous_read">Marcar os anteriores como lidos · %d</string>
+    <plurals name="marked_read">
+        <item quantity="one">%d marcado como lido.</item>
+        <item quantity="other">%d marcados como lidos.</item>
+    </plurals>
+    <plurals name="marked_unread">
+        <item quantity="one">%d marcado como não lido.</item>
+        <item quantity="other">%d marcados como não lidos.</item>
+    </plurals>
+    <plurals name="marked_previous">
+        <item quantity="one">%d capítulo anterior marcado como lido.</item>
+        <item quantity="other">%d capítulos anteriores marcados como lidos.</item>
+    </plurals>
+    <string name="chapter_reading">Lendo · %d%%</string>
+    <string name="chapter_select">Selecionar</string>
 </resources>
