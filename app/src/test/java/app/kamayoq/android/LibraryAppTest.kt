@@ -10,6 +10,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasAnyAncestor
@@ -199,6 +200,21 @@ class LibraryAppTest {
         waitFor("Sakamoto Days")
         compose.onNodeWithText("Dom Casmurro").assertExists()
         compose.onNode(hasSetTextAction()).assertDoesNotExist()
+    }
+
+    // Found on the S24 with build r576: closing a search left the list where its first result was.
+    @Test
+    fun `dado a Biblioteca no topo, quando busco uma obra lá embaixo e fecho a busca, então a lista volta ao topo`() {
+        val folder = FolderInMemory(app, (1..40).map { "Obra %02d".format(it) }).apply { books = listOf("Dom Casmurro") }
+        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        waitFor("Obra 01")
+        search("casmurro")
+        waitUntilGone("Obra 01")
+
+        pressBack()
+
+        waitFor("Obra 01")
+        compose.onNodeWithText("Obra 01").assertIsDisplayed()
     }
 
     @Test
