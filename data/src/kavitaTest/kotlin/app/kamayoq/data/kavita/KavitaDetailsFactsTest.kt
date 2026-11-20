@@ -81,7 +81,7 @@ class KavitaDetailsFactsTest {
     }
 
     @Test
-    fun `dado a biblioteca com metadados desligados, então o ComicInfo não chega: sem resumo e situação 0`() {
+    fun `dado a biblioteca com metadados desligados, então o ComicInfo não chega, sem resumo e com situação 0`() {
         val work = KavitaServer.works(KavitaServer.mutableLibraryId).single { it.name == "Unread Info Work" }
         val metadata = KavitaServer.metadata(work.id)
 
