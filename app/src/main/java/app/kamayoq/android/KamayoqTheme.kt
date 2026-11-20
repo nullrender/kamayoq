@@ -115,7 +115,9 @@ private fun Palette.scheme(dark: Boolean): ColorScheme {
         // Neutral actions use the text colour on the inverted background (DESIGN.md, principle 4).
         inverseSurface = text,
         inverseOnSurface = background,
-        inversePrimary = text,
+        // A notice's button, such as Undo, over inverseSurface: in the notice's own text colour, as
+        // the Work board draws it, never in the colour of the notice behind it.
+        inversePrimary = background,
         error = error,
         onError = onError,
         errorContainer = raised,
