@@ -57,6 +57,8 @@ internal object KavitaServer {
 
     val mutableLibraryId: Int by lazy { prepareLibrary("Mutable library", "/mutable") }
 
+    val describedLibraryId: Int by lazy { prepareLibrary("Described library", "/described", metadata = true) }
+
     val bookLibraryId: Int by lazy { prepareLibrary("Book library", "/books", type = 2, fileGroup = 2, metadata = true) }
 
     // Kept from the moment of the setup: the test library appears as soon as any test needs it.
@@ -75,7 +77,28 @@ internal object KavitaServer {
         }
     }
 
-    fun works(libraryId: Int = this.libraryId): List<KavitaWork> {
+    fun works(libraryId: Int = this.libraryId): List<KavitaWork> =
+        series(libraryId).map {
+            KavitaWork(
+                it.getValue("id").jsonPrimitive.int,
+                it.getValue("name").jsonPrimitive.content,
+                it.getValue("libraryId").jsonPrimitive.int,
+            )
+        }
+
+    /** Each series' name and the name of its cover file, as the series list gives them. */
+    fun coverNames(libraryId: Int): Map<String, String> =
+        series(libraryId).associate { it.getValue("name").jsonPrimitive.content to it.getValue("coverImage").jsonPrimitive.content }
+
+    /** The answer's code and bytes, for an image. */
+    fun bytes(path: String, key: String? = null): Pair<Int, ByteArray> {
+        val request = Request.Builder().url("$url$path")
+            .apply { if (key != null) header("x-api-key", key) }
+            .build()
+        return http.newCall(request).execute().use { it.code to it.body.bytes() }
+    }
+
+    private fun series(libraryId: Int): List<JsonObject> {
         val inTheLibrary = buildJsonObject {
             putJsonArray("statements") {
                 addJsonObject {
@@ -86,15 +109,7 @@ internal object KavitaServer {
             }
             put("combination", 1)
         }
-        return post("/api/Series/v2?PageNumber=1&PageSize=50", inTheLibrary, "x-api-key" to authKey)
-            .jsonArray.map {
-                val work = it.jsonObject
-                KavitaWork(
-                    work.getValue("id").jsonPrimitive.int,
-                    work.getValue("name").jsonPrimitive.content,
-                    work.getValue("libraryId").jsonPrimitive.int,
-                )
-            }
+        return post("/api/Series/v2?PageNumber=1&PageSize=50", inTheLibrary, "x-api-key" to authKey).jsonArray.map { it.jsonObject }
     }
 
     fun chapters(workId: Int): List<KavitaChapter> {
@@ -152,6 +167,15 @@ internal object KavitaServer {
 
     fun progress(chapter: KavitaChapter): JsonObject =
         Json.parseToJsonElement(get("/api/Reader/get-progress?chapterId=${chapter.id}", key = authKey).body).jsonObject
+
+    /** The series' metadata, as the web reader's detail page asks for it. */
+    fun metadata(workId: Int): JsonObject =
+        Json.parseToJsonElement(get("/api/Series/metadata?seriesId=$workId", key = authKey).body).jsonObject
+
+    /** Saves the series' metadata as the web reader's edit sheet does, with [change] applied. */
+    fun editMetadata(workId: Int, change: (JsonObject) -> JsonObject) {
+        send("/api/Series/metadata", buildJsonObject { put("seriesMetadata", change(metadata(workId))) }, "x-api-key" to authKey)
+    }
 
     /** Scans again and returns when the scanner is idle: a scan asked for while another runs waits 3 hours. */
     fun rescan(libraryId: Int) {

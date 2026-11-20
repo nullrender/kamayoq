@@ -126,6 +126,7 @@ jobs:
             -v "$PWD/data/build/kavita-fixtures/comics:/manga:ro" \
             -v "$PWD/data/build/kavita-fixtures/mutable:/mutable:ro" \
             -v "$PWD/data/build/kavita-fixtures/books:/books:ro" \
+            -v "$PWD/data/build/kavita-fixtures/described:/described:ro" \
             jvmilazz0/kavita@sha256:31181a32f0dda73cae68721867028a7253d57881b58bea5754cd9e578e75421a
           start=$SECONDS
           until [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5000/api/Health)" = 200 ]; do

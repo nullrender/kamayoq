@@ -43,6 +43,17 @@ fun main(args: Array<String>) {
     writeChapter(mutable, "Unchecked Work", number = 1, pages = 12)
     writeChapter(mutable, "Reopened Work", number = 1, pages = 12)
     writeChapter(mutable, "Skipped Work", number = 1, pages = 12)
+    // Read with the library's metadata on: what Kavita takes from ComicInfo.xml for the Work screen.
+    val described = File(root, "described")
+    writeChapter(described, "Info Work", number = 1, pages = 3, comicInfo = comicInfo("Info Work", 1))
+    writeChapter(described, "Info Work", number = 2, pages = 3, comicInfo = comicInfo("Info Work", 2))
+    writeChapter(described, "Ended Work", number = 1, pages = 3, comicInfo = comicInfo("Ended Work", 1, count = 2))
+    writeChapter(described, "Ended Work", number = 2, pages = 3, comicInfo = comicInfo("Ended Work", 2, count = 2))
+    writeChapter(described, "Short Work", number = 1, pages = 3, comicInfo = comicInfo("Short Work", 1, count = 5))
+    writeChapter(described, "Plain Work", number = 1, pages = 3)
+    writeChapter(described, "Edited Work", number = 1, pages = 3)
+    // The same kind of file in a library whose metadata is off.
+    writeChapter(mutable, "Unread Info Work", number = 1, pages = 3, comicInfo = comicInfo("Unread Info Work", 1, count = 1))
     val books = File(root, "books")
     for (name in listOf("A file", "B file", "C file")) writeEpub(File(books, "Same Title/$name.epub"), "Same Title")
     writeEpub(File(books, "Lone Book/Lone Book.epub"), "Lone Book")
@@ -58,6 +69,11 @@ fun main(args: Array<String>) {
     writeEpub(File(books, "Chapters Folder/Cap. 0928.epub"), "Alpha Story")
     writeEpub(File(books, "Chapters Folder/Cap. 0929.epub"), "Beta Story")
     // One book per progress test, so no test finds a record another one left.
+    writeEpub(
+        File(books, "Described Book/Described Book.epub"),
+        "Described Book",
+        metadata = "<dc:creator>Machado de Assis</dc:creator><dc:description>A book about Bento.</dc:description><dc:subject>Romance</dc:subject>",
+    )
     for (name in listOf("Unmarked Book", "Marked Book", "Id Book", "Zero Book")) writeEpub(File(books, "$name/$name.epub"), name)
     // Read by the sync tests, one book each.
     val synced = listOf("Read Here Book", "First Section Book", "Ended Book", "Adopted Book", "Read There Book", "Marker Book", "Crossed Book", "Recounted Book", "Offline Book", "Reread Book", "Odd Marker Book", "Kept Here Book", "Batch Marker Book")
@@ -70,6 +86,7 @@ internal fun writeEpub(
     title: String,
     nonLinear: Set<Int> = emptySet(),
     contents: List<Pair<String, String>> = listOf("s0.xhtml" to "x"),
+    metadata: String = "",
 ) {
     file.parentFile.mkdirs()
     val sections = 0..2
@@ -95,7 +112,7 @@ internal fun writeEpub(
             "c.opf",
             """<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id">""" +
                 """<metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>$title</dc:title><dc:language>pt</dc:language>""" +
-                """<dc:identifier id="id">${UUID.randomUUID()}</dc:identifier></metadata>""" +
+                """<dc:identifier id="id">${UUID.randomUUID()}</dc:identifier>$metadata</metadata>""" +
                 """<manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>$items</manifest>""" +
                 """<spine>$spine</spine></package>""",
         )
@@ -114,11 +131,18 @@ internal fun writeEpub(
     check(draft.renameTo(file)) { "Could not rename $draft" }
 }
 
-internal fun writeChapter(root: File, work: String, number: Int, pages: Int) {
-    writeComic(File(root, "$work/$work Ch. %03d.cbz".format(number)), pages)
+internal fun writeChapter(root: File, work: String, number: Int, pages: Int, comicInfo: String? = null) {
+    writeComic(File(root, "$work/$work Ch. %03d.cbz".format(number)), pages, comicInfo = comicInfo)
 }
 
-internal fun writeComic(file: File, pages: Int, extra: String? = null) {
+/** Invented summary, writers and genres; [count] is the number of chapters the series will have. */
+internal fun comicInfo(series: String, number: Int, count: Int? = null): String =
+    """<?xml version="1.0"?><ComicInfo><Series>$series</Series><Number>$number</Number>""" +
+        (count?.let { "<Count>$it</Count>" } ?: "") +
+        """<Summary>A summary of $series.</Summary><Writer>Ann Writer, Bo Second</Writer>""" +
+        """<Genre>Fantasy, Action</Genre><Tags>Magic, School</Tags><LanguageISO>pt</LanguageISO></ComicInfo>"""
+
+internal fun writeComic(file: File, pages: Int, extra: String? = null, comicInfo: String? = null) {
     file.parentFile.mkdirs()
     // Written aside and renamed, so the folder's date changes too, as the scanner compares it.
     val draft = File(file.parentFile, "${file.name}.draft")
@@ -126,6 +150,11 @@ internal fun writeComic(file: File, pages: Int, extra: String? = null) {
         for (page in 1..pages) {
             zip.putNextEntry(ZipEntry("$page.png"))
             zip.write(png(color = page * 0x101010))
+            zip.closeEntry()
+        }
+        if (comicInfo != null) {
+            zip.putNextEntry(ZipEntry("ComicInfo.xml"))
+            zip.write(comicInfo.toByteArray())
             zip.closeEntry()
         }
         if (extra != null) {
