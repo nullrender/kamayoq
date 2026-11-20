@@ -297,10 +297,13 @@ internal fun WorkScreen(
             }
         },
     ) {
-        // With nothing opened yet, chapters marked read still say where the reading is: it goes on at
-        // the first one not read.
-        val markedOnly = resume == null && chapters.any { it.read }
-        val target = resume ?: (if (markedOnly) chapters.firstOrNull { !it.read } ?: chapters.lastOrNull() else chapters.firstOrNull())?.chapter
+        // Read marks say where the reading goes on (his decision, 20/11/2026): when nothing was opened
+        // yet but some chapter is read, or the chapter the reading stopped in is read, it goes on at
+        // the first chapter not read, or at the last one when all are read.
+        val stoppedInRead = chapters.firstOrNull { it.chapter.id == resume?.id }?.read == true
+        val markedOnly = (resume == null && chapters.any { it.read }) || stoppedInRead
+        val target = (if (markedOnly) chapters.firstOrNull { !it.read } ?: chapters.lastOrNull() else null)?.chapter
+            ?: resume ?: chapters.firstOrNull()?.chapter
         val fromKavita = work?.origin == LibraryStore.KAVITA && kavitaSync != null
         // The two sides went to different chapters: where to reopen is the person's (contract, case 5).
         val crossing = others.firstOrNull { it.reason == LibraryStore.CONFLICT && resume != null && it.chapterId != resume?.id }
