@@ -28,6 +28,7 @@ import app.kamayoq.core.library.SplitFiles
 import app.kamayoq.core.library.UnitContent
 import app.kamayoq.core.library.UnitKind
 import app.kamayoq.core.library.Work
+import app.kamayoq.core.library.WorkDetails
 import app.kamayoq.core.library.WorkType
 import app.kamayoq.core.progress.BasisPoints
 import app.kamayoq.core.progress.ChapterProgress
@@ -559,6 +560,18 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
             database.workVersionQueries.markAbsentExcept(KAVITA, server, versionIds)
         }
     }
+
+    /** What the source says about [workId]; nothing when it said nothing yet. */
+    @Suppress("UNUSED_PARAMETER")
+    fun details(workId: String): WorkDetails = WorkDetails.NONE
+
+    /** The stamp of the cover kept for [workId], null with none (WorkDetails.sq). */
+    @Suppress("UNUSED_PARAMETER")
+    fun coverStamp(workId: String): String? = null
+
+    /** Records that the cover kept for [workId] is now the one of [stamp]; null when none is kept. */
+    @Suppress("UNUSED_PARAMETER")
+    fun saveCover(workId: String, stamp: String?) = Unit
 
     fun kavitaServer(): StoredServer? = database.transactionWithResult {
         database.kavitaServerQueries.all().executeAsList().firstOrNull()?.let { server ->

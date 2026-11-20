@@ -16,6 +16,7 @@ data class ImportedWork(
     val subtype: ComicsSubtype?,
     val libraryId: Int,
     val chapters: List<ImportedChapter>,
+    val details: WorkDetails = WorkDetails.NONE,
 )
 
 /** A Kavita chapter as the Library keeps it, in reading order. [path] is the chapter id. */

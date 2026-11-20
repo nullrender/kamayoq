@@ -1,0 +1,40 @@
+-- What a source says about a work, for the Work screen (core WorkDetails). A work with no row has
+-- none: a local work, or one from Kavita before its next import. Kavita gives all of it again, so
+-- the backup leaves it out.
+CREATE TABLE work_details (
+    work_id TEXT NOT NULL PRIMARY KEY REFERENCES work(id),
+    -- One item per line: a name or a tag holds no line break.
+    authors TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    tags TEXT NOT NULL,
+    -- PublicationStatus name from core; null is unknown.
+    publication TEXT,
+    -- Chapters missing at the source; null is unknown, which never counts as zero.
+    missing INTEGER CHECK (missing >= 0),
+    -- The name Kavita gives the cover file: a new name is a new cover to fetch. Null with no cover
+    -- kept here.
+    cover_stamp TEXT
+);
+
+ofWork:
+SELECT authors, summary, tags, publication, missing, cover_stamp FROM work_details WHERE work_id = ?;
+
+-- Two steps, so the cover's stamp stays: only the fetch of the cover changes it.
+ensure:
+INSERT OR IGNORE INTO work_details (work_id, authors, summary, tags, publication, missing, cover_stamp)
+VALUES (?, '', '', '', NULL, NULL, NULL);
+
+save:
+UPDATE work_details SET authors = ?, summary = ?, tags = ?, publication = ?, missing = ? WHERE work_id = ?;
+
+saveCover:
+UPDATE work_details SET cover_stamp = ? WHERE work_id = ?;
+
+-- The same two steps for the work of a Kavita version, as the import knows it.
+ensureForVersion:
+INSERT OR IGNORE INTO work_details (work_id, authors, summary, tags, publication, missing, cover_stamp)
+SELECT work_id, '', '', '', NULL, NULL, NULL FROM work_version WHERE id = ?;
+
+saveForVersion:
+UPDATE work_details SET authors = ?, summary = ?, tags = ?, publication = ?, missing = ?
+WHERE work_id = (SELECT work_id FROM work_version WHERE id = ?);

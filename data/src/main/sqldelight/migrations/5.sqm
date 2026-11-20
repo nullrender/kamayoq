@@ -1,0 +1,16 @@
+-- From version 5 to 6: only adds, so every work, chapter, position and state stays as it was, and
+-- every work starts with no details until Kavita's next import (slice 3 of the v1 interface).
+CREATE TABLE work_details (
+    work_id TEXT NOT NULL PRIMARY KEY REFERENCES work(id),
+    -- One item per line: a name or a tag holds no line break.
+    authors TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    tags TEXT NOT NULL,
+    -- PublicationStatus name from core; null is unknown.
+    publication TEXT,
+    -- Chapters missing at the source; null is unknown, which never counts as zero.
+    missing INTEGER CHECK (missing >= 0),
+    -- The name Kavita gives the cover file: a new name is a new cover to fetch. Null with no cover
+    -- kept here.
+    cover_stamp TEXT
+);

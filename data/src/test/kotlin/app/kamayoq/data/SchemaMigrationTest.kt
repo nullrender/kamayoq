@@ -137,9 +137,35 @@ class SchemaMigrationTest {
 
         LibraryStore.schema.migrate(driver, 4, 5)
 
-        assertEquals(5, LibraryStore.schema.version)
         assertEquals(before, everyRow(columns))
         assertEquals("0", rows("SELECT count(*) FROM reading_state").single().single())
+    }
+
+    @Test
+    fun `dado um banco da versão 5 com obras, progresso e estado, quando migro para a 6, então cada linha continua igual e nenhuma obra tem dados`() {
+        version1()
+        LibraryStore.schema.migrate(driver, 1, 5)
+        execute("INSERT INTO reading_state (work_id, state, automatic, state_before, changed_at, mark_chapter_id, mark_fraction) VALUES ('work-dom', 'READING', 0, NULL, NULL, NULL, NULL)")
+        val columns = columnsNow()
+        val before = everyRow(columns)
+
+        LibraryStore.schema.migrate(driver, 5, 6)
+
+        assertEquals(6, LibraryStore.schema.version)
+        assertEquals(before, everyRow(columns))
+        assertEquals("0", rows("SELECT count(*) FROM work_details").single().single())
+    }
+
+    @Test
+    fun `dado um banco migrado para a 6, quando os dados chegam de uma obra que não existe ou faltando menos que zero, então o banco recusa`() {
+        migrated()
+        val insert = "INSERT INTO work_details (work_id, authors, summary, tags, publication, missing, cover_stamp) VALUES "
+
+        execute("$insert ('work-dom', 'Machado de Assis', '', '', 'COMPLETED', 0, NULL)")
+
+        execute("DELETE FROM work_details")
+        assertFails { execute("$insert ('work-nobody', '', '', '', NULL, NULL, NULL)") }
+        assertFails { execute("$insert ('work-dom', '', '', '', NULL, -1, NULL)") }
     }
 
     @Test
