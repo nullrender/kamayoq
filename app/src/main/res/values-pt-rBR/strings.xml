@@ -131,4 +131,8 @@
     <string name="section_collapsed">Recolhida</string>
     <string name="section_hide">Esconder obras</string>
     <string name="section_show">Mostrar obras</string>
+    <string name="search_open">Procurar na biblioteca</string>
+    <string name="search_close">Fechar a busca</string>
+    <string name="search_field">Título ou título alternativo</string>
+    <string name="search_none">Nenhuma obra com esse nome.</string>
 </resources>

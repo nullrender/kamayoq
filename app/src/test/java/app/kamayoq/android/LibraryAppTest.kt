@@ -10,12 +10,15 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.hasScrollToIndexAction
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performTextInput
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ApplicationProvider
 import app.kamayoq.core.backup.Backup
@@ -140,6 +143,55 @@ class LibraryAppTest {
         restoration.emulateSavedInstanceStateRestore()
 
         waitFor("Dom Casmurro")
+        compose.onNodeWithText("Sakamoto Days").assertDoesNotExist()
+    }
+
+    private fun search(text: String) {
+        compose.onNodeWithContentDescription(app.getString(R.string.search_open)).performClick()
+        compose.onNode(hasSetTextAction()).performTextInput(text)
+    }
+
+    private fun pressBack() = compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
+
+    @Test
+    fun `dado obras da pasta e do Kavita, quando procuro pela lupa, então só as que respondem aparecem, das duas origens`() {
+        kavitaWork("Escravo das Sombras")
+        val folder = FolderInMemory(app, listOf("Sakamoto Days", "Sombras de Ébano")).apply { books = listOf("Dom Casmurro") }
+        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        waitFor("Sakamoto Days")
+        waitFor("Escravo das Sombras")
+
+        search("sombras")
+
+        waitUntilGone("Sakamoto Days")
+        compose.onNodeWithText("Escravo das Sombras").assertExists()
+        compose.onNodeWithText("Sombras de Ébano").assertExists()
+        compose.onNodeWithText("Dom Casmurro").assertDoesNotExist()
+    }
+
+    @Test
+    fun `dado uma busca aberta, quando aperto Voltar, então a busca fecha e todas as obras voltam, sem sair da Biblioteca`() {
+        val folder = FolderInMemory(app, listOf("Sakamoto Days")).apply { books = listOf("Dom Casmurro") }
+        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        waitFor("Sakamoto Days")
+        search("casmurro")
+        waitUntilGone("Sakamoto Days")
+
+        pressBack()
+
+        waitFor("Sakamoto Days")
+        compose.onNodeWithText("Dom Casmurro").assertExists()
+        compose.onNode(hasSetTextAction()).assertDoesNotExist()
+    }
+
+    @Test
+    fun `dado uma busca que nada responde, então a tela diz que nenhuma obra tem esse nome`() {
+        showLibrary(listOf("Sakamoto Days"))
+        waitFor("Sakamoto Days")
+
+        search("kaiju")
+
+        waitFor(app.getString(R.string.search_none))
         compose.onNodeWithText("Sakamoto Days").assertDoesNotExist()
     }
 

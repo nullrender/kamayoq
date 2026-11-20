@@ -181,4 +181,9 @@
     <string name="section_collapsed">Collapsed</string>
     <string name="section_hide">Hide works</string>
     <string name="section_show">Show works</string>
+    <!-- The magnifier in the Library's header: it looks in the works of the folder and of Kavita. -->
+    <string name="search_open">Search the library</string>
+    <string name="search_close">Close search</string>
+    <string name="search_field">Title or alternative title</string>
+    <string name="search_none">No work with that name.</string>
 </resources>
