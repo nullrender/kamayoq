@@ -3,6 +3,7 @@ package app.kamayoq.android
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.longClick
@@ -34,8 +35,8 @@ class ChapterSelectionTest {
 
     private val app = ApplicationProvider.getApplicationContext<KamayoqApp>()
 
-    private fun openGantz() {
-        val chapters = (1..3).map {
+    private fun openGantz(count: Int = 3) {
+        val chapters = (1..count).map {
             ImportedChapter("9$it", "Cap. $it", UnitKind.CHAPTER, it.toDouble(), ChapterFormat.ARCHIVE, "20|100", 20, "Cap. $it.cbz", 7)
         }
         app.store.importKavita("server-1", listOf(ImportedWork("12", "Gantz", WorkType.COMICS, null, 2, chapters)))
@@ -45,7 +46,7 @@ class ChapterSelectionTest {
         }
         waitFor("Gantz")
         compose.onNode(hasText("Gantz")).performClick()
-        waitFor("Cap. 3")
+        waitFor("Cap. 1")
     }
 
     private fun waitFor(text: String) =
@@ -185,5 +186,19 @@ class ChapterSelectionTest {
         compose.onNode(hasText(app.getString(R.string.selection_read))).performClick()
 
         waitFor(app.getString(R.string.continue_reading, "Cap. 3"))
+    }
+
+    @Test
+    fun `dado um capítulo na metade de baixo da tela, quando seguro o dedo nele, então ele fica visível acima da barra da seleção`() {
+        openGantz(count = 12)
+        val pressed = (12 downTo 1).map { "Cap. $it" }.first { compose.onAllNodes(hasText(it)).fetchSemanticsNodes().isNotEmpty() }
+
+        compose.onNode(hasText(pressed)).performTouchInput { longClick() }
+        waitFor(selected(1))
+        compose.waitForIdle()
+
+        val bar = compose.onNode(hasTestTag(SELECTION_BAR)).fetchSemanticsNode().boundsInRoot
+        val chapter = compose.onNode(hasText(pressed)).fetchSemanticsNode().boundsInRoot
+        assertTrue("$pressed ends at ${chapter.bottom}, the bar starts at ${bar.top}", chapter.bottom <= bar.top + 1)
     }
 }
