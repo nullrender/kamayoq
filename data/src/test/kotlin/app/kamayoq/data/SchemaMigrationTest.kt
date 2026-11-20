@@ -123,10 +123,37 @@ class SchemaMigrationTest {
 
         LibraryStore.schema.migrate(driver, 3, 4)
 
-        assertEquals(4, LibraryStore.schema.version)
         assertEquals(before, everyRow(columns))
         assertEquals(listOf(""), rows("SELECT DISTINCT toc_href FROM chapter").map { it.single() })
         assertEquals("0", rows("SELECT count(*) FROM edition_offer").single().single())
+    }
+
+    @Test
+    fun `dado um banco da versão 4 com obras e progresso, quando migro para a 5, então cada linha continua igual e nenhuma obra tem estado`() {
+        version1()
+        LibraryStore.schema.migrate(driver, 1, 4)
+        val columns = columnsNow()
+        val before = everyRow(columns)
+
+        LibraryStore.schema.migrate(driver, 4, 5)
+
+        assertEquals(5, LibraryStore.schema.version)
+        assertEquals(before, everyRow(columns))
+        assertEquals("0", rows("SELECT count(*) FROM reading_state").single().single())
+    }
+
+    @Test
+    fun `dado um banco migrado para a 5, quando o estado chega sem a hora da mudança automática ou com meia marca, então o banco recusa`() {
+        migrated()
+        val insert = "INSERT INTO reading_state (work_id, state, automatic, state_before, changed_at, mark_chapter_id, mark_fraction) VALUES "
+
+        execute("$insert ('work-dom', 'READING', 1, 'WANT_TO_READ', 1763600000000, 'chapter-2', 137)")
+
+        execute("DELETE FROM reading_state")
+        assertFails { execute("$insert ('work-dom', 'READING', 1, NULL, NULL, NULL, NULL)") }
+        assertFails { execute("$insert ('work-dom', 'READING', 0, 'WANT_TO_READ', NULL, NULL, NULL)") }
+        assertFails { execute("$insert ('work-dom', 'READING', 0, NULL, NULL, 'chapter-2', NULL)") }
+        assertFails { execute("$insert ('work-dom', 'READING', 0, NULL, NULL, 'chapter-nobody', 137)") }
     }
 
     @Test

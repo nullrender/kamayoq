@@ -1,0 +1,19 @@
+-- From version 4 to 5: only adds, so every work, chapter and position stays as it was, and every
+-- work starts with no reading state (slice 2 of the v1 interface).
+CREATE TABLE reading_state (
+    work_id TEXT NOT NULL PRIMARY KEY REFERENCES work(id),
+    -- ReadingState name from core; null is a work left without a state, the same as no row.
+    state TEXT,
+    -- 1 when the app changed the state by itself (FEATURES, part 3): the Work screen offers to go
+    -- back to state_before (null: no state) until the person decides. 0 once the person decides.
+    automatic INTEGER NOT NULL CHECK (automatic IN (0, 1)),
+    state_before TEXT,
+    changed_at INTEGER,
+    -- Where a book's reading was when the state was last decided, in basis points of that chapter:
+    -- the next automatic change counts from here (core StateMark). Both or neither.
+    mark_chapter_id TEXT REFERENCES chapter(id),
+    mark_fraction INTEGER CHECK (mark_fraction BETWEEN 0 AND 10000),
+    CHECK ((mark_chapter_id IS NULL) = (mark_fraction IS NULL)),
+    CHECK (automatic = 1 OR (state_before IS NULL AND changed_at IS NULL)),
+    CHECK (automatic = 0 OR changed_at IS NOT NULL)
+);

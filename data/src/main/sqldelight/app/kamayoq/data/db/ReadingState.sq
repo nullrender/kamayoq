@@ -1,0 +1,35 @@
+-- How the person stands with a work (core ReadingState). A work with no row has no state.
+CREATE TABLE reading_state (
+    work_id TEXT NOT NULL PRIMARY KEY REFERENCES work(id),
+    -- ReadingState name from core; null is a work left without a state, the same as no row.
+    state TEXT,
+    -- 1 when the app changed the state by itself (FEATURES, part 3): the Work screen offers to go
+    -- back to state_before (null: no state) until the person decides. 0 once the person decides.
+    automatic INTEGER NOT NULL CHECK (automatic IN (0, 1)),
+    state_before TEXT,
+    changed_at INTEGER,
+    -- Where a book's reading was when the state was last decided, in basis points of that chapter:
+    -- the next automatic change counts from here (core StateMark). Both or neither.
+    mark_chapter_id TEXT REFERENCES chapter(id),
+    mark_fraction INTEGER CHECK (mark_fraction BETWEEN 0 AND 10000),
+    CHECK ((mark_chapter_id IS NULL) = (mark_fraction IS NULL)),
+    CHECK (automatic = 1 OR (state_before IS NULL AND changed_at IS NULL)),
+    CHECK (automatic = 0 OR changed_at IS NOT NULL)
+);
+
+stateOfWork:
+SELECT state, automatic, state_before, changed_at, mark_chapter_id, mark_fraction
+FROM reading_state
+WHERE work_id = ?;
+
+save:
+INSERT OR REPLACE INTO reading_state (work_id, state, automatic, state_before, changed_at, mark_chapter_id, mark_fraction)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+-- The work a chapter belongs to and its type, which decides how reading counts (core ReadingStates).
+workOfChapter:
+SELECT work.id, work.type
+FROM chapter
+JOIN work_version ON work_version.id = chapter.version_id
+JOIN work ON work.id = work_version.work_id
+WHERE chapter.id = ?;

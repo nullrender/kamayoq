@@ -32,6 +32,7 @@ import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.ReadingPosition
 import app.kamayoq.core.progress.ReadMark
 import app.kamayoq.core.progress.ReadMarkSource
+import app.kamayoq.core.progress.ReadingState
 import app.kamayoq.core.progress.StripPosition
 import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.progress.strip
@@ -136,6 +137,19 @@ data class StoredServer(val id: String, val address: String, val marked: List<In
  * (rule E1): [lastRead] is the last chapter read in the previous edition.
  */
 data class EditionOffer(val path: String, val lastRead: String?)
+
+/** A change of state the app made by itself, at [at]; [from] is the state before it, null for none. */
+data class AutomaticChange(val from: ReadingState?, val at: Instant)
+
+/**
+ * A work's reading state, null for none, and the change the app made by itself, kept until the
+ * person decides the state (FEATURES, part 3: the way back cannot depend on the notice).
+ */
+data class StoredReadingState(val state: ReadingState?, val automatic: AutomaticChange?) {
+    companion object {
+        val NONE = StoredReadingState(state = null, automatic = null)
+    }
+}
 
 /** What is stored of a split file: the stamp it had when its contents were read, and its chapters. */
 data class StoredSplit(val stamp: String, val chapters: List<ContentsChapter>)
@@ -877,6 +891,11 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
     fun openingOf(workId: String, chapterId: String): ChapterOpeningList = database.transactionWithResult {
         ChapterOpeningList(currentEdition(chapterId), chapters(workId))
     }
+
+    fun readingState(workId: String): StoredReadingState = StoredReadingState.NONE
+
+    /** The person's choice of [workId]'s state, null for none. */
+    fun setReadingState(workId: String, state: ReadingState?) = Unit
 
     /** The chapter the work reopens in, or null when nothing of it was read yet. */
     fun resumeChapter(workId: String): StoredChapter? =
