@@ -23,6 +23,8 @@ import app.kamayoq.core.library.ComicsSubtype
 import app.kamayoq.core.library.ContentCheck
 import app.kamayoq.core.library.FileStamp
 import app.kamayoq.core.library.LocalLibrary
+import app.kamayoq.core.library.Publication
+import app.kamayoq.core.library.PublicationStatus
 import app.kamayoq.core.library.ReadingUnit
 import app.kamayoq.core.library.SplitFiles
 import app.kamayoq.core.library.UnitContent
@@ -555,6 +557,7 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
                 val existing = byPath[work.path] ?: returned[work.path]?.let(byId::getValue)
                 val (versionId, cameBack) = storeRemoteWork(server, work, index.toLong(), existing)
                 storeRemoteChapters(versionId, work, cameBack)
+                storeDetails(versionId, work.details)
                 versionId
             }
             database.workVersionQueries.markAbsentExcept(KAVITA, server, versionIds)
@@ -562,16 +565,27 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
     }
 
     /** What the source says about [workId]; nothing when it said nothing yet. */
-    @Suppress("UNUSED_PARAMETER")
-    fun details(workId: String): WorkDetails = WorkDetails.NONE
+    fun details(workId: String): WorkDetails =
+        database.workDetailsQueries.ofWork(workId).executeAsOneOrNull()?.let { row ->
+            WorkDetails(
+                authors = lines(row.authors),
+                summary = row.summary,
+                tags = lines(row.tags),
+                publication = Publication(row.publication?.let(PublicationStatus::valueOf), row.missing?.toInt()),
+            )
+        } ?: WorkDetails.NONE
 
     /** The stamp of the cover kept for [workId], null with none (WorkDetails.sq). */
-    @Suppress("UNUSED_PARAMETER")
-    fun coverStamp(workId: String): String? = null
+    fun coverStamp(workId: String): String? =
+        database.workDetailsQueries.ofWork(workId).executeAsOneOrNull()?.cover_stamp
 
     /** Records that the cover kept for [workId] is now the one of [stamp]; null when none is kept. */
-    @Suppress("UNUSED_PARAMETER")
-    fun saveCover(workId: String, stamp: String?) = Unit
+    fun saveCover(workId: String, stamp: String?) = database.transaction {
+        database.workDetailsQueries.ensure(workId)
+        database.workDetailsQueries.saveCover(stamp, workId)
+    }
+
+    private fun lines(text: String): List<String> = text.lines().filter(String::isNotEmpty)
 
     fun kavitaServer(): StoredServer? = database.transactionWithResult {
         database.kavitaServerQueries.all().executeAsList().firstOrNull()?.let { server ->
@@ -609,6 +623,18 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
     /** Leaves in the lists only the works of [libraries]: unmarking must not wait for the network. */
     fun keepOnlyLibraries(server: String, libraries: List<Int>) {
         database.workVersionQueries.markLibrariesAbsentExcept(KAVITA, server, libraries.map(Int::toLong))
+    }
+
+    private fun storeDetails(versionId: String, details: WorkDetails) {
+        database.workDetailsQueries.ensureForVersion(versionId)
+        database.workDetailsQueries.saveForVersion(
+            details.authors.joinToString("\n"),
+            details.summary,
+            details.tags.joinToString("\n"),
+            details.publication.status?.name,
+            details.publication.missing?.toLong(),
+            versionId,
+        )
     }
 
     /** Returns the version and whether it is coming back after being gone. */
