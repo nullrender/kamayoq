@@ -2,6 +2,7 @@ package app.kamayoq.android
 
 import android.util.Base64
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
@@ -147,6 +148,30 @@ class WorkHeaderTest {
         val more = compose.onNode(hasText(app.getString(R.string.summary_more)), useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
 
         assertEquals(summary.left, more.left, 1f)
+    }
+
+    @Test
+    fun `dado a Obra antes de a obra carregar, então a lista não mostra nada, e o cabeçalho será o primeiro item a aparecer`() {
+        // On the S24 with r641 a work opened scrolled past its header: the list's first frame had the
+        // state button first, and when the header came in above it the list kept that button in place.
+        compose.setContent {
+            WorkScreen(
+                store = app.store,
+                covers = null,
+                kavitaSync = null,
+                workId = "a-work-not-loaded",
+                listState = rememberLazyListState(),
+                progressVersion = 0,
+                readingSince = null,
+                onNoticed = {},
+                onOpenChapter = {},
+                onBack = {},
+            )
+        }
+        compose.waitForIdle()
+
+        val state = app.getString(R.string.state_button_label, app.getString(stateName(null)))
+        assertEquals(0, compose.onAllNodes(hasContentDescription(state)).fetchSemanticsNodes().size)
     }
 
     private companion object {
