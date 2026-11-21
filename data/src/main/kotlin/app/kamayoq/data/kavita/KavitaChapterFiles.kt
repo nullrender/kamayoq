@@ -39,12 +39,15 @@ class KavitaChapterFiles(
      * [IOException] when there is neither. A download stops when [stillWanted] says no.
      */
     fun file(chapter: StoredChapter, stillWanted: () -> Boolean, server: () -> Pair<String, String>): KavitaChapterFile {
-        // A downloaded copy comes first, and a newer content replaces it where it is.
-        val kept = downloadedFile(chapter)?.takeIf(File::exists) ?: File(folder, nameOf(chapter))
-        if (kept.exists() && !chapter.needsContentCheck) return KavitaChapterFile(kept, outdated = false)
         // One at a time per chapter: leaving and opening again may start a second one, and the older
-        // answer must not land on top of the newer.
-        return synchronized(locks.computeIfAbsent(chapter.path) { Any() }) { download(chapter, kept, stillWanted, server) }
+        // answer must not land on top of the newer. The copy is chosen inside the turn too: a
+        // download asked from the Work screen may have just put it among the downloads.
+        return synchronized(locks.computeIfAbsent(chapter.path) { Any() }) {
+            // A downloaded copy comes first, and a newer content replaces it where it is.
+            val kept = downloadedFile(chapter)?.takeIf(File::exists) ?: File(folder, nameOf(chapter))
+            if (kept.exists() && !chapter.needsContentCheck) KavitaChapterFile(kept, outdated = false)
+            else download(chapter, kept, stillWanted, server)
+        }
     }
 
     /** True when the person downloaded [chapter] and its file is in [downloads]. */
