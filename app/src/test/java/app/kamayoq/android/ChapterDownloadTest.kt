@@ -1,7 +1,9 @@
 package app.kamayoq.android
 
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.StateRestorationTester
@@ -9,6 +11,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import app.kamayoq.core.kavita.ImportedChapter
 import app.kamayoq.core.kavita.ImportedWork
@@ -106,6 +109,16 @@ class ChapterDownloadTest {
     private fun openSheet() {
         compose.onNode(hasText(app.getString(R.string.download)) and !hasAnyAncestor(hasTestTag(SELECTION_BAR))).performClick()
         waitFor(app.getString(R.string.download_sheet_title))
+    }
+
+    @Test
+    fun `dado a folha Baixar aberta, então a alça de arrastar tem um alvo de pelo menos 48 dp de largura`() {
+        open("Gantz")
+
+        openSheet()
+
+        // Material's own description of the handle; WorkStateTest checks the same on the state sheet.
+        compose.onNode(hasContentDescription("Drag handle")).assertWidthIsAtLeast(48.dp)
     }
 
     @Test

@@ -2,6 +2,7 @@ package app.kamayoq.android
 
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollAction
@@ -9,6 +10,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.ReadMark
@@ -82,6 +84,16 @@ class WorkStateTest {
     private fun openStates(current: ReadingState?) {
         compose.onNode(hasContentDescription(app.getString(R.string.state_button_label, name(current)))).performClick()
         waitFor(app.getString(R.string.state_sheet_title))
+    }
+
+    @Test
+    fun `dado a folha de estado aberta, então a alça de arrastar tem um alvo de pelo menos 48 dp de largura`() {
+        openWork("Gantz")
+
+        openStates(null)
+
+        // Material's own description of the handle, as ChapterDownloadTest finds it on the Download sheet.
+        compose.onNode(hasContentDescription("Drag handle")).assertWidthIsAtLeast(48.dp)
     }
 
     @Test
