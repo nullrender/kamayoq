@@ -144,6 +144,9 @@ class LibraryAppTest {
         // Each place is read at its own moment: the folder's reading must be over, or its message
         // leaves between two readings and the list moves up under them.
         waitUntilGone(app.getString(R.string.reading_folder))
+        // The same with the offer to restore a backup: it stays until the app has checked that the
+        // store is no longer empty, a read of its own that may end after the works are shown.
+        waitUntilGone(app.getString(R.string.restore_backup))
 
         assertTrue(top(comics) < top("Sakamoto Days"))
         assertTrue(top("Sakamoto Days") < top(books))
