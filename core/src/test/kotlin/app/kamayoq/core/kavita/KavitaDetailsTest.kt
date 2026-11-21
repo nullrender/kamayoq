@@ -81,7 +81,17 @@ class KavitaDetailsTest {
     }
 
     @Test
-    fun `dado a situação 2 com 1 de 1, então os dados da obra trazem a mesma situação da tradução`() {
-        assertEquals(Publication(PublicationStatus.COMPLETED, 0), KavitaTranslation.details(remote(status = 2, total = 1, max = 1)).publication)
+    fun `dado a situação 2 com 2 de 2, então os dados da obra trazem a mesma situação da tradução`() {
+        assertEquals(Publication(PublicationStatus.COMPLETED, 0), KavitaTranslation.details(remote(status = 2, total = 2, max = 2)).publication)
+    }
+
+    @Test
+    fun `dado a situação 2 com 1 de 1 sem trava, que o Kavita dá a todo arquivo único, então a situação é desconhecida`() {
+        assertEquals(Publication.UNKNOWN, publication(remote(status = 2, total = 1, max = 1)))
+    }
+
+    @Test
+    fun `dado a situação 2 com 1 de 1 travada por quem edita no Kavita, então é Concluída e não falta nada`() {
+        assertEquals(Publication(PublicationStatus.COMPLETED, 0), publication(remote(status = 2, locked = true, total = 1, max = 1)))
     }
 }
