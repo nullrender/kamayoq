@@ -14,6 +14,7 @@ import java.io.IOException
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.addJsonObject
@@ -140,8 +141,9 @@ open class KavitaClient(
         val answer = fetch(address, key, "/api/Series/metadata?seriesId=$workId")
         return ofTheRightShape {
             val metadata = answer.body.jsonObject
+            // A JSON null reads as no names, as a missing field does; any other shape is a wrong answer.
             fun names(field: String, part: String) =
-                metadata[field]?.jsonArray.orEmpty().map { it.jsonObject.text(part) }
+                metadata[field]?.takeIf { it !is JsonNull }?.jsonArray.orEmpty().map { it.jsonObject.text(part) }
             RemoteDetails(
                 // A series never edited may have no summary at all.
                 summary = (metadata["summary"] as? JsonPrimitive)?.takeIf { it.isString }?.content.orEmpty(),
