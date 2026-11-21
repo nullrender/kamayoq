@@ -50,7 +50,10 @@ class KavitaImport(
         for (remote in remotes) {
             val workId = workIds[remote.id.toString()] ?: continue
             val stamp = remote.coverImage.ifEmpty { null }
-            if (stamp != null && stamp == store.coverStamp(workId) && covers.file(workId) != null) continue
+            val stored = store.coverStamp(workId)
+            if (stamp != null && stamp == stored && covers.file(workId) != null) continue
+            // No cover there and none here: nothing to drop or record, on every import.
+            if (stamp == null && stored == null && covers.file(workId) == null) continue
             try {
                 val bytes = stamp?.let { client.cover(address, key, remote.id) }
                 if (bytes == null) covers.drop(workId) else covers.keep(workId, bytes)
