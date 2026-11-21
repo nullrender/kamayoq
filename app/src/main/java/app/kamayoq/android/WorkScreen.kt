@@ -331,11 +331,13 @@ internal fun WorkScreen(
         val here = resume
         if (downloadSheet) {
             val resumeAt = chapters.indexOfFirst { it.chapter.id == resume?.id }.coerceAtLeast(0)
+            // Only what the reader opens is offered, so each option counts what would come.
+            val offered = chapters.filter { kavitaSync?.canDownload(it.chapter) == true }
             DownloadSheet(
                 // "Next" counts from where the reading is, in reading order, leaving out what is read.
-                next = chapters.drop(resumeAt).filterNot { it.read },
-                unread = chapters.filterNot { it.read },
-                all = chapters,
+                next = chapters.drop(resumeAt).filterNot { it.read }.filter { it in offered },
+                unread = offered.filterNot { it.read },
+                all = offered,
                 onPick = { download(it) },
                 onDelete = { askToDelete(chapters) },
                 onDismiss = { downloadSheet = false },

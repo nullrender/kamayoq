@@ -4,6 +4,7 @@ import android.util.Log
 import app.kamayoq.core.kavita.KavitaConnection
 import app.kamayoq.core.kavita.KavitaPlace
 import app.kamayoq.core.kavita.RemoteLibrary
+import app.kamayoq.core.library.ChapterFormat
 import app.kamayoq.data.LibraryStore
 import app.kamayoq.data.StoredChapter
 import app.kamayoq.data.WorkCovers
@@ -193,7 +194,8 @@ class KavitaSync(
     fun download(workId: String, chapters: List<StoredChapter>): Int {
         // A chapter already waiting or coming is not asked twice, so the count stays the work's.
         val wanted = synchronized(queued) {
-            chapters.filterNot { files.isDownloaded(it) || it.id in queued }.also { new -> queued += new.map { it.id } }
+            chapters.filter(::canDownload).filterNot { files.isDownloaded(it) || it.id in queued }
+                .also { new -> queued += new.map { it.id } }
         }
         if (wanted.isEmpty()) return 0
         // A new request while one runs adds to it; otherwise the count starts again.
@@ -223,6 +225,10 @@ class KavitaSync(
         }
         return wanted.size
     }
+
+    /** A chapter the reader opens: a PDF or a CBR from Kavita would come down only to be refused. */
+    fun canDownload(chapter: StoredChapter): Boolean =
+        chapter.format == ChapterFormat.ARCHIVE || chapter.format == ChapterFormat.EPUB
 
     /** Deletes [chapters] from this device and returns the bytes freed; the progress stays. */
     fun deleteDownloads(chapters: List<StoredChapter>): Long {
