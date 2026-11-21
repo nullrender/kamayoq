@@ -1,5 +1,6 @@
 package app.kamayoq.data.kavita
 
+import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import app.kamayoq.core.library.Publication
 import app.kamayoq.core.library.PublicationStatus
@@ -33,6 +34,17 @@ class KavitaImportRunTest {
     }
 
     private fun stored(title: String) = store.works().single { it.title == title }.id
+
+    /** The rows [block] writes, as SQLite counts them on the test's connection. */
+    private fun changes(block: () -> Unit): Long {
+        fun total() = driver.executeQuery(null, "SELECT total_changes()", { cursor ->
+            cursor.next()
+            QueryResult.Value(checkNotNull(cursor.getLong(0)))
+        }, 0).value
+        val before = total()
+        block()
+        return total() - before
+    }
 
     @Test
     fun `dado a biblioteca de teste marcada, quando importo, então a Biblioteca tem duas obras do Kavita com os capítulos certos`() {
@@ -107,6 +119,17 @@ class KavitaImportRunTest {
         val id = stored("Lone Book")
         assertEquals(null, covers.file(id))
         assertEquals(null, store.coverStamp(id))
+    }
+
+    @Test
+    fun `dado um EPUB sem imagem de capa já importado, quando importo de novo, então a capa não grava nada no banco`() {
+        import(KavitaServer.bookLibraryId)
+
+        // The same import, without covers and with them: what the covers write is the difference.
+        val withoutCovers = changes { KavitaImport(KavitaClient(), store).run(KavitaServer.authKey) }
+        val withCovers = changes { KavitaImport(KavitaClient(), store, covers).run(KavitaServer.authKey) }
+
+        assertEquals(withoutCovers, withCovers)
     }
 
     @Test
