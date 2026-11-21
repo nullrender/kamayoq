@@ -4,6 +4,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.performClick
@@ -64,7 +65,7 @@ class ChapterDownloadTest {
     private lateinit var sync: KavitaSync
 
     /** [beforeShowing] runs once the work is in the store and before the screen first reads it. */
-    private fun open(title: String, kavita: Boolean = true, beforeShowing: () -> Unit = {}) {
+    private fun open(title: String, kavita: Boolean = true, restoration: StateRestorationTester? = null, beforeShowing: () -> Unit = {}) {
         val secret = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
         val access = KavitaAccess(app, { _, _ -> KavitaConnection.Connected("0.9.1.4") }) { secret }
         sync = KavitaSync(app.store, access, File(app.cacheDir, "download-test"), client, downloadFolder = File(app.filesDir, "download-test"))
@@ -77,9 +78,10 @@ class ChapterDownloadTest {
         }
         beforeShowing()
         val folder = FolderInMemory(app, if (kavita) emptyList() else listOf(title))
-        compose.setContent {
+        val screen = @androidx.compose.runtime.Composable {
             LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, sync, "test-device", app.restores, app.covers)
         }
+        if (restoration != null) restoration.setContent(screen) else compose.setContent(screen)
         waitFor(title)
         compose.onNode(hasText(title)).performClick()
         waitFor("Cap. 1")
@@ -214,5 +216,21 @@ class ChapterDownloadTest {
 
         assertEquals(3, total)
         compose.waitUntil(10_000) { downloaded() == listOf(true, true, true) }
+    }
+
+    @Test
+    fun `dado a confirmação de apagar baixados aberta, quando a tela é recriada, então ela continua aberta`() {
+        val restoration = StateRestorationTester(compose)
+        open("Gantz", restoration = restoration)
+        openSheet()
+        compose.onNode(hasText(app.getString(R.string.download_all))).performClick()
+        compose.waitUntil(10_000) { downloadedOnScreen() == 3 }
+        openSheet()
+        compose.onNode(hasText(app.resources.getQuantityString(R.plurals.download_delete, 3, 3))).performClick()
+        waitFor(app.resources.getQuantityString(R.plurals.delete_downloads_title, 3, 3))
+
+        restoration.emulateSavedInstanceStateRestore()
+
+        waitFor(app.resources.getQuantityString(R.plurals.delete_downloads_title, 3, 3))
     }
 }
