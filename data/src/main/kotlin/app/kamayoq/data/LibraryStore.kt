@@ -150,9 +150,10 @@ data class AutomaticChange(val from: ReadingState?, val at: Instant)
 
 /**
  * What a marking by hand changed, to undo it: each chapter's read mark as it was, and the moment of
- * the marking, which names the change of state it made by itself, if it made one.
+ * the marking, which names the change of state it made by itself, if it made one. [changed] counts
+ * the chapters whose mark the marking changed, for the notice.
  */
-data class MarkChange(val workId: String, val marksBefore: Map<String, ReadMark?>, val at: Instant)
+data class MarkChange(val workId: String, val marksBefore: Map<String, ReadMark?>, val at: Instant, val changed: Int = marksBefore.size)
 
 /**
  * A work's reading state, null for none, and the change the app made by itself, kept until the

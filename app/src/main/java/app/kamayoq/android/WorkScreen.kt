@@ -199,7 +199,7 @@ internal fun WorkScreen(
         selection = ArrayList()
     }
     // A marking said with Undo, which puts back each mark and the state it moved by itself.
-    fun mark(ids: List<String>, read: Boolean, message: Int, count: Int) {
+    fun mark(ids: List<String>, read: Boolean, message: Int) {
         closeSelection()
         scope.launch {
             val change = withContext(Dispatchers.IO) {
@@ -208,7 +208,7 @@ internal fun WorkScreen(
             marked++
             stateVersion++
             val answer = notices.showSnackbar(
-                resources.getQuantityString(message, count, count),
+                resources.getQuantityString(message, change.changed, change.changed),
                 actionLabel = resources.getString(R.string.undo),
                 duration = SnackbarDuration.Long,
             )
@@ -303,7 +303,7 @@ internal fun WorkScreen(
                         text = { Text(stringResource(R.string.mark_all_read)) },
                         onClick = {
                             menuOpen = false
-                            mark(chapters.map { it.chapter.id }, read = true, R.plurals.marked_read, chapters.size)
+                            mark(chapters.map { it.chapter.id }, read = true, R.plurals.marked_read)
                         },
                     )
                 }
@@ -573,9 +573,9 @@ internal fun WorkScreen(
                 earlier = selection.singleOrNull()?.let { one -> chapters.indexOfFirst { it.chapter.id == one } }?.takeIf { it > 0 },
                 onClose = { closeSelection() },
                 onAll = { selection = ArrayList(chapters.map { it.chapter.id }) },
-                onRead = { mark(selection.toList(), read = true, R.plurals.marked_read, selection.size) },
-                onUnread = { mark(selection.toList(), read = false, R.plurals.marked_unread, selection.size) },
-                onEarlier = { before -> mark(chapters.take(before).map { it.chapter.id }, read = true, R.plurals.marked_previous, before) },
+                onRead = { mark(selection.toList(), read = true, R.plurals.marked_read) },
+                onUnread = { mark(selection.toList(), read = false, R.plurals.marked_unread) },
+                onEarlier = { before -> mark(chapters.take(before).map { it.chapter.id }, read = true, R.plurals.marked_previous) },
                 onDownload = if (fromKavita) {
                     { download(chapters.filter { it.chapter.id in selection }) }
                 } else {

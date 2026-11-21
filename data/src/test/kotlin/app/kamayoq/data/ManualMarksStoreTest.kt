@@ -73,6 +73,25 @@ class ManualMarksStoreTest {
     }
 
     @Test
+    fun `dado três capítulos e um já lido, quando marco os três como lidos, então a mudança conta só os dois que mudaram`() {
+        import()
+        store.markRead(work(), listOf(ids().first()), noon)
+
+        val change = store.markRead(work(), ids(), later)
+
+        assertEquals(2, change.changed)
+    }
+
+    @Test
+    fun `dado capítulos não lidos, quando os marco como não lidos, então a mudança conta zero`() {
+        import()
+
+        val change = store.markUnread(work(), ids(), later)
+
+        assertEquals(0, change.changed)
+    }
+
+    @Test
     fun `dado um capítulo lido com posição, quando o marco como não lido, então perde só a marca`() {
         import()
         val first = ids().first()

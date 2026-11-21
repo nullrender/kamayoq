@@ -266,6 +266,7 @@
         <item quantity="one">%d earlier chapter marked as read.</item>
         <item quantity="other">%d earlier chapters marked as read.</item>
     </plurals>
+    <string name="marked_nothing">Nothing changed. They were already marked that way.</string>
     <string name="chapter_reading">Reading · %d%%</string>
     <string name="chapter_select">Select</string>
     <string name="download">Download</string>

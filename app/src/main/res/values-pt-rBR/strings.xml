@@ -212,6 +212,7 @@
         <item quantity="one">%d capítulo anterior marcado como lido.</item>
         <item quantity="other">%d capítulos anteriores marcados como lidos.</item>
     </plurals>
+    <string name="marked_nothing">Nada mudou. Já estavam marcados assim.</string>
     <string name="chapter_reading">Lendo · %d%%</string>
     <string name="chapter_select">Selecionar</string>
     <string name="download">Baixar</string>

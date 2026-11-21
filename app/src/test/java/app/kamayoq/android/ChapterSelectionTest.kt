@@ -106,6 +106,29 @@ class ChapterSelectionTest {
     }
 
     @Test
+    fun `dado dois dos três capítulos já lidos, quando escolho Marcar tudo como lido, então o aviso conta só o que mudou`() {
+        openGantz()
+        app.store.markRead(app.store.works().single().id, chapterIds().take(2), Instant.now())
+
+        openMenu()
+        compose.onNode(hasText(app.getString(R.string.mark_all_read))).performClick()
+
+        waitFor(app.resources.getQuantityString(R.plurals.marked_read, 1, 1))
+    }
+
+    @Test
+    fun `dado todos os capítulos já lidos, quando escolho Marcar tudo como lido, então o aviso diz que nada mudou e não oferece Desfazer`() {
+        openGantz()
+        app.store.markRead(app.store.works().single().id, chapterIds(), Instant.now())
+
+        openMenu()
+        compose.onNode(hasText(app.getString(R.string.mark_all_read))).performClick()
+
+        waitFor(app.getString(R.string.marked_nothing))
+        assertTrue(compose.onAllNodes(hasText(app.getString(R.string.undo))).fetchSemanticsNodes().isEmpty())
+    }
+
+    @Test
     fun `dado o menu, quando escolho Selecionar capítulos, toco em dois lidos e em Não lidos, então os dois ficam não lidos`() {
         val now = Instant.now()
         openGantz()
