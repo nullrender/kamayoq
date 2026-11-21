@@ -128,7 +128,8 @@ internal fun WorkScreen(
     var offers by remember(workId) { mutableStateOf<List<EditionOffer>>(emptyList()) }
     var answered by remember(workId) { mutableStateOf(0) }
     // The question whose "Don't apply" waits for its confirmation.
-    var dismissing by remember(workId) { mutableStateOf<EditionOffer?>(null) }
+    // Kept by path, so the question stays open as the screen is recreated.
+    var dismissingPath by rememberSaveable(workId) { mutableStateOf<String?>(null) }
     var readingState by remember(workId) { mutableStateOf(StoredReadingState.NONE) }
     // Raised by each change of state, so the screen reads it again from the store.
     var stateVersion by remember(workId) { mutableStateOf(0) }
@@ -136,7 +137,7 @@ internal fun WorkScreen(
     // Choosing chapters to mark (board SinteseObra, "Selecionar capítulos"); kept as the screen is recreated.
     var selecting by rememberSaveable(workId) { mutableStateOf(false) }
     var selection by rememberSaveable(workId) { mutableStateOf(ArrayList<String>()) }
-    var menuOpen by remember(workId) { mutableStateOf(false) }
+    var menuOpen by rememberSaveable(workId) { mutableStateOf(false) }
     // The bar's height, kept free at the list's end so the last chapters can come above it.
     var barHeight by remember(workId) { mutableStateOf(0.dp) }
     // The chapter a long press just chose, to keep in sight above the bar that opens with it.
@@ -146,7 +147,8 @@ internal fun WorkScreen(
     var marked by remember(workId) { mutableStateOf(0) }
     var downloadSheet by rememberSaveable(workId) { mutableStateOf(false) }
     // The chapters whose deletion waits for its confirmation; there is no Undo for a deleted file.
-    var deleting by remember(workId) { mutableStateOf<List<StoredChapter>?>(null) }
+    // Kept by id, so the confirmation stays open as the screen is recreated.
+    var deletingIds by rememberSaveable(workId) { mutableStateOf<ArrayList<String>?>(null) }
     var details by remember(workId) { mutableStateOf(WorkDetails.NONE) }
     var cover by remember(workId) { mutableStateOf<ImageBitmap?>(null) }
     val notices = remember { SnackbarHostState() }
@@ -241,7 +243,7 @@ internal fun WorkScreen(
         downloadSheet = false
         closeSelection()
         val there = rows.filter { it.downloaded }
-        if (there.isEmpty()) notify(resources.getString(R.string.selection_none_downloaded)) else deleting = there.map { it.chapter }
+        if (there.isEmpty()) notify(resources.getString(R.string.selection_none_downloaded)) else deletingIds = ArrayList(there.map { it.chapter.id })
     }
     // The bar covers the foot of the screen: a chapter pressed there scrolls up just above it.
     LaunchedEffect(pressed, barHeight) {
@@ -339,15 +341,16 @@ internal fun WorkScreen(
                 onDismiss = { downloadSheet = false },
             )
         }
-        deleting?.let { doomed ->
+        // Shown once the chapters are read again, so a recreated screen never asks about none.
+        deletingIds?.let { ids -> chapters.filter { it.chapter.id in ids }.map { it.chapter } }?.takeIf { it.isNotEmpty() }?.let { doomed ->
             val bytes = kavitaSync?.downloadedBytes(doomed) ?: 0L
             AlertDialog(
-                onDismissRequest = { deleting = null },
+                onDismissRequest = { deletingIds = null },
                 title = { Text(pluralStringResource(R.plurals.delete_downloads_title, doomed.size, doomed.size)) },
                 text = { Text(stringResource(R.string.delete_downloads_text, Formatter.formatShortFileSize(LocalContext.current, bytes))) },
                 confirmButton = {
                     TextButton(onClick = {
-                        deleting = null
+                        deletingIds = null
                         scope.launch {
                             withContext(Dispatchers.IO) { kavitaSync?.deleteDownloads(doomed) }
                             marked++
@@ -356,7 +359,7 @@ internal fun WorkScreen(
                     }) { Text(stringResource(R.string.delete_downloads_confirm, doomed.size)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { deleting = null }) { Text(stringResource(R.string.delete_downloads_cancel)) }
+                    TextButton(onClick = { deletingIds = null }) { Text(stringResource(R.string.delete_downloads_cancel)) }
                 },
             )
         }
@@ -375,19 +378,19 @@ internal fun WorkScreen(
             }
         }
         // Not applying has no undo and nothing brings the question back: it asks first.
-        dismissing?.let { offer ->
+        offers.firstOrNull { it.path == dismissingPath }?.let { offer ->
             AlertDialog(
-                onDismissRequest = { dismissing = null },
+                onDismissRequest = { dismissingPath = null },
                 title = { Text(stringResource(R.string.edition_dismiss_title)) },
                 text = { Text(stringResource(R.string.edition_dismiss_text)) },
                 confirmButton = {
                     TextButton(onClick = {
-                        dismissing = null
+                        dismissingPath = null
                         answer { store.dismissEdition(workId, offer.path) }
                     }) { Text(stringResource(R.string.edition_dismiss_confirm)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { dismissing = null }) { Text(stringResource(R.string.edition_dismiss_keep)) }
+                    TextButton(onClick = { dismissingPath = null }) { Text(stringResource(R.string.edition_dismiss_keep)) }
                 },
             )
         }
@@ -505,7 +508,7 @@ internal fun WorkScreen(
                         TextButton(onClick = { answer { store.applyPreviousEdition(workId, offer.path) } }) {
                             Text(stringResource(R.string.edition_apply))
                         }
-                        TextButton(onClick = { dismissing = offer }) {
+                        TextButton(onClick = { dismissingPath = offer.path }) {
                             Text(stringResource(R.string.edition_dismiss))
                         }
                     }
