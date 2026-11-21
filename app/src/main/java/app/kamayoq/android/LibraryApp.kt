@@ -80,7 +80,8 @@ import java.time.format.FormatStyle
 
 private const val TAG = "Kamayoq"
 
-internal data class WorkRow(val work: StoredWork, val chapterCount: Int, val state: ReadingState? = null)
+/** A work's line in the Library; [newCount] counts its chapters new since the last visit (FEATURES, part 2). */
+internal data class WorkRow(val work: StoredWork, val chapterCount: Int, val state: ReadingState? = null, val newCount: Int = 0)
 
 /**
  * The first percurso's screens: choose the folder, see its works, see a work's chapters and the

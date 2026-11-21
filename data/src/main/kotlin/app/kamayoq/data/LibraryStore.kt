@@ -613,6 +613,9 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         news
     }
 
+    /** The chapters of [workId] new now, with the moment each arrived, without counting a visit. */
+    fun newChapters(workId: String): Map<String, Instant> = emptyMap()
+
     /** The last time the person opened [workId]'s page; null for never. */
     fun lastVisit(workId: String): Instant? =
         database.workQueries.visitedAt(workId).executeAsOneOrNull()?.visited_at?.let(Instant::ofEpochMilli)

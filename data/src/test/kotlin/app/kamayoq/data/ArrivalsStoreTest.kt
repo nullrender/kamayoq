@@ -249,4 +249,14 @@ class ArrivalsStoreTest {
 
         assertNull(store.lastVisit(store.work("Sakamoto Days").id))
     }
+
+    @Test
+    fun `dado um capítulo que chegou, então ele conta como novo sem que isso grave uma visita`() {
+        store.read(first, "Comics/Sakamoto Days/Cap. 001.cbz")
+        store.read(later, "Comics/Sakamoto Days/Cap. 001.cbz", "Comics/Sakamoto Days/Cap. 002.cbz")
+        val work = store.work("Sakamoto Days").id
+
+        assertEquals(mapOf(store.chapter("Sakamoto Days", "Cap. 002").id to later), store.newChapters(work))
+        assertNull(store.lastVisit(work))
+    }
 }

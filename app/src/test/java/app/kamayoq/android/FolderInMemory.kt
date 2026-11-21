@@ -30,6 +30,9 @@ class FolderInMemory(context: Context, var titles: List<String>) : ChosenFolder(
     /** When the compiled files in `Novels` last changed, as the folder says. */
     var novelsModified = 1L
 
+    /** More chapter files after `Cap. 1.cbz`, by the title of a work in `Comics`. */
+    var moreChapters: Map<String, List<String>> = emptyMap()
+
     /** False when no folder was chosen yet. */
     var chosen = true
 
@@ -60,7 +63,8 @@ class FolderInMemory(context: Context, var titles: List<String>) : ChosenFolder(
             "comics" -> titles.map { FolderEntry(it, it, isFolder = true, size = 0, modified = 1) } +
                 looseFiles.map { FolderEntry(it, it, isFolder = false, size = 10, modified = 1) }
             in books.map { "book:$it" } -> listOf(FolderEntry(bookFileId(folderId.removePrefix("book:")), "Vol. 1.epub", isFolder = false, size = 10, modified = 1))
-            else -> listOf(FolderEntry("$folderId/cap", "Cap. 1.cbz", isFolder = false, size = 10, modified = 1))
+            else -> listOf(FolderEntry("$folderId/cap", "Cap. 1.cbz", isFolder = false, size = 10, modified = 1)) +
+                moreChapters[folderId].orEmpty().map { FolderEntry("$folderId/$it", it, isFolder = false, size = 10, modified = 1) }
         }
     }
 

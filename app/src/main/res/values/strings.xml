@@ -310,4 +310,26 @@
     <string name="selection_delete_downloads">Delete downloads</string>
     <string name="selection_none_downloaded">None of these is downloaded. Nothing was deleted.</string>
     <string name="download_already_coming">They\'re already downloading.</string>
+    <!-- How long ago something happened, on Home and the Work screen (board SinteseInicio: "há 2 h"). -->
+    <string name="elapsed_just_now">just now</string>
+    <plurals name="elapsed_minutes">
+        <item quantity="one">%d min ago</item>
+        <item quantity="other">%d min ago</item>
+    </plurals>
+    <plurals name="elapsed_hours">
+        <item quantity="one">%d h ago</item>
+        <item quantity="other">%d h ago</item>
+    </plurals>
+    <string name="elapsed_yesterday">yesterday</string>
+    <plurals name="elapsed_days">
+        <item quantity="one">%d day ago</item>
+        <item quantity="other">%d days ago</item>
+    </plurals>
+    <!-- A chapter that arrived since the work's page was last opened, and how long ago it arrived. -->
+    <string name="chapter_new">New · %1$s</string>
+    <!-- In a work's line in the Library: how many of its chapters are new. -->
+    <plurals name="new_count">
+        <item quantity="one">%d new</item>
+        <item quantity="other">%d new</item>
+    </plurals>
 </resources>
