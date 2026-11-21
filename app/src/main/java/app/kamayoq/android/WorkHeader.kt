@@ -120,8 +120,14 @@ internal fun WorkHeader(work: StoredWork, details: WorkDetails, cover: ImageBitm
     }
 }
 
-/** The colour of the Work header's type label, which is read and never touched. */
-internal fun typeLabel(type: WorkType, palette: Palette): Color = palette.action
+/**
+ * The colour of the Work header's type label, which is read and never touched: the palette keeps
+ * the action colour for what can be touched, and gives each kind of content its own.
+ */
+internal fun typeLabel(type: WorkType, palette: Palette): Color = when (type) {
+    WorkType.COMICS -> palette.imageType
+    WorkType.NOVELS, WorkType.BOOKS -> palette.textType
+}
 
 // Nothing when the status is unknown: a work with no details shows only what it has.
 @Composable
