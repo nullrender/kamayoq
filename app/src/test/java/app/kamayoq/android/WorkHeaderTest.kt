@@ -139,6 +139,19 @@ class WorkHeaderTest {
     }
 
     @Test
+    fun `dado uma obra do Kavita com sinopse e nada baixando, então a sinopse fica a pelo menos 8 dp abaixo do botão de estado`() {
+        kavitaWork("Gantz", gantz)
+        open("Gantz")
+        waitFor(gantz.summary)
+
+        val state = compose.onNode(hasContentDescription(app.getString(R.string.state_button_label, app.getString(stateName(null)))))
+            .fetchSemanticsNode().boundsInRoot
+        val summary = compose.onNode(hasText(gantz.summary), useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+
+        assertTrue(summary.top - state.bottom >= with(compose.density) { 8.dp.toPx() })
+    }
+
+    @Test
     fun `dado uma sinopse longa, então Mais começa na mesma margem que o texto da sinopse`() {
         kavitaWork("Gantz", gantz.copy(summary = (1..12).joinToString("\n") { "Parágrafo $it da sinopse." }))
         open("Gantz")
