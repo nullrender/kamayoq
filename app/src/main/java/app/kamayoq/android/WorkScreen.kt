@@ -511,7 +511,8 @@ internal fun WorkScreen(
                 // A compiled novel whose file has no table of contents is one chapter, and says why.
                 val undivided = row.chapter.origin != LibraryStore.KAVITA && row.chapter.tocKey.isEmpty() &&
                     FolderConvention.splitsByContents(row.chapter.path)
-                val place = row.progress.position?.takeIf { !row.read }
+                // A place at the end of a chapter unmarked by hand is not a reading under way.
+                val place = row.progress.position?.takeIf { !row.read && !atEnd(it) }
                 val checked = selecting && row.chapter.id in selection
                 ListItem(
                     headlineContent = { Text(row.chapter.name) },
