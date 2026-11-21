@@ -253,4 +253,5 @@
     </plurals>
     <string name="selection_delete_downloads">Apagar baixados</string>
     <string name="selection_none_downloaded">Nenhum dos selecionados está baixado. Nada foi apagado.</string>
+    <string name="download_already_coming">Já estão baixando.</string>
 </resources>

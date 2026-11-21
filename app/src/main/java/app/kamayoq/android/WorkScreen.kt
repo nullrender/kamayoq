@@ -228,8 +228,12 @@ internal fun WorkScreen(
         scope.launch {
             val count = withContext(Dispatchers.IO) { sync.download(workId, rows.map { it.chapter }) }
             notify(
-                if (count == 0) resources.getString(R.string.download_none_new)
-                else resources.getQuantityString(R.plurals.download_started, count, count),
+                when {
+                    count > 0 -> resources.getQuantityString(R.plurals.download_started, count, count)
+                    // Nothing new because what is missing is already coming, not because it is here.
+                    sync.downloads.value[workId]?.running == true -> resources.getString(R.string.download_already_coming)
+                    else -> resources.getString(R.string.download_none_new)
+                },
             )
         }
     }

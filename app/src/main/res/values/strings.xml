@@ -307,4 +307,5 @@
     </plurals>
     <string name="selection_delete_downloads">Delete downloads</string>
     <string name="selection_none_downloaded">None of these is downloaded. Nothing was deleted.</string>
+    <string name="download_already_coming">They\'re already downloading.</string>
 </resources>

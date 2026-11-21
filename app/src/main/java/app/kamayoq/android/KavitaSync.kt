@@ -41,6 +41,9 @@ class KavitaSync(
 
     // One download at a time, in the order asked, apart from the screens that asked.
     private val downloading = Executors.newSingleThreadExecutor()
+
+    // The chapters asked for and not yet done, by id.
+    private val queued = mutableSetOf<String>()
     private val progress = KavitaProgressSync(client, store)
 
     // Closings in the order they happen, apart from the screen that goes away.
@@ -188,7 +191,10 @@ class KavitaSync(
      * screen's own life; [downloads] says how it goes. Returns how many go in.
      */
     fun download(workId: String, chapters: List<StoredChapter>): Int {
-        val wanted = chapters.filterNot(files::isDownloaded)
+        // A chapter already waiting or coming is not asked twice, so the count stays the work's.
+        val wanted = synchronized(queued) {
+            chapters.filterNot { files.isDownloaded(it) || it.id in queued }.also { new -> queued += new.map { it.id } }
+        }
         if (wanted.isEmpty()) return 0
         // A new request while one runs adds to it; otherwise the count starts again.
         downloads.update { all ->
@@ -200,9 +206,13 @@ class KavitaSync(
                 val came = try {
                     files.download(chapter, stillWanted = { true }) { connection.read { address() to key() } }
                     true
-                } catch (e: IOException) {
+                } catch (e: Exception) {
+                    // Any failure counts as one: an error that is not the network's would otherwise end
+                    // this thread's loop and leave "Downloading" on the screen for good.
                     Log.e("Kamayoq", "Downloading a chapter failed", e)
                     false
+                } finally {
+                    synchronized(queued) { queued -= chapter.id }
                 }
                 downloads.update { all ->
                     val now = all[workId] ?: return@update all
