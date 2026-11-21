@@ -56,6 +56,11 @@ object KavitaTranslation {
     fun publication(remote: RemoteDetails): Publication {
         // Kavita says 0 also for a series nothing is known about: only a count or a lock set by
         // whoever edits the series makes it a real "ongoing" (KavitaDetailsFactsTest).
+        // Kavita says 2, one of one, for any series of a single file, with metadata or none, in a book
+        // or a light novel library alike (KavitaDetailsFactsTest): only a lock makes it news.
+        if (remote.status == STATUS_COMPLETED && remote.totalCount == 1 && remote.maxCount == 1 && !remote.statusLocked) {
+            return Publication.UNKNOWN
+        }
         val counted = remote.totalCount > 0 && remote.maxCount != NO_COUNT
         val status = when (remote.status) {
             STATUS_ONGOING -> PublicationStatus.ONGOING.takeIf { counted || remote.statusLocked }
