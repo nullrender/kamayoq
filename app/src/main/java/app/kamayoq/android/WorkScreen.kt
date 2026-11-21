@@ -98,13 +98,13 @@ private class ChapterRow(val chapter: StoredChapter, val progress: ChapterProgre
 }
 
 // The end-of-chapter block of an image chapter, or the end of a book's text.
-private fun atEnd(position: ReadingPosition): Boolean = when (position) {
+internal fun atEnd(position: ReadingPosition): Boolean = when (position) {
     is StripPosition -> position.page >= position.totalPages
     is TextPosition -> position.fraction.value >= BasisPoints.END
 }
 
 // How far into a chapter its place is, for "Reading · 35 %".
-private fun percentOf(position: ReadingPosition): Int = when (position) {
+internal fun percentOf(position: ReadingPosition): Int = when (position) {
     is StripPosition -> position.page * 100 / position.totalPages
     is TextPosition -> position.fraction.value / 100
 }

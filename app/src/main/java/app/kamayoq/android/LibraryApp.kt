@@ -63,6 +63,8 @@ import app.kamayoq.core.progress.ReadingState
 import app.kamayoq.data.BackupExport
 import app.kamayoq.data.BackupRestore
 import app.kamayoq.data.BackupResult
+import app.kamayoq.data.HomeContent
+import app.kamayoq.data.home
 import app.kamayoq.data.LibraryStore
 import app.kamayoq.data.RestoreResult
 import app.kamayoq.data.StoredWork
@@ -124,6 +126,9 @@ fun LibraryApp(
     var query by rememberSaveable { mutableStateOf("") }
     var stateFilter by rememberSaveable { mutableStateOf(StateFilter.ALL) }
     var readingChapterId by rememberSaveable { mutableStateOf<String?>(null) }
+    // True while the reader shown was opened from Home: closing it goes back there.
+    var readerFromHome by rememberSaveable { mutableStateOf(false) }
+    var homeContent by remember { mutableStateOf<HomeContent?>(null) }
     // When the reader last opened, in milliseconds: a change of state the app made since then is
     // told on the Work screen as the reader closes (FEATURES, part 3: always with a notice).
     var readingSince by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -317,6 +322,11 @@ fun LibraryApp(
         if (openWorkId == null) news = WorkNews.NONE
     }
 
+    // Read again whenever Home shows: what any other screen did may change it.
+    LaunchedEffect(tab, rows, openWorkId, readingChapterId, progressVersion) {
+        if (tab == AppTab.HOME && openWorkId == null) homeContent = withContext(Dispatchers.IO) { store.home() }
+    }
+
     val workId = openWorkId
     val chapterId = readingChapterId
     val currentTree = tree
@@ -324,6 +334,11 @@ fun LibraryApp(
         workId != null && chapterId != null -> {
             val close: () -> Unit = {
                 readingChapterId = null
+                // The reader opened from Home goes back to Home, not to the Work screen (FEATURES, part 1).
+                if (readerFromHome) {
+                    readerFromHome = false
+                    openWorkId = null
+                }
                 progressVersion++
             }
             BackHandler(onBack = close)
@@ -439,9 +454,13 @@ fun LibraryApp(
                                 tab = AppTab.LIBRARY
                                 backupPicker.launch(arrayOf("*/*"))
                             },
-                            content = null,
-                            onOpenWork = {},
-                            onRead = { _, _ -> },
+                            content = homeContent,
+                            onOpenWork = { openWorkId = it },
+                            onRead = { work, chapter ->
+                                readerFromHome = true
+                                openWorkId = work
+                                readingChapterId = chapter
+                            },
                         )
                         AppTab.SETTINGS -> SettingsScreen(
                             hasFolder = tree != null,

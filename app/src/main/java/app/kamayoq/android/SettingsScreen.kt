@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -87,15 +88,27 @@ internal fun HomeScreen(
         FirstOpening(restoreBusy, onChooseFolder, onOpenKavita, onPickBackup, Modifier.fillMaxSize().safeDrawingPadding())
         return
     }
-    Column(
-        modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text(
-            stringResource(R.string.app_name),
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(vertical = 12.dp).semantics { heading() },
-        )
-        Text(stringResource(R.string.home_later), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    LazyColumn(modifier = Modifier.fillMaxSize().safeDrawingPadding(), contentPadding = PaddingValues(bottom = 16.dp)) {
+        item(key = "header") {
+            Text(
+                stringResource(R.string.app_name),
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp).semantics { heading() },
+            )
+        }
+        // A section with nothing in it is left out (FEATURES, part 2).
+        val continueReading = content?.continueReading.orEmpty()
+        if (continueReading.isNotEmpty()) {
+            item(key = "continue") { ContinueSection(continueReading, onOpenWork, onRead) }
+        } else {
+            item(key = "later") {
+                Text(
+                    stringResource(R.string.home_later),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                )
+            }
+        }
     }
 }

@@ -29,6 +29,8 @@ internal object KamayoqIcons {
         paths.forEach { addPath(pathData = addPathNodes(it), fill = SolidColor(Color.Black)) }
     }.build()
 
+    val play = filled("play", "M8 5.5v13a1 1 0 0 0 1.5.9l10.5-6.5a1 1 0 0 0 0-1.8L9.5 4.6A1 1 0 0 0 8 5.5z")
+
     val home = filled("home", "M12 3.2l8.5 7.3V20a1 1 0 0 1-1 1h-4.5v-6.5h-6V21H4.5a1 1 0 0 1-1-1v-9.5z")
 
     val library = filled(
