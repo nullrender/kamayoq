@@ -227,6 +227,7 @@
     <string name="state_changed_by_itself">Changed to %s by itself.</string>
     <string name="state_back_to">Back to %s</string>
     <string name="all_read">You\'ve read every chapter here. The state only changes if you want.</string>
+    <string name="all_read_publication_completed">Publication completed · you\'ve read everything.</string>
     <string name="mark_completed">Mark as Completed</string>
     <string name="state_all">All</string>
     <string name="filter_empty">No works with these filters.</string>

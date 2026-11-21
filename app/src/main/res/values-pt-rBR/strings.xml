@@ -173,6 +173,7 @@
     <string name="state_changed_by_itself">Mudou sozinho para %s.</string>
     <string name="state_back_to">Voltar a %s</string>
     <string name="all_read">Você leu todos os capítulos daqui. O estado só muda se você quiser.</string>
+    <string name="all_read_publication_completed">Publicação concluída · você leu tudo.</string>
     <string name="mark_completed">Marcar como Lido</string>
     <string name="state_all">Todas</string>
     <string name="filter_empty">Nenhuma obra com esses filtros.</string>

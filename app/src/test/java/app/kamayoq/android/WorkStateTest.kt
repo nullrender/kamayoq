@@ -12,6 +12,14 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
+import app.kamayoq.core.kavita.ImportedChapter
+import app.kamayoq.core.kavita.ImportedWork
+import app.kamayoq.core.library.ChapterFormat
+import app.kamayoq.core.library.Publication
+import app.kamayoq.core.library.PublicationStatus
+import app.kamayoq.core.library.UnitKind
+import app.kamayoq.core.library.WorkDetails
+import app.kamayoq.core.library.WorkType
 import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.ReadMark
 import app.kamayoq.core.progress.ReadMarkSource
@@ -194,5 +202,42 @@ class WorkStateTest {
         waitFor(name(ReadingState.COMPLETED))
         waitUntilGone(app.getString(R.string.all_read))
         assertEquals(StoredReadingState(ReadingState.COMPLETED, null), stateOf("Gantz"))
+    }
+
+    @Test
+    fun `dado uma obra lida inteira em andamento, quando o Kavita diz que ela concluiu sem faltar nada, então a Obra diz Publicação concluída e você leu tudo, com Marcar como Lido`() {
+        val chapter = ImportedChapter("91", "Cap. 1", UnitKind.CHAPTER, 1.0, ChapterFormat.ARCHIVE, "10|100", 10, "Cap. 1.cbz", 7)
+        fun import(status: PublicationStatus) = app.store.importKavita(
+            "server-1",
+            listOf(ImportedWork("12", "Gantz", WorkType.COMICS, null, 2, listOf(chapter), WorkDetails(emptyList(), "", emptyList(), Publication(status, 0)))),
+        )
+        import(PublicationStatus.ONGOING)
+        readToEnd("Gantz")
+        // The publication ending is not an event: the state stays Reading (progress contract, section 5).
+        import(PublicationStatus.COMPLETED)
+        val folder = FolderInMemory(app, emptyList())
+        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        waitFor("Gantz")
+        compose.onNode(hasText("Gantz")).performClick()
+
+        waitFor(app.getString(R.string.all_read_publication_completed))
+        compose.onNode(hasText(app.getString(R.string.mark_completed))).assertIsDisplayed()
+        assertEquals(ReadingState.READING, stateOf("Gantz").state)
+    }
+
+    @Test
+    fun `dado uma obra lida inteira com a publicação em andamento, então a Obra diz que você leu todos os capítulos daqui`() {
+        val chapter = ImportedChapter("91", "Cap. 1", UnitKind.CHAPTER, 1.0, ChapterFormat.ARCHIVE, "10|100", 10, "Cap. 1.cbz", 7)
+        app.store.importKavita(
+            "server-1",
+            listOf(ImportedWork("12", "Gantz", WorkType.COMICS, null, 2, listOf(chapter), WorkDetails(emptyList(), "", emptyList(), Publication(PublicationStatus.ONGOING, 0)))),
+        )
+        readToEnd("Gantz")
+        val folder = FolderInMemory(app, emptyList())
+        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        waitFor("Gantz")
+        compose.onNode(hasText("Gantz")).performClick()
+
+        waitFor(app.getString(R.string.all_read))
     }
 }
