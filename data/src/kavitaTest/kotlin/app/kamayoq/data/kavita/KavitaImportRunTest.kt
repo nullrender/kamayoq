@@ -130,4 +130,17 @@ class KavitaImportRunTest {
 
         assertEquals(0x89, covers.file(id)?.readBytes()?.first()?.toInt()?.and(0xFF))
     }
+
+    @Test
+    fun `dado a pasta das capas sem como gravar, quando importo, então a importação termina e guarda os dados das obras`() {
+        // A file where the folder should be: every cover's write fails, as on a full disk.
+        val blocked = File(coverFolder, "blocked").apply { writeText("not a folder") }
+        store.linkKavita(KavitaServer.url, "0.9.1.4", accountId = 1)
+        store.markLibraries(checkNotNull(store.kavitaServer()).id, listOf(KavitaServer.describedLibraryId))
+
+        KavitaImport(KavitaClient(), store, WorkCovers(blocked)).run(KavitaServer.authKey)
+
+        assertEquals("A summary of Info Work.", store.details(stored("Info Work")).summary)
+        assertEquals(null, store.coverStamp(stored("Info Work")))
+    }
 }
