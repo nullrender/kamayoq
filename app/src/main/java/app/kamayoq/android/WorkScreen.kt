@@ -71,6 +71,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.dp
 import app.kamayoq.core.library.FolderConvention
+import app.kamayoq.core.library.PublicationStatus
 import app.kamayoq.core.library.WorkDetails
 import app.kamayoq.core.progress.BasisPoints
 import app.kamayoq.core.progress.ChapterProgress
@@ -452,7 +453,14 @@ internal fun WorkScreen(
                         modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(stringResource(R.string.all_read), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                        // The publication ending changes no state, so the line says it (progress contract, section 5).
+                        val publication = details.publication
+                        val ended = publication.status == PublicationStatus.COMPLETED && publication.missing == 0
+                        Text(
+                            stringResource(if (ended) R.string.all_read_publication_completed else R.string.all_read),
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                         TextButton(onClick = { choose(ReadingState.COMPLETED) }, modifier = Modifier.sizeIn(minHeight = 48.dp)) {
                             Text(stringResource(R.string.mark_completed))
                         }
