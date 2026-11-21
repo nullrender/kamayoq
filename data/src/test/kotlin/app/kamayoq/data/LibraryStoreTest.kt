@@ -883,7 +883,7 @@ class LibraryStoreTest {
         val store = open()
         rawExecute("INSERT INTO kavita_server VALUES ('server-1', 'http://kavita.example:5000', '0.9.1.4', 1)")
         rawExecute("INSERT INTO kavita_library VALUES ('server-1', 2)")
-        rawExecute("INSERT INTO work VALUES ('w', 'Sakamoto Days', NULL, 'COMICS', NULL)")
+        rawExecute("INSERT INTO work (id, title, alternative_title, type, subtype) VALUES ('w', 'Sakamoto Days', NULL, 'COMICS', NULL)")
         rawExecute(
             "INSERT INTO work_version (id, work_id, origin, source, path, present, sort_index, remote_library_id) " +
                 "VALUES ('v', 'w', 'kavita', 'server-1', '12', 1, 0, 2)",

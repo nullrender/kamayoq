@@ -196,7 +196,7 @@ class LibraryDatabaseTest {
         assertEquals(StoredReadingState(ReadingState.READING, null), store.readingState("work-1"))
         assertEquals(listOf("Machado de Assis"), store.details("work-1").authors)
         assertNull(store.addedAt("work-1"))
-        assertEquals(emptyMap(), store.arrivals("work-1"))
+        assertTrue(store.arrivals("work-1").isEmpty())
         assertEquals(7, read(database) { version })
         assertEquals(6, read(copyOf6) { version })
         assertFalse(hasColumn(copyOf6, "chapter", "arrived_at"))
