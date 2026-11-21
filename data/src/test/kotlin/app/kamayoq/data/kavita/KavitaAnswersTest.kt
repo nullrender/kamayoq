@@ -94,6 +94,29 @@ class KavitaAnswersTest {
     }
 
     @Test
+    fun `dado autores, gêneros e etiquetas nulos nos dados da série, então eles vêm vazios e não uma falha`() {
+        answers(
+            """{"summary": "Uma sinopse.", "writers": null, "genres": null, "tags": null,
+                "publicationStatus": 0, "publicationStatusLocked": false, "totalCount": 0, "maxCount": 0}""",
+        )
+
+        val details = client.details(address, KEY, workId = 1)
+
+        assertEquals(listOf(emptyList<String>(), emptyList(), emptyList()), listOf(details.writers, details.genres, details.tags))
+        assertEquals("Uma sinopse.", details.summary)
+    }
+
+    @Test
+    fun `dado um objeto onde se esperam os autores, então os dados da série falham do jeito previsto`() {
+        answers(
+            """{"summary": "", "writers": {}, "genres": [], "tags": [],
+                "publicationStatus": 0, "publicationStatusLocked": false, "totalCount": 0, "maxCount": 0}""",
+        )
+
+        assertFailsWith<KavitaListingFailed> { client.details(address, KEY, workId = 1) }
+    }
+
+    @Test
     fun `dado dois capítulos com o mesmo número, então os dois continuam na lista`() {
         answers(
             """[{"minNumber": 1, "chapters": [
