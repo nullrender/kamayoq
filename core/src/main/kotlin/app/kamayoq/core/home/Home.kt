@@ -53,20 +53,46 @@ object Home {
      * A chapter is new when it arrived after the last time the person opened the work's page and is
      * not read yet. Opening the page makes it an ordinary unread chapter (FEATURES, part 2).
      */
-    fun isNew(arrivedAt: Instant?, lastVisit: Instant?, read: Boolean): Boolean = false
+    fun isNew(arrivedAt: Instant?, lastVisit: Instant?, read: Boolean): Boolean =
+        arrivedAt != null && !read && (lastVisit == null || arrivedAt.isAfter(lastVisit))
 
     /** The works with new chapters, the most recent arrival first; only Reading and Want to read have news. */
-    fun arrived(works: List<ArrivalWork>): List<ArrivedGroup> = emptyList()
+    fun arrived(works: List<ArrivalWork>): List<ArrivedGroup> =
+        works.filter { it.state == ReadingState.READING || it.state == ReadingState.WANT_TO_READ }
+            .mapNotNull { work ->
+                val fresh = work.chapters.filter { isNew(it.arrivedAt, work.lastVisit, it.read) }
+                    .sortedByDescending { it.arrivedAt }
+                fresh.firstOrNull()?.let { newest -> ArrivedGroup(work.workId, fresh.size, fresh.take(ARRIVED_SHOWN), newest.arrivedAt) }
+            }
+            .sortedByDescending { it.latest }
 
     /** The works of Continue reading, the most recently read first. */
-    fun continueReading(works: List<ReadingWork>): List<String> = emptyList()
+    fun continueReading(works: List<ReadingWork>): List<String> =
+        works.filter { it.state == ReadingState.READING && it.lastReadAt != null }
+            .sortedByDescending { it.lastReadAt }
+            .take(CONTINUE_SHOWN)
+            .map { it.workId }
 
     /** The works of Added, the newest first, each until its page is opened. */
-    fun added(works: List<AddedWork>): List<String> = emptyList()
+    fun added(works: List<AddedWork>): List<String> =
+        works.mapNotNull { work -> work.addedAt?.takeIf { at -> work.lastVisit == null || work.lastVisit.isBefore(at) }?.let { work to it } }
+            .sortedByDescending { it.second }
+            .take(ADDED_SHOWN)
+            .map { it.first.workId }
 
     /** How long before [now] [since] was. */
-    fun elapsed(since: Instant, now: Instant): Elapsed = Elapsed.JustNow
+    fun elapsed(since: Instant, now: Instant): Elapsed {
+        // A time ahead of now comes from a clock set back: it was a moment ago, not in the future.
+        val gone = Duration.between(since, now).takeIf { !it.isNegative } ?: Duration.ZERO
+        return when {
+            gone < Duration.ofMinutes(1) -> Elapsed.JustNow
+            gone < Duration.ofHours(1) -> Elapsed.Minutes(gone.toMinutes())
+            gone < Duration.ofDays(1) -> Elapsed.Hours(gone.toHours())
+            gone < Duration.ofDays(2) -> Elapsed.Yesterday
+            else -> Elapsed.Days(gone.toDays())
+        }
+    }
 
     /** True when the last reading of a work was long enough ago to say where the person left it. */
-    fun leftLongAgo(lastReadAt: Instant, now: Instant): Boolean = false
+    fun leftLongAgo(lastReadAt: Instant, now: Instant): Boolean = Duration.between(lastReadAt, now) >= LEFT_LONG_AGO
 }
