@@ -19,6 +19,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.kamayoq.data.BackupResult
+import app.kamayoq.data.HomeContent
 
 /**
  * Settings as far as the first slice goes: the folder, Kavita and the backup, out of the Library's
@@ -78,6 +79,9 @@ internal fun HomeScreen(
     onChooseFolder: () -> Unit,
     onOpenKavita: () -> Unit,
     onPickBackup: () -> Unit,
+    content: HomeContent?,
+    onOpenWork: (String) -> Unit,
+    onRead: (workId: String, chapterId: String) -> Unit,
 ) {
     if (firstOpening) {
         FirstOpening(restoreBusy, onChooseFolder, onOpenKavita, onPickBackup, Modifier.fillMaxSize().safeDrawingPadding())

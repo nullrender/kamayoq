@@ -332,4 +332,12 @@
         <item quantity="one">%d new</item>
         <item quantity="other">%d new</item>
     </plurals>
+    <!-- Home's first section (board SinteseInicio): the works being read, the last one on a card. -->
+    <string name="home_continue_title">Continue reading</string>
+    <!-- The card's button: opens the reader where the reading goes on. -->
+    <string name="home_continue">Continue · %1$s</string>
+    <!-- Where the reading is: the chapter and how far into it. -->
+    <string name="home_place">%1$s · %2$d%%</string>
+    <!-- On the card after weeks with no reading of the work, instead of how long ago (PERSONALITY). -->
+    <string name="home_where_left">%1$s, where you left it.</string>
 </resources>

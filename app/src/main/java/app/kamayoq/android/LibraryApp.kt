@@ -439,6 +439,9 @@ fun LibraryApp(
                                 tab = AppTab.LIBRARY
                                 backupPicker.launch(arrayOf("*/*"))
                             },
+                            content = null,
+                            onOpenWork = {},
+                            onRead = { _, _ -> },
                         )
                         AppTab.SETTINGS -> SettingsScreen(
                             hasFolder = tree != null,
