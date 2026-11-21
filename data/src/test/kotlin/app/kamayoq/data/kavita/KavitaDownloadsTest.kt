@@ -6,6 +6,10 @@ import app.kamayoq.data.StoredChapter
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.concurrent.thread
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -113,5 +117,34 @@ class KavitaDownloadsTest {
         File(cache, "9.cbz").writeText("opened")
 
         assertFalse(KavitaChapterFiles(Answers { }, cache, downloads).isDownloaded(chapter()))
+    }
+
+    @Test
+    fun `dado um download em andamento, quando o leitor pede o mesmo capítulo, então ele espera e abre o baixado, sem baixar de novo`() {
+        val entered = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val client = object : KavitaClient() {
+            val calls = AtomicInteger()
+            override fun download(address: String, key: String, chapterId: String, target: File, stillWanted: () -> Boolean) {
+                calls.incrementAndGet()
+                entered.countDown()
+                release.await(10, TimeUnit.SECONDS)
+                target.writeText("pages")
+            }
+        }
+        val files = KavitaChapterFiles(client, cache, downloads)
+        val downloading = thread { files.download(chapter(), { true }, server) }
+        entered.await(10, TimeUnit.SECONDS)
+
+        var opened: File? = null
+        val reading = thread { opened = files.file(chapter(), stillWanted = { true }, server).file }
+        // The reader is waiting for the chapter's turn when the download ends.
+        Thread.sleep(200)
+        release.countDown()
+        downloading.join(10_000)
+        reading.join(10_000)
+
+        assertEquals(1, client.calls.get())
+        assertEquals(File(downloads, "9.cbz"), opened)
     }
 }
