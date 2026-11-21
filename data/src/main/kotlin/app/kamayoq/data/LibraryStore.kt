@@ -607,14 +607,16 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
      * Arrived (FEATURES, part 2).
      */
     fun visitWork(workId: String, at: Instant): Map<String, Instant> = database.transactionWithResult {
-        val before = lastVisit(workId)
-        val news = arrivals(workId).filter { (chapterId, arrivedAt) -> Home.isNew(arrivedAt, before, progress(chapterId).readMark != null) }
+        val news = newChapters(workId)
         database.workQueries.visit(at.toEpochMilli(), workId)
         news
     }
 
     /** The chapters of [workId] new now, with the moment each arrived, without counting a visit. */
-    fun newChapters(workId: String): Map<String, Instant> = emptyMap()
+    fun newChapters(workId: String): Map<String, Instant> = database.transactionWithResult {
+        val visited = lastVisit(workId)
+        arrivals(workId).filter { (chapterId, arrivedAt) -> Home.isNew(arrivedAt, visited, progress(chapterId).readMark != null) }
+    }
 
     /** The last time the person opened [workId]'s page; null for never. */
     fun lastVisit(workId: String): Instant? =

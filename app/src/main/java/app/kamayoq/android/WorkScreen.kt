@@ -118,6 +118,7 @@ internal fun WorkScreen(
     workId: String,
     listState: LazyListState,
     progressVersion: Int,
+    news: Map<String, Instant>,
     readingSince: Long?,
     onNoticed: () -> Unit,
     onOpenChapter: (String) -> Unit,
@@ -527,11 +528,14 @@ internal fun WorkScreen(
                 // A place at the end of a chapter unmarked by hand is not a reading under way.
                 val place = row.progress.position?.takeIf { !row.read && !atEnd(it) }
                 val checked = selecting && row.chapter.id in selection
+                // New until read: reading one of them in this visit makes it read, not new.
+                val arrivedAt = news[row.chapter.id]?.takeIf { !row.read }
                 ListItem(
                     headlineContent = { Text(row.chapter.name) },
-                    supportingContent = if (row.read || place != null || undivided || row.downloaded) {
+                    supportingContent = if (row.read || place != null || undivided || row.downloaded || arrivedAt != null) {
                         {
                             Column {
+                                if (arrivedAt != null) Text(stringResource(R.string.chapter_new, elapsedText(arrivedAt)))
                                 if (row.read) Text(stringResource(R.string.chapter_read))
                                 if (row.downloaded) Text(stringResource(R.string.chapter_downloaded))
                                 if (place != null) Text(stringResource(R.string.chapter_reading, percentOf(place)))

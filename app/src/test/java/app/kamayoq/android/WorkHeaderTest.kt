@@ -175,6 +175,7 @@ class WorkHeaderTest {
                 workId = "a-work-not-loaded",
                 listState = rememberLazyListState(),
                 progressVersion = 0,
+                news = emptyMap(),
                 readingSince = null,
                 onNoticed = {},
                 onOpenChapter = {},

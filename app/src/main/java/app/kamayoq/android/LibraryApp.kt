@@ -137,6 +137,9 @@ fun LibraryApp(
     var listOffsetBefore by rememberSaveable { mutableStateOf(0) }
     var listToRestore by remember { mutableStateOf(false) }
     val chapterList = rememberSaveable(openWorkId, saver = LazyListState.Saver) { LazyListState() }
+    // The chapters new at the visit of the Work screen shown now, by id, with when each arrived. Kept
+    // while the work stays open, so they still say "new" on the way back from the reader.
+    var news by rememberSaveable(stateSaver = NEWS_SAVER) { mutableStateOf(WorkNews.NONE) }
     val context = LocalContext.current
 
     fun backUp(current: Uri) {
@@ -302,6 +305,18 @@ fun LibraryApp(
         }
     }
 
+    // Opening a work's page is the visit that makes its new chapters ordinary unread ones; the
+    // reader opened from elsewhere is not (FEATURES, part 2).
+    val visiting = openWorkId?.takeIf { readingChapterId == null }
+    LaunchedEffect(visiting) {
+        val id = visiting ?: return@LaunchedEffect
+        if (news.workId == id) return@LaunchedEffect
+        news = WorkNews(id, withContext(Dispatchers.IO) { store.visitWork(id, Instant.now()) })
+    }
+    LaunchedEffect(openWorkId) {
+        if (openWorkId == null) news = WorkNews.NONE
+    }
+
     val workId = openWorkId
     val chapterId = readingChapterId
     val currentTree = tree
@@ -333,6 +348,7 @@ fun LibraryApp(
                 workId = workId,
                 listState = chapterList,
                 progressVersion = progressVersion,
+                news = news.chapters.takeIf { news.workId == workId }.orEmpty(),
                 readingSince = readingSince,
                 onNoticed = { readingSince = null },
                 onOpenChapter = {
@@ -482,6 +498,24 @@ fun LibraryApp(
 /** For a message that appears or changes by itself: TalkBack reads it out. */
 internal fun Modifier.announced(): Modifier = semantics { liveRegion = LiveRegionMode.Polite }
 
+/** The chapters new at the visit of [workId]'s page, with when each arrived. */
+internal data class WorkNews(val workId: String?, val chapters: Map<String, Instant>) {
+    companion object {
+        val NONE = WorkNews(null, emptyMap())
+    }
+}
+
+// The work, then each chapter and its time: a recreated screen must not visit again, or the news would go.
+private val NEWS_SAVER = listSaver<WorkNews, String>(
+    save = { news -> listOf(news.workId.orEmpty()) + news.chapters.flatMap { (id, at) -> listOf(id, at.toEpochMilli().toString()) } },
+    restore = { texts ->
+        WorkNews(
+            texts.first().ifEmpty { null },
+            texts.drop(1).chunked(2).associate { (id, at) -> id to Instant.ofEpochMilli(at.toLong()) },
+        )
+    },
+)
+
 // Two texts per file: a recreated screen keeps the list even if the next reading fails.
 private val IGNORED_SAVER = listSaver<List<IgnoredFile>, String>(
     save = { files -> files.flatMap { listOf(it.path, it.reason.name) } },
@@ -489,7 +523,7 @@ private val IGNORED_SAVER = listSaver<List<IgnoredFile>, String>(
 )
 
 private fun loadRows(store: LibraryStore): List<WorkRow> =
-    store.works().map { WorkRow(it, store.chapters(it.id).size, store.readingState(it.id).state) }
+    store.works().map { WorkRow(it, store.chapters(it.id).size, store.readingState(it.id).state, store.newChapters(it.id).size) }
 
 /** The installed version, such as `0.1.0-r102`, written in the backup. */
 private fun appVersion(context: Context): String {

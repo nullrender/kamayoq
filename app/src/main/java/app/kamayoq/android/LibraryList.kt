@@ -194,6 +194,7 @@ private fun SectionHeader(type: WorkType, count: Int, open: Boolean, onToggle: (
 private fun WorkRowItem(row: WorkRow, onOpen: () -> Unit) {
     val chapters = pluralStringResource(R.plurals.chapter_count, row.chapterCount, row.chapterCount)
     val origin = if (row.work.origin == LibraryStore.KAVITA) stringResource(R.string.origin_kavita) else null
+    val fresh = if (row.newCount > 0) pluralStringResource(R.plurals.new_count, row.newCount, row.newCount) else null
     Row(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen).heightIn(min = 72.dp).padding(horizontal = 18.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -204,7 +205,7 @@ private fun WorkRowItem(row: WorkRow, onOpen: () -> Unit) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(row.work.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
-                listOfNotNull(row.work.alternativeTitle, chapters, origin).joinToString(" · "),
+                listOfNotNull(row.work.alternativeTitle, chapters, fresh, origin).joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
