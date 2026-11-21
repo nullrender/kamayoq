@@ -143,7 +143,9 @@ private fun publicationLine(publication: Publication): String? {
 internal fun WorkSummary(summary: String) {
     var open by rememberSaveable(summary) { mutableStateOf(false) }
     var overflows by remember(summary) { mutableStateOf(false) }
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
+    // The gap above: with nothing downloading, the row of Download and the state is right above,
+    // and its buttons would touch the summary.
+    Column(modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 8.dp)) {
         Text(
             summary,
             style = MaterialTheme.typography.bodyMedium,
