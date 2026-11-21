@@ -5,7 +5,12 @@ CREATE TABLE work (
     alternative_title TEXT,
     -- WorkType and ComicsSubtype names from core.
     type TEXT NOT NULL,
-    subtype TEXT
+    subtype TEXT,
+    -- When the work came into the Library after its source's zero mark (FEATURES, part 2, Added);
+    -- null for one from the first reading of its folder or library, or from before version 7.
+    added_at INTEGER,
+    -- The last time the person opened its Work screen: what arrived after it is new.
+    visited_at INTEGER
 );
 
 insert:
@@ -17,3 +22,16 @@ UPDATE work SET title = ?, alternative_title = ?, type = ?, subtype = ? WHERE id
 -- A restore needs an empty app (docs/decisions/backup-restore-2026-11-18.md).
 anyWork:
 SELECT EXISTS (SELECT 1 FROM work);
+
+-- The first import of a work after the zero mark is the moment it came in (FEATURES, part 2).
+markAdded:
+UPDATE work SET added_at = ? WHERE id = ?;
+
+addedAt:
+SELECT added_at FROM work WHERE id = ?;
+
+visitedAt:
+SELECT visited_at FROM work WHERE id = ?;
+
+visit:
+UPDATE work SET visited_at = ? WHERE id = ?;

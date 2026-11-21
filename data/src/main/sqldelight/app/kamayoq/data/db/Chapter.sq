@@ -32,6 +32,9 @@ CREATE TABLE chapter (
     -- (docs/decisions/novel-chapters-2026-11-18.md). Empty for a chapter that is the whole file.
     -- Last, where the migration can put it: a fresh install must match a migrated one.
     toc_href TEXT NOT NULL DEFAULT '',
+    -- When the chapter came into a work the person already had, after the zero mark of its source
+    -- (FEATURES, part 2, Arrived); null for any other. Last, where the migration can put it.
+    arrived_at INTEGER,
     -- Lets work_resume require a chapter of its own version.
     UNIQUE (version_id, id)
 );
@@ -206,3 +209,14 @@ restore:
 INSERT INTO chapter (id, version_id, path, name, kind, number, format, sort_index, present, stamp, content_hash,
     needs_check, replaced_by, page_count, remote_file, remote_volume_id, toc_href)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?);
+
+markArrived:
+UPDATE chapter SET arrived_at = ? WHERE id = ?;
+
+-- The chapters of a work that arrived after the zero mark, present and current, for "new".
+arrivalsOfWork:
+SELECT chapter.id, chapter.arrived_at
+FROM chapter
+JOIN work_version ON work_version.id = chapter.version_id
+WHERE work_version.work_id = ? AND chapter.arrived_at IS NOT NULL AND chapter.replaced_by IS NULL
+    AND chapter.present = 1 AND work_version.present = 1;

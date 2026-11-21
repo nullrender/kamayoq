@@ -1,0 +1,20 @@
+-- The folders and Kavita libraries already read once. The first reading of each is its zero mark:
+-- what it brings is the Library as it was, not news, so nothing of it shows in Arrived or Added
+-- (FEATURES, part 2). A backup leaves this out: after a restore every source starts from zero again.
+CREATE TABLE arrival_base (
+    origin TEXT NOT NULL,
+    -- The chosen folder's address, or the Kavita server's id.
+    source TEXT NOT NULL,
+    -- Kavita's library, 0 for a folder: each library marked has its own first import.
+    library_id INTEGER NOT NULL,
+    PRIMARY KEY (origin, source, library_id)
+);
+
+isKnown:
+SELECT EXISTS (SELECT 1 FROM arrival_base WHERE origin = ? AND source = ? AND library_id = ?);
+
+know:
+INSERT OR IGNORE INTO arrival_base (origin, source, library_id) VALUES (?, ?, ?);
+
+forgetAll:
+DELETE FROM arrival_base;

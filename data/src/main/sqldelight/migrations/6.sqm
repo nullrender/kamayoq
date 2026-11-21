@@ -1,0 +1,13 @@
+-- From version 6 to 7: only adds, so every work, chapter, position and state stays as it was. Every
+-- work and chapter counts as from before the zero mark, and every folder and Kavita library as never
+-- read: the next reading of each is its zero mark, and nothing from today shows in Arrived or Added
+-- (slice 4 of the v1 interface).
+ALTER TABLE work ADD COLUMN added_at INTEGER;
+ALTER TABLE work ADD COLUMN visited_at INTEGER;
+ALTER TABLE chapter ADD COLUMN arrived_at INTEGER;
+CREATE TABLE arrival_base (
+    origin TEXT NOT NULL,
+    source TEXT NOT NULL,
+    library_id INTEGER NOT NULL,
+    PRIMARY KEY (origin, source, library_id)
+);

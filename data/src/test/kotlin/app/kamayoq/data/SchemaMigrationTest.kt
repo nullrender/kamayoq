@@ -151,9 +151,32 @@ class SchemaMigrationTest {
 
         LibraryStore.schema.migrate(driver, 5, 6)
 
-        assertEquals(6, LibraryStore.schema.version)
         assertEquals(before, everyRow(columns))
         assertEquals("0", rows("SELECT count(*) FROM work_details").single().single())
+    }
+
+    @Test
+    fun `dado um banco da versão 6 com obras, progresso, estado e dados, quando migro para a 7, então cada linha continua igual e nada chegou nem foi aberto`() {
+        version1()
+        LibraryStore.schema.migrate(driver, 1, 6)
+        execute("INSERT INTO reading_state (work_id, state, automatic, state_before, changed_at, mark_chapter_id, mark_fraction) VALUES ('work-dom', 'READING', 0, NULL, NULL, NULL, NULL)")
+        execute("INSERT INTO work_details (work_id, authors, summary, tags, publication, missing, cover_stamp) VALUES ('work-dom', 'Machado de Assis', '', '', 'COMPLETED', 0, NULL)")
+        val columns = columnsNow()
+        val before = everyRow(columns)
+
+        LibraryStore.schema.migrate(driver, 6, 7)
+
+        assertEquals(7, LibraryStore.schema.version)
+        assertEquals(before, everyRow(columns))
+        assertEquals(
+            listOf(listOf("0", "0", "0", "0")),
+            rows(
+                "SELECT (SELECT count(*) FROM work WHERE added_at IS NOT NULL OR visited_at IS NOT NULL), " +
+                    "(SELECT count(*) FROM chapter WHERE arrived_at IS NOT NULL), (SELECT count(*) FROM arrival_base), " +
+                    "(SELECT count(*) FROM work WHERE added_at IS NULL AND visited_at IS NULL) - (SELECT count(*) FROM work)",
+                columns = 4,
+            ),
+        )
     }
 
     @Test

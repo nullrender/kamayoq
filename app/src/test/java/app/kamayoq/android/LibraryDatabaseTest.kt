@@ -11,6 +11,7 @@ import java.io.RandomAccessFile
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -24,6 +25,7 @@ class LibraryDatabaseTest {
     private val copyOf2 = File(app.noBackupFilesDir, "kamayoq-v2.db")
     private val copyOf4 = File(app.noBackupFilesDir, "kamayoq-v4.db")
     private val copyOf5 = File(app.noBackupFilesDir, "kamayoq-v5.db")
+    private val copyOf6 = File(app.noBackupFilesDir, "kamayoq-v6.db")
     private val unfinishedCopy = File(app.noBackupFilesDir, "kamayoq-v1.db.tmp")
 
     /** A library as version 1 left it, from the snapshot of that schema. */
@@ -85,6 +87,17 @@ class LibraryDatabaseTest {
         }
     }
 
+    /** A library as version 6 left it, the version on phones before Home: version 5 plus that migration. */
+    private fun version6() {
+        version5()
+        edit {
+            val migration = File(MIGRATION_5).readLines().filterNot { it.trimStart().startsWith("--") }.joinToString("\n")
+            migration.split(';').map(String::trim).filter(String::isNotEmpty).forEach(::execSQL)
+            execSQL("INSERT INTO work_details (work_id, authors, summary, tags) VALUES ('work-1', 'Machado de Assis', '', '')")
+            version = 6
+        }
+    }
+
     private fun edit(change: SQLiteDatabase.() -> Unit) =
         SQLiteDatabase.openDatabase(database.path, null, SQLiteDatabase.OPEN_READWRITE).use { it.change() }
 
@@ -111,7 +124,7 @@ class LibraryDatabaseTest {
         val library = LibraryDatabase.open(app, NAME)
 
         assertTrue(library is LibraryOpening.Opened)
-        assertEquals(6, read(database) { version })
+        assertEquals(7, read(database) { version })
         assertFalse(copy.exists())
     }
 
@@ -135,7 +148,7 @@ class LibraryDatabaseTest {
             listOf("Dom Casmurro"),
             (library as LibraryOpening.Opened).store.works().map { it.title },
         )
-        assertEquals(6, read(database) { version })
+        assertEquals(7, read(database) { version })
         assertEquals(1, read(copy) { version })
         assertEquals("Dom Casmurro", title(copy))
         assertFalse(hasColumn(copy, "chapter", "page_count"))
@@ -149,7 +162,7 @@ class LibraryDatabaseTest {
 
         val store = (library as LibraryOpening.Opened).store
         assertEquals(7, store.progress("chapter-1").position?.strip()?.page)
-        assertEquals(6, read(database) { version })
+        assertEquals(7, read(database) { version })
         assertTrue(hasColumn(database, "chapter_progress", "position_cfi"))
         assertEquals(2, read(copyOf2) { version })
         assertFalse(hasColumn(copyOf2, "chapter_progress", "position_cfi"))
@@ -166,10 +179,28 @@ class LibraryDatabaseTest {
         assertEquals(7, store.progress("chapter-1").position?.strip()?.page)
         assertEquals(StoredReadingState(ReadingState.READING, null), store.readingState("work-1"))
         assertEquals(WorkDetails.NONE, store.details("work-1"))
-        assertEquals(6, read(database) { version })
+        assertEquals(7, read(database) { version })
         assertEquals(5, read(copyOf5) { version })
         assertFalse(hasTable(copyOf5, "work_details"))
         assertTrue(hasTable(copyOf5, "reading_state"))
+    }
+
+    @Test
+    fun `dado um banco da versão 6, quando abro, então migra, a página, o estado e os dados continuam, nada chegou e a cópia guarda a versão 6 intacta`() {
+        version6()
+
+        val library = LibraryDatabase.open(app, NAME)
+
+        val store = (library as LibraryOpening.Opened).store
+        assertEquals(7, store.progress("chapter-1").position?.strip()?.page)
+        assertEquals(StoredReadingState(ReadingState.READING, null), store.readingState("work-1"))
+        assertEquals(listOf("Machado de Assis"), store.details("work-1").authors)
+        assertNull(store.addedAt("work-1"))
+        assertEquals(emptyMap(), store.arrivals("work-1"))
+        assertEquals(7, read(database) { version })
+        assertEquals(6, read(copyOf6) { version })
+        assertFalse(hasColumn(copyOf6, "chapter", "arrived_at"))
+        assertTrue(hasTable(copyOf6, "work_details"))
     }
 
     @Test
@@ -181,7 +212,7 @@ class LibraryDatabaseTest {
         val store = (library as LibraryOpening.Opened).store
         assertEquals(7, store.progress("chapter-1").position?.strip()?.page)
         assertEquals(StoredReadingState.NONE, store.readingState("work-1"))
-        assertEquals(6, read(database) { version })
+        assertEquals(7, read(database) { version })
         assertEquals(4, read(copyOf4) { version })
         assertFalse(hasTable(copyOf4, "reading_state"))
         assertTrue(hasTable(copyOf4, "edition_offer"))
@@ -306,5 +337,6 @@ class LibraryDatabaseTest {
         const val MIGRATION_2 = "../data/src/main/sqldelight/migrations/2.sqm"
         const val MIGRATION_3 = "../data/src/main/sqldelight/migrations/3.sqm"
         const val MIGRATION_4 = "../data/src/main/sqldelight/migrations/4.sqm"
+        const val MIGRATION_5 = "../data/src/main/sqldelight/migrations/5.sqm"
     }
 }

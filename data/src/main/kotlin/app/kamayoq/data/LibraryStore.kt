@@ -365,13 +365,15 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
      * progress if the path returns. A chapter whose file changed or came back is only kept as the
      * same once [confirmContent] sees the same content. [stillChosen] is asked inside the
      * transaction: a reading of a folder that stopped being the chosen one writes nothing, so a
-     * folder forgotten meanwhile does not come back.
+     * folder forgotten meanwhile does not come back. What comes after the folder's first reading
+     * arrives at [at]: a new work is added, a new chapter of a work already here arrives (Home).
      */
     fun importLocal(
         source: String,
         library: LocalLibrary,
         stamps: Map<String, FileStamp>,
         stillChosen: () -> Boolean = { true },
+        at: Instant = Instant.now(),
     ) {
         database.transaction {
             if (!stillChosen()) return@transaction
@@ -548,8 +550,9 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
      * takes the place of what vanished, by rule 8b, so the reading stays with the app's own identifier;
      * the server has no record of it, so the agreement starts over. A reading made for other libraries
      * than [markedAtStart] writes nothing: the slow network must not bring back what was unmarked.
+     * What comes after a library's first import arrives at [at], as in [importLocal].
      */
-    fun importKavita(server: String, works: List<ImportedWork>, markedAtStart: List<Int>? = null) {
+    fun importKavita(server: String, works: List<ImportedWork>, markedAtStart: List<Int>? = null, at: Instant = Instant.now()) {
         database.transaction {
             if (markedAtStart != null && kavitaServer()?.marked != markedAtStart) return@transaction
             val stored = database.workVersionQueries.remoteVersions(KAVITA, server).executeAsList()
@@ -570,6 +573,17 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
             database.workVersionQueries.markAbsentExcept(KAVITA, server, versionIds)
         }
     }
+
+    /**
+     * The chapters of [workId] that arrived after the zero mark of its source, with the moment each
+     * arrived (FEATURES, part 2): only current ones in the list.
+     */
+    fun arrivals(workId: String): Map<String, Instant> =
+        database.chapterQueries.arrivalsOfWork(workId).executeAsList().associate { it.id to Instant.ofEpochMilli(checkNotNull(it.arrived_at)) }
+
+    /** When [workId] came into the Library after the zero mark of its source; null for one from before. */
+    fun addedAt(workId: String): Instant? =
+        database.workQueries.addedAt(workId).executeAsOneOrNull()?.added_at?.let(Instant::ofEpochMilli)
 
     /** What the source says about [workId]; nothing when it said nothing yet. */
     fun details(workId: String): WorkDetails =
