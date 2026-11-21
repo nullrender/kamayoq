@@ -70,6 +70,8 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.dp
+import app.kamayoq.core.home.ChapterReading
+import app.kamayoq.core.home.ContinueTargets
 import app.kamayoq.core.library.FolderConvention
 import app.kamayoq.core.library.PublicationStatus
 import app.kamayoq.core.library.WorkDetails
@@ -317,21 +319,9 @@ internal fun WorkScreen(
             }
         },
     ) {
-        // Read marks say where the reading goes on (his decision, 20/11/2026): when nothing was opened
-        // yet but some chapter is read, or the chapter the reading stopped in is read, it goes on at
-        // the first chapter not read, or at the last one when all are read.
-        // A chapter read and opened again later, left before its end, is a reread: Continue goes back
-        // to it (contract, case 5; his choice of 20/11/2026).
-        val stopped = chapters.firstOrNull { it.chapter.id == resume?.id }
-        val rereading = stopped?.progress?.let { progress ->
-            val mark = progress.readMark
-            val place = progress.position
-            mark != null && place != null && place.at.isAfter(mark.at) && !atEnd(place)
-        } == true
-        val stoppedInRead = stopped?.read == true && !rereading
-        val markedOnly = (resume == null && chapters.any { it.read }) || stoppedInRead
-        val target = (if (markedOnly) chapters.firstOrNull { !it.read } ?: chapters.lastOrNull() else null)?.chapter
-            ?: resume ?: chapters.firstOrNull()?.chapter
+        // The same rule as Home's Continue (core ContinueTargets).
+        val continueAt = ContinueTargets.of(chapters.map { ChapterReading(it.chapter.id, it.progress) }, resume?.id)
+        val target = continueAt?.let { at -> chapters.first { it.chapter.id == at.chapterId }.chapter }
         val fromKavita = work?.origin == LibraryStore.KAVITA && kavitaSync != null
         // The two sides went to different chapters: where to reopen is the person's (contract, case 5).
         val crossing = others.firstOrNull { it.reason == LibraryStore.CONFLICT && resume != null && it.chapterId != resume?.id }
@@ -490,7 +480,7 @@ internal fun WorkScreen(
                     }
                 } else if (target != null) {
                     Button(onClick = { onOpenChapter(target.id) }, modifier = Modifier.padding(16.dp)) {
-                        val label = if (resume != null || markedOnly) stringResource(R.string.continue_reading, target.name)
+                        val label = if (continueAt?.goesOn == true) stringResource(R.string.continue_reading, target.name)
                         else stringResource(R.string.start_reading)
                         Text(label)
                     }
