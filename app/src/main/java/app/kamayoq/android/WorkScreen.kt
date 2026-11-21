@@ -205,6 +205,11 @@ internal fun WorkScreen(
             val change = withContext(Dispatchers.IO) {
                 if (read) store.markRead(workId, ids, Instant.now()) else store.markUnread(workId, ids, Instant.now())
             }
+            // Nothing to undo when no mark changed: the notice says so, with no Undo.
+            if (change.changed == 0) {
+                notices.showSnackbar(resources.getString(R.string.marked_nothing), duration = SnackbarDuration.Long)
+                return@launch
+            }
             marked++
             stateVersion++
             val answer = notices.showSnackbar(

@@ -153,7 +153,7 @@ data class AutomaticChange(val from: ReadingState?, val at: Instant)
  * the marking, which names the change of state it made by itself, if it made one. [changed] counts
  * the chapters whose mark the marking changed, for the notice.
  */
-data class MarkChange(val workId: String, val marksBefore: Map<String, ReadMark?>, val at: Instant, val changed: Int = marksBefore.size)
+data class MarkChange(val workId: String, val marksBefore: Map<String, ReadMark?>, val at: Instant, val changed: Int)
 
 /**
  * A work's reading state, null for none, and the change the app made by itself, kept until the
@@ -958,14 +958,15 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         val marked = chapterIds.filter { before[it] == null }
         marked.forEach { writeProgress(it, progress(it).copy(readMark = ReadMark(at, ReadMarkSource.PERSON))) }
         if (marked.isNotEmpty()) moveStateByMarking(workId, marked, at)
-        MarkChange(workId, before, at)
+        MarkChange(workId, before, at, marked.size)
     }
 
     /** The person takes the read mark off [chapterIds]; the position and the state stay. */
     fun markUnread(workId: String, chapterIds: List<String>, at: Instant): MarkChange = database.transactionWithResult {
         val before = chapterIds.associateWith { progress(it).readMark }
-        chapterIds.filter { before[it] != null }.forEach { writeProgress(it, progress(it).copy(readMark = null)) }
-        MarkChange(workId, before, at)
+        val unmarked = chapterIds.filter { before[it] != null }
+        unmarked.forEach { writeProgress(it, progress(it).copy(readMark = null)) }
+        MarkChange(workId, before, at, unmarked.size)
     }
 
     /** Puts back the marks [change] found, and the state its marking changed by itself. */
