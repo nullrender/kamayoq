@@ -65,14 +65,21 @@ class ChapterDownloadTest {
     private lateinit var sync: KavitaSync
 
     /** [beforeShowing] runs once the work is in the store and before the screen first reads it. */
-    private fun open(title: String, kavita: Boolean = true, restoration: StateRestorationTester? = null, beforeShowing: () -> Unit = {}) {
+    private fun open(
+        title: String,
+        kavita: Boolean = true,
+        restoration: StateRestorationTester? = null,
+        formats: List<ChapterFormat> = List(3) { ChapterFormat.ARCHIVE },
+        beforeShowing: () -> Unit = {},
+    ) {
         val secret = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
         val access = KavitaAccess(app, { _, _ -> KavitaConnection.Connected("0.9.1.4") }) { secret }
         sync = KavitaSync(app.store, access, File(app.cacheDir, "download-test"), client, downloadFolder = File(app.filesDir, "download-test"))
         sync.connect("https://a.example", "key-of-a-1234")
         if (kavita) {
-            val chapters = (1..3).map {
-                ImportedChapter("9$it", "Cap. $it", UnitKind.CHAPTER, it.toDouble(), ChapterFormat.ARCHIVE, "20|100", 20, "Cap. $it.cbz", 7)
+            val chapters = formats.mapIndexed { index, format ->
+                val number = index + 1
+                ImportedChapter("9$number", "Cap. $number", UnitKind.CHAPTER, number.toDouble(), format, "20|100", 20, "Cap. $number.cbz", 7)
             }
             app.store.importKavita(checkNotNull(app.store.kavitaServer()).id, listOf(ImportedWork("12", title, WorkType.COMICS, null, 2, chapters)))
         }
@@ -232,5 +239,16 @@ class ChapterDownloadTest {
         restoration.emulateSavedInstanceStateRestore()
 
         waitFor(app.resources.getQuantityString(R.plurals.delete_downloads_title, 3, 3))
+    }
+
+    @Test
+    fun `dado um capítulo em PDF entre dois em CBZ, quando baixo todos, então só os dois que o leitor abre são baixados`() {
+        open("Gantz", formats = listOf(ChapterFormat.ARCHIVE, ChapterFormat.PDF, ChapterFormat.ARCHIVE))
+
+        openSheet()
+        compose.onNode(hasText(app.getString(R.string.download_all))).performClick()
+
+        waitFor(app.resources.getQuantityString(R.plurals.download_started, 2, 2))
+        compose.waitUntil(10_000) { downloaded() == listOf(true, false, true) }
     }
 }
