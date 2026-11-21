@@ -12,6 +12,7 @@ import app.kamayoq.core.backup.BackupOutbox
 import app.kamayoq.core.backup.BackupReadingState
 import app.kamayoq.core.backup.BackupServer
 import app.kamayoq.core.backup.BackupWork
+import app.kamayoq.core.home.Home
 import app.kamayoq.core.kavita.ImportedChapter
 import app.kamayoq.core.kavita.ImportedWork
 import app.kamayoq.core.kavita.KavitaProgress
@@ -605,7 +606,12 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
      * each arrived, for the page to say so; from here on they are ordinary unread chapters and leave
      * Arrived (FEATURES, part 2).
      */
-    fun visitWork(workId: String, at: Instant): Map<String, Instant> = emptyMap()
+    fun visitWork(workId: String, at: Instant): Map<String, Instant> = database.transactionWithResult {
+        val before = lastVisit(workId)
+        val news = arrivals(workId).filter { (chapterId, arrivedAt) -> Home.isNew(arrivedAt, before, progress(chapterId).readMark != null) }
+        database.workQueries.visit(at.toEpochMilli(), workId)
+        news
+    }
 
     /** The last time the person opened [workId]'s page; null for never. */
     fun lastVisit(workId: String): Instant? =
