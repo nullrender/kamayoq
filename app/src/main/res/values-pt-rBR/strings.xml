@@ -228,8 +228,8 @@
     </plurals>
     <string name="download_nothing_new">Já estão no aparelho</string>
     <plurals name="download_delete">
-        <item quantity="one">Apagar o %d baixado…</item>
-        <item quantity="other">Apagar os %d baixados…</item>
+        <item quantity="one">Apagar %d capítulo baixado…</item>
+        <item quantity="other">Apagar %d capítulos baixados…</item>
     </plurals>
     <plurals name="download_started">
         <item quantity="one">%d capítulo vai ser baixado.</item>

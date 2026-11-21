@@ -282,8 +282,8 @@
     </plurals>
     <string name="download_nothing_new">Already on this device</string>
     <plurals name="download_delete">
-        <item quantity="one">Delete the %d downloaded…</item>
-        <item quantity="other">Delete the %d downloaded…</item>
+        <item quantity="one">Delete %d downloaded chapter…</item>
+        <item quantity="other">Delete %d downloaded chapters…</item>
     </plurals>
     <plurals name="download_started">
         <item quantity="one">%d chapter will download.</item>
@@ -300,7 +300,7 @@
         <item quantity="one">Delete %d downloaded chapter?</item>
         <item quantity="other">Delete %d downloaded chapters?</item>
     </plurals>
-    <string name="delete_downloads_text">Frees about %s of this device. The progress and the read marks stay. To read with no internet again, it must be downloaded again, while Kavita still has it.</string>
+    <string name="delete_downloads_text">Frees about %s on this device. The progress and the read marks stay. To read them with no internet again, download them again while Kavita still has them.</string>
     <string name="delete_downloads_confirm">Delete %d</string>
     <string name="delete_downloads_cancel">Cancel</string>
     <plurals name="downloads_deleted">
