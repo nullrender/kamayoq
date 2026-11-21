@@ -20,6 +20,8 @@ import app.kamayoq.data.kavita.KavitaClient
 import java.io.File
 import java.io.IOException
 import java.time.Instant
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import javax.crypto.KeyGenerator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -40,12 +42,21 @@ class ChapterDownloadTest {
     /** Chapters whose download fails, by Kavita's chapter id. */
     private val failing = mutableSetOf<String>()
 
+    /** Chapters whose download breaks with an error that is not the network's. */
+    private val breaking = mutableSetOf<String>()
+
+    /** Held while set: each download waits for it, as over a slow network. */
+    @Volatile
+    private var slow: CountDownLatch? = null
+
     private val client = object : KavitaClient() {
         // Reading the libraries fails, so the import on opening leaves the works of the test alone.
         override fun libraries(address: String, key: String): List<RemoteLibrary> = throw IOException("No network in this test")
 
         override fun download(address: String, key: String, chapterId: String, target: File, stillWanted: () -> Boolean) {
+            slow?.await(10, TimeUnit.SECONDS)
             if (chapterId in failing) throw IOException("Cut")
+            if (chapterId in breaking) throw IllegalStateException("Not a network failure")
             target.writeText("pages of $chapterId")
         }
     }
@@ -170,5 +181,38 @@ class ChapterDownloadTest {
         open("Sakamoto Days", kavita = false)
 
         assertEquals(0, compose.onAllNodes(hasText(app.getString(R.string.download))).fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun `dado um capítulo que quebra com um erro que não é de rede, quando baixo todos, então a Obra diz que um não baixou e os outros vêm`() {
+        breaking += "92"
+        open("Gantz")
+
+        openSheet()
+        compose.onNode(hasText(app.getString(R.string.download_all))).performClick()
+
+        waitFor(app.resources.getQuantityString(R.plurals.download_failed, 1, 1))
+        compose.waitUntil(10_000) { downloaded() == listOf(true, false, true) }
+    }
+
+    @Test
+    fun `dado um download em andamento, quando peço Todos de novo, então o total continua o número de capítulos`() {
+        val latch = CountDownLatch(1)
+        slow = latch
+        open("Gantz")
+        val workId = app.store.works().single().id
+
+        openSheet()
+        compose.onNode(hasText(app.getString(R.string.download_all))).performClick()
+        waitFor(app.resources.getQuantityString(R.plurals.download_started, 3, 3))
+        openSheet()
+        compose.onNode(hasText(app.getString(R.string.download_all))).performClick()
+        compose.waitForIdle()
+        val total = sync.downloads.value[workId]?.total
+        latch.countDown()
+        slow = null
+
+        assertEquals(3, total)
+        compose.waitUntil(10_000) { downloaded() == listOf(true, true, true) }
     }
 }
