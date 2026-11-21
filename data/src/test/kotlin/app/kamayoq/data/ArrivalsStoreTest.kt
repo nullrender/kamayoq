@@ -204,4 +204,49 @@ class ArrivalsStoreTest {
 
         assertEquals(emptyMap(), store.arrivalsOf("Sakamoto Days"))
     }
+
+    private val opened = Instant.parse("2026-11-21T11:00:00Z")
+
+    @Test
+    fun `dado um capítulo que chegou, quando a pessoa abre a Obra, então ele vem como novo uma vez e a visita fica gravada`() {
+        store.read(first, "Comics/Sakamoto Days/Cap. 001.cbz")
+        store.read(later, "Comics/Sakamoto Days/Cap. 001.cbz", "Comics/Sakamoto Days/Cap. 002.cbz")
+        val work = store.work("Sakamoto Days").id
+
+        val news = store.visitWork(work, opened)
+
+        assertEquals(mapOf(store.chapter("Sakamoto Days", "Cap. 002").id to later), news)
+        assertEquals(opened, store.lastVisit(work))
+        assertEquals(emptyMap(), store.visitWork(work, latest))
+        assertEquals(latest, store.lastVisit(work))
+    }
+
+    @Test
+    fun `dado um capítulo que chegou depois da última visita, quando a pessoa abre a Obra outra vez, então só ele vem como novo`() {
+        store.read(first, "Comics/Sakamoto Days/Cap. 001.cbz")
+        store.read(later, "Comics/Sakamoto Days/Cap. 001.cbz", "Comics/Sakamoto Days/Cap. 002.cbz")
+        val work = store.work("Sakamoto Days").id
+        store.visitWork(work, opened)
+
+        store.read(latest, "Comics/Sakamoto Days/Cap. 001.cbz", "Comics/Sakamoto Days/Cap. 002.cbz", "Comics/Sakamoto Days/Cap. 003.cbz")
+
+        assertEquals(mapOf(store.chapter("Sakamoto Days", "Cap. 003").id to latest), store.visitWork(work, latest.plusSeconds(60)))
+    }
+
+    @Test
+    fun `dado um capítulo que chegou e já foi lido, quando a pessoa abre a Obra, então ele não vem como novo`() {
+        store.read(first, "Comics/Sakamoto Days/Cap. 001.cbz")
+        store.read(later, "Comics/Sakamoto Days/Cap. 001.cbz", "Comics/Sakamoto Days/Cap. 002.cbz")
+        val work = store.work("Sakamoto Days").id
+        store.markRead(work, listOf(store.chapter("Sakamoto Days", "Cap. 002").id), latest)
+
+        assertEquals(emptyMap(), store.visitWork(work, latest.plusSeconds(60)))
+    }
+
+    @Test
+    fun `dado uma obra nunca aberta, então não há última visita`() {
+        store.read(first, "Comics/Sakamoto Days/Cap. 001.cbz")
+
+        assertNull(store.lastVisit(store.work("Sakamoto Days").id))
+    }
 }

@@ -600,6 +600,17 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
     fun arrivals(workId: String): Map<String, Instant> =
         database.chapterQueries.arrivalsOfWork(workId).executeAsList().associate { it.id to Instant.ofEpochMilli(checkNotNull(it.arrived_at)) }
 
+    /**
+     * The person opens [workId]'s page at [at]. Returns the chapters new until now, with the moment
+     * each arrived, for the page to say so; from here on they are ordinary unread chapters and leave
+     * Arrived (FEATURES, part 2).
+     */
+    fun visitWork(workId: String, at: Instant): Map<String, Instant> = emptyMap()
+
+    /** The last time the person opened [workId]'s page; null for never. */
+    fun lastVisit(workId: String): Instant? =
+        database.workQueries.visitedAt(workId).executeAsOneOrNull()?.visited_at?.let(Instant::ofEpochMilli)
+
     /** When [workId] came into the Library after the zero mark of its source; null for one from before. */
     fun addedAt(workId: String): Instant? =
         database.workQueries.addedAt(workId).executeAsOneOrNull()?.added_at?.let(Instant::ofEpochMilli)
