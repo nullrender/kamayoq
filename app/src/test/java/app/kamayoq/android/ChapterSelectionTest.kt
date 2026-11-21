@@ -16,6 +16,7 @@ import app.kamayoq.core.library.ChapterFormat
 import app.kamayoq.core.library.UnitKind
 import app.kamayoq.core.library.WorkType
 import app.kamayoq.core.progress.ChapterProgress
+import app.kamayoq.core.progress.ReadMark
 import app.kamayoq.core.progress.ReadMarkSource
 import app.kamayoq.core.progress.StripPosition
 import java.time.Instant
@@ -218,5 +219,22 @@ class ChapterSelectionTest {
         compose.onNode(hasText(app.getString(R.string.selection_read))).performClick()
 
         waitFor(app.getString(R.string.continue_reading, "Cap. 4"))
+    }
+
+    @Test
+    fun `dado todos lidos e uma releitura parada no meio do capítulo 2, então o botão continua no 2, não no último`() {
+        openGantz()
+        val ids = chapterIds()
+        val read = Instant.parse("2026-11-20T12:00:00Z")
+        for (id in ids) app.store.saveProgress(id, ChapterProgress(ReadMark(read, ReadMarkSource.READ_TO_END), StripPosition(20, 20, read, "test-device"), 1))
+        // Reopened later and left halfway: the read mark stays, the position is the reread's.
+        val reread = Instant.parse("2026-11-20T13:00:00Z")
+        app.store.saveProgress(ids[1], ChapterProgress(ReadMark(read, ReadMarkSource.READ_TO_END), StripPosition(7, 20, reread, "test-device"), 1))
+        // Leaving and coming back reads the progress again.
+        pressBack()
+        waitFor("Gantz")
+        compose.onNode(hasText("Gantz")).performClick()
+
+        waitFor(app.getString(R.string.continue_reading, "Cap. 2"))
     }
 }
