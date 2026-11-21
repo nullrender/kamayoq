@@ -380,13 +380,18 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
             // A restored library waits for its folder: the first one read takes it over, so its works
             // meet the folder's by path below (docs/decisions/backup-restore-2026-11-18.md, choice 5).
             database.workVersionQueries.adoptRestored(source, RESTORED)
+            // The first reading of a folder is its zero mark: what it brings is the Library as it was.
+            val arrival = at.takeIf { database.arrivalBaseQueries.isKnown(LOCAL, source, 0L).executeAsOne() }
+            database.arrivalBaseQueries.know(LOCAL, source, 0L)
             val findVersion = PathMatch(
                 database.workVersionQueries.versionsOfSource(LOCAL, source).executeAsList(),
                 library.works.map { it.path },
             ) { it.path }
             val versionIds = library.works.mapIndexed { index, work ->
                 val version = findVersion.of(work.path)
-                val (versionId, workCameBack) = storeWork(source, work, index.toLong(), version)
+                val (versionId, workCameBack) = storeWork(source, work, index.toLong(), version, arrival)
+                // A new work is added; its chapters come with it, not into a work the person had.
+                val chapterArrival = arrival.takeIf { version != null }
                 // A work renamed in letter case moves all its chapters: they are compared by their
                 // place inside it, or a new file could take an old one's identity. A chapter gone
                 // meanwhile keeps the older letter case, of the same length. Inside a split file the
@@ -412,10 +417,10 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
                 val chapterIds = work.units.mapIndexed { unitIndex, unit ->
                     if (unit.content == UnitContent.SplitEpub) return@mapIndexed null
                     val stamp = ContentCheck.stampOf(unit, stamps)
-                    storeChapter(versionId, unit, unitIndex.toLong(), stamp, workCameBack, findChapter.of(place(unit.path, unit.tocKey)))
+                    storeChapter(versionId, unit, unitIndex.toLong(), stamp, workCameBack, findChapter.of(place(unit.path, unit.tocKey)), chapterArrival)
                 }.filterNotNull() + splitUnits.flatMap { (path, units) ->
                     val stamp = ContentCheck.stampOf(units.first().value, stamps)
-                    storeSplitFile(versionId, units.map { it.index.toLong() to it.value }, stamp, workCameBack, storedOfSplit.getValue(path))
+                    storeSplitFile(versionId, units.map { it.index.toLong() to it.value }, stamp, workCameBack, storedOfSplit.getValue(path), chapterArrival)
                 }
                 database.chapterQueries.markAbsentExcept(versionId, chapterIds)
                 versionId
@@ -430,7 +435,8 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
      * chapter, with its reading, and only move the keys; any other contents is another edition, whose
      * chapters start with no reading, while the previous ones stay stored out of the lists. Then the
      * Work screen asks before any read mark passes, if there is one to pass. Returns the current
-     * chapters, in order.
+     * chapters, in order. A chapter new in the file arrives at [arrivedAt]; in another edition only
+     * one whose title the previous edition did not have is new: the others are the same chapters.
      */
     private fun storeSplitFile(
         versionId: String,
@@ -438,6 +444,7 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         stamp: String,
         workCameBack: Boolean,
         stored: List<CurrentOfVersion>,
+        arrivedAt: Instant?,
     ): List<String> {
         val path = units.first().second.path
         // A question still open goes with the file when its path changes.
@@ -451,7 +458,7 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
             for ((row, _) in moving) database.chapterQueries.moveKey("\u0000${row.id}", row.id)
             for ((row, unit) in moving) database.chapterQueries.moveKey(unit.second.tocKey, row.id)
             return units.mapIndexed { index, (sortIndex, unit) ->
-                storeChapter(versionId, unit, sortIndex, stamp, workCameBack, stored.getOrNull(index))
+                storeChapter(versionId, unit, sortIndex, stamp, workCameBack, stored.getOrNull(index), arrivedAt)
             }
         }
         val ids = units.map { newId() }
@@ -475,6 +482,12 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
             )
         }
         if (hadReadMark) database.editionOfferQueries.offer(versionId, path)
+        if (arrivedAt != null) {
+            val oldNames = stored.map { it.name }.toSet()
+            for ((id, entry) in ids.zip(units)) {
+                if (entry.second.name !in oldNames) database.chapterQueries.markArrived(arrivedAt.toEpochMilli(), id)
+            }
+        }
         return ids
     }
 
@@ -507,7 +520,8 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         // In the place the file has in the work: what comes after it moves by the difference.
         val first = stored.first().sort_index
         database.chapterQueries.shiftAfter((units.size - stored.size).toLong(), place.version_id, stored.last().sort_index)
-        storeSplitFile(place.version_id, units.mapIndexed { index, unit -> first + index to unit }, stored.first().stamp, workCameBack = false, stored)
+        // Opening the file is reading it, not news: what it divides into arrives with no time.
+        storeSplitFile(place.version_id, units.mapIndexed { index, unit -> first + index to unit }, stored.first().stamp, workCameBack = false, stored, arrivedAt = null)
         currentEdition(asked)
     }
 
@@ -559,14 +573,19 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
             val byPath = stored.associateBy { it.path }
             val byId = stored.associateBy { it.id }
             val incoming = works.map { it.path }.toSet()
+            // Each library's first import is its zero mark, also when another one was read before.
+            val libraries = works.map { it.libraryId }.toSet() + kavitaServer()?.marked.orEmpty()
+            val fresh = libraries.filterNot { database.arrivalBaseQueries.isKnown(KAVITA, server, it.toLong()).executeAsOne() }.toSet()
+            libraries.forEach { database.arrivalBaseQueries.know(KAVITA, server, it.toLong()) }
             val returned = KavitaRelink.works(
                 stored.filter { it.path !in incoming }.map { KavitaRelink.GoneWork(it.id, it.remote_library_id?.toInt(), it.title) },
                 works.filter { it.path !in byPath }.map { KavitaRelink.ArrivedWork(it.path, it.libraryId, it.title) },
             )
             val versionIds = works.mapIndexed { index, work ->
                 val existing = byPath[work.path] ?: returned[work.path]?.let(byId::getValue)
-                val (versionId, cameBack) = storeRemoteWork(server, work, index.toLong(), existing)
-                storeRemoteChapters(versionId, work, cameBack)
+                val arrival = at.takeIf { work.libraryId !in fresh }
+                val (versionId, cameBack) = storeRemoteWork(server, work, index.toLong(), existing, arrival)
+                storeRemoteChapters(versionId, work, cameBack, arrival.takeIf { existing != null })
                 storeDetails(versionId, work.details)
                 versionId
             }
@@ -663,7 +682,13 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
     }
 
     /** Returns the version and whether it is coming back after being gone. */
-    private fun storeRemoteWork(server: String, work: ImportedWork, sortIndex: Long, existing: RemoteVersions?): Pair<String, Boolean> {
+    private fun storeRemoteWork(
+        server: String,
+        work: ImportedWork,
+        sortIndex: Long,
+        existing: RemoteVersions?,
+        addedAt: Instant?,
+    ): Pair<String, Boolean> {
         val type = work.type.name
         val subtype = work.subtype?.name
         val library = work.libraryId.toLong()
@@ -676,11 +701,12 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         val workId = newId()
         val versionId = newId()
         database.workQueries.insert(workId, work.title, null, type, subtype)
+        addedAt?.let { database.workQueries.markAdded(it.toEpochMilli(), workId) }
         database.workVersionQueries.insertRemote(versionId, workId, KAVITA, server, work.path, sortIndex, library)
         return versionId to false
     }
 
-    private fun storeRemoteChapters(versionId: String, work: ImportedWork, workCameBack: Boolean) {
+    private fun storeRemoteChapters(versionId: String, work: ImportedWork, workCameBack: Boolean, arrivedAt: Instant?) {
         val stored = database.chapterQueries.remoteOfVersion(versionId).executeAsList()
         val byPath = stored.associateBy { it.path }
         val byId = stored.associateBy { it.id }
@@ -699,7 +725,7 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
                 // The new id starts with no record in the server (KavitaFactsTest): that is the base now.
                 database.progressAgreementQueries.agree(relinked.id, 0L, null, null, 0L, null)
             }
-            storeRemoteChapter(versionId, chapter, index.toLong(), existing, workCameBack || relinked != null)
+            storeRemoteChapter(versionId, chapter, index.toLong(), existing, workCameBack || relinked != null, arrivedAt)
         }
         database.chapterQueries.markAbsentExcept(versionId, chapterIds)
     }
@@ -710,6 +736,7 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         sortIndex: Long,
         existing: RemoteOfVersion?,
         cameBack: Boolean,
+        arrivedAt: Instant?,
     ): String {
         val kind = chapter.kind.name
         val format = chapter.format.name
@@ -721,6 +748,7 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
                 id, versionId, chapter.path, chapter.name, kind, chapter.number, format, sortIndex, chapter.stamp,
                 pages, chapter.remoteFile, volume,
             )
+            arrivedAt?.let { database.chapterQueries.markArrived(it.toEpochMilli(), id) }
             return id
         }
         val protectsSomething = existing.content_hash != null || hasProgress(existing.id)
@@ -742,7 +770,7 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
     }
 
     /** Returns the version and whether it is coming back after its folder was gone. */
-    private fun storeWork(source: String, work: Work, sortIndex: Long, existing: VersionsOfSource?): Pair<String, Boolean> {
+    private fun storeWork(source: String, work: Work, sortIndex: Long, existing: VersionsOfSource?, addedAt: Instant?): Pair<String, Boolean> {
         val type = work.type.name
         val subtype = work.subtype?.name
         if (existing != null) {
@@ -754,6 +782,7 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         val workId = newId()
         val versionId = newId()
         database.workQueries.insert(workId, work.title, work.alternativeTitle, type, subtype)
+        addedAt?.let { database.workQueries.markAdded(it.toEpochMilli(), workId) }
         database.workVersionQueries.insert(versionId, workId, LOCAL, source, work.path, sortIndex)
         return versionId to false
     }
@@ -765,6 +794,7 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         stamp: String,
         workCameBack: Boolean,
         existing: CurrentOfVersion?,
+        arrivedAt: Instant?,
     ): String {
         val kind = unit.kind.name
         val format = formatOf(unit.content).name
@@ -773,6 +803,7 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
             database.chapterQueries.insert(
                 id, versionId, unit.path, unit.name, kind, unit.number, format, sortIndex, stamp, unit.tocKey,
             )
+            arrivedAt?.let { database.chapterQueries.markArrived(it.toEpochMilli(), id) }
             return id
         }
         if (existing.path != unit.path) database.chapterQueries.movePath(unit.path, existing.id)
@@ -1177,6 +1208,8 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         // Checked here, not before: a reading of the folder that ends in between must not mix with the backup.
         if (!isEmpty()) return@transactionWithResult false
         requireRestorable(backup)
+        // The times of arrival stay out of the backup: every source starts from its zero mark again.
+        database.arrivalBaseQueries.forgetAll()
         for (server in backup.servers) {
             database.kavitaServerQueries.insert(server.id, server.address, server.lastVersion, server.accountId?.toLong())
             server.libraries.forEach { database.kavitaLibraryQueries.mark(server.id, it.toLong()) }
