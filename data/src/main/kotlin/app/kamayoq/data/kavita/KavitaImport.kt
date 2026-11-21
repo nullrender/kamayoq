@@ -51,15 +51,15 @@ class KavitaImport(
             val workId = workIds[remote.id.toString()] ?: continue
             val stamp = remote.coverImage.ifEmpty { null }
             if (stamp != null && stamp == store.coverStamp(workId) && covers.file(workId) != null) continue
-            val bytes = try {
-                stamp?.let { client.cover(address, key, remote.id) }
+            try {
+                val bytes = stamp?.let { client.cover(address, key, remote.id) }
+                if (bytes == null) covers.drop(workId) else covers.keep(workId, bytes)
+                store.saveCover(workId, stamp.takeIf { bytes != null })
             } catch (_: IOException) {
-                // The work keeps the cover it had, or the provisional one, and its stamp stays as it
-                // was, so the next import asks again: one cover must not stop the progress sync after it.
-                continue
+                // Fetching or writing it: the work keeps the cover it had, or the provisional one, and
+                // its stamp stays as it was, so the next import asks again. One cover must not stop
+                // the progress sync after it.
             }
-            if (bytes == null) covers.drop(workId) else covers.keep(workId, bytes)
-            store.saveCover(workId, stamp.takeIf { bytes != null })
         }
     }
 
