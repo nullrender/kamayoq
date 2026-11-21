@@ -59,6 +59,8 @@ internal object KavitaServer {
 
     val describedLibraryId: Int by lazy { prepareLibrary("Described library", "/described", metadata = true) }
 
+    val novelLibraryId: Int by lazy { prepareLibrary("Novel library", "/novels", type = 4, fileGroup = 2, metadata = true) }
+
     val bookLibraryId: Int by lazy { prepareLibrary("Book library", "/books", type = 2, fileGroup = 2, metadata = true) }
 
     // Kept from the moment of the setup: the test library appears as soon as any test needs it.

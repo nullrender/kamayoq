@@ -54,6 +54,11 @@ fun main(args: Array<String>) {
     writeChapter(described, "Edited Work", number = 1, pages = 3)
     // The same kind of file in a library whose metadata is off.
     writeChapter(mutable, "Unread Info Work", number = 1, pages = 3, comicInfo = comicInfo("Unread Info Work", 1, count = 1))
+    // A Light Novel library: what Kavita says about a novel of one file, of volumes and of chapters.
+    val novels = File(root, "novels")
+    writeEpub(File(novels, "Single Novel/Single Novel.epub"), "Single Novel")
+    for (volume in 1..2) writeEpub(File(novels, "Volume Novel/Volume Novel Vol. $volume.epub"), "Volume Novel")
+    for (chapter in 1..2) writeEpub(File(novels, "Chapter Novel/Chapter Novel Ch. 00$chapter.epub"), "Chapter Novel")
     val books = File(root, "books")
     for (name in listOf("A file", "B file", "C file")) writeEpub(File(books, "Same Title/$name.epub"), "Same Title")
     writeEpub(File(books, "Lone Book/Lone Book.epub"), "Lone Book")

@@ -132,4 +132,24 @@ class KavitaDetailsFactsTest {
         assertEquals(true, KavitaServer.coverNames(KavitaServer.describedLibraryId).getValue("Info Work").endsWith(".png"))
         assertEquals("", KavitaServer.coverNames(KavitaServer.bookLibraryId).getValue("Lone Book"))
     }
+
+    private fun novel(name: String) = KavitaServer.works(KavitaServer.novelLibraryId).single { it.name == name }
+
+    @Test
+    fun `dado uma novel de um arquivo só sem metadado, então o Kavita diz 2, concluída, com 1 de 1, como num livro`() {
+        val metadata = KavitaServer.metadata(novel("Single Novel").id)
+
+        assertEquals(Triple(2, 1, 1), metadata.publication())
+        assertEquals(false, metadata.getValue("publicationStatusLocked").jsonPrimitive.boolean)
+    }
+
+    @Test
+    fun `dado uma novel em dois volumes sem metadado, então a situação é 0, sem contagem`() {
+        assertEquals(Triple(0, 0, -100000), KavitaServer.metadata(novel("Volume Novel").id).publication())
+    }
+
+    @Test
+    fun `dado uma novel em dois capítulos sem metadado, então a situação é 0, com total 1 e sem máximo`() {
+        assertEquals(Triple(0, 1, -100000), KavitaServer.metadata(novel("Chapter Novel").id).publication())
+    }
 }
