@@ -237,4 +237,20 @@ class ChapterSelectionTest {
 
         waitFor(app.getString(R.string.continue_reading, "Cap. 2"))
     }
+
+    @Test
+    fun `dado um capítulo lido até o fim e desmarcado, então a lista não diz Lendo 100 por cento`() {
+        openGantz()
+        val first = chapterIds().first()
+        val read = Instant.parse("2026-11-20T12:00:00Z")
+        app.store.saveProgress(first, ChapterProgress(ReadMark(read, ReadMarkSource.READ_TO_END), StripPosition(20, 20, read, "test-device"), 1))
+        app.store.markUnread(app.store.works().single().id, listOf(first), Instant.now())
+        // Leaving and coming back reads the progress again.
+        pressBack()
+        waitFor("Gantz")
+        compose.onNode(hasText("Gantz")).performClick()
+        waitFor("Cap. 1")
+
+        assertEquals(0, compose.onAllNodes(hasText(app.getString(R.string.chapter_reading, 100))).fetchSemanticsNodes().size)
+    }
 }
