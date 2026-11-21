@@ -71,6 +71,7 @@ import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.dp
 import app.kamayoq.core.library.FolderConvention
 import app.kamayoq.core.library.WorkDetails
+import app.kamayoq.core.progress.BasisPoints
 import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.ReadingPosition
 import app.kamayoq.core.progress.ReadingState
@@ -90,6 +91,12 @@ import kotlinx.coroutines.withContext
 
 private class ChapterRow(val chapter: StoredChapter, val progress: ChapterProgress, val downloaded: Boolean = false) {
     val read get() = progress.readMark != null
+}
+
+// The end-of-chapter block of an image chapter, or the end of a book's text.
+private fun atEnd(position: ReadingPosition): Boolean = when (position) {
+    is StripPosition -> position.page >= position.totalPages
+    is TextPosition -> position.fraction.value >= BasisPoints.END
 }
 
 // How far into a chapter its place is, for "Reading · 35 %".
@@ -300,7 +307,15 @@ internal fun WorkScreen(
         // Read marks say where the reading goes on (his decision, 20/11/2026): when nothing was opened
         // yet but some chapter is read, or the chapter the reading stopped in is read, it goes on at
         // the first chapter not read, or at the last one when all are read.
-        val stoppedInRead = chapters.firstOrNull { it.chapter.id == resume?.id }?.read == true
+        // A chapter read and opened again later, left before its end, is a reread: Continue goes back
+        // to it (contract, case 5; his choice of 20/11/2026).
+        val stopped = chapters.firstOrNull { it.chapter.id == resume?.id }
+        val rereading = stopped?.progress?.let { progress ->
+            val mark = progress.readMark
+            val place = progress.position
+            mark != null && place != null && place.at.isAfter(mark.at) && !atEnd(place)
+        } == true
+        val stoppedInRead = stopped?.read == true && !rereading
         val markedOnly = (resume == null && chapters.any { it.read }) || stoppedInRead
         val target = (if (markedOnly) chapters.firstOrNull { !it.read } ?: chapters.lastOrNull() else null)?.chapter
             ?: resume ?: chapters.firstOrNull()?.chapter
