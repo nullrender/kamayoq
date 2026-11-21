@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import app.kamayoq.core.library.Publication
 import app.kamayoq.core.library.PublicationStatus
 import app.kamayoq.core.library.WorkDetails
+import app.kamayoq.core.library.WorkType
 import app.kamayoq.data.StoredWork
 
 // Test tags of the Work screen's cover: the real one, and the provisional one a work without a
@@ -103,7 +104,7 @@ internal fun WorkHeader(work: StoredWork, details: WorkDetails, cover: ImageBitm
             Text(
                 stringResource(sectionName(work.type)),
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
+                color = typeLabel(work.type, LocalPalette.current),
             )
             Text(work.title, style = MaterialTheme.typography.titleLarge)
             work.alternativeTitle?.let {
@@ -118,6 +119,9 @@ internal fun WorkHeader(work: StoredWork, details: WorkDetails, cover: ImageBitm
         }
     }
 }
+
+/** The colour of the Work header's type label, which is read and never touched. */
+internal fun typeLabel(type: WorkType, palette: Palette): Color = palette.action
 
 // Nothing when the status is unknown: a work with no details shows only what it has.
 @Composable
