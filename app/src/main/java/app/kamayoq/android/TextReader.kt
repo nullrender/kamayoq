@@ -35,6 +35,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -169,10 +170,11 @@ fun TextReader(
     // What the panel changed since the work opened; the store keeps it through onSettings and onFlow.
     var current by remember(archive) { mutableStateOf(settings) }
     var chosen by remember(archive) { mutableStateOf(chosenFlow) }
-    var panelOpen by remember(archive) { mutableStateOf(false) }
-    var goToOpen by remember(archive) { mutableStateOf(false) }
-    var chaptersOpen by remember(archive) { mutableStateOf(false) }
-    var hintDismissed by remember(archive) { mutableStateOf(false) }
+    // Saved with the screen: turning the phone remakes it, and an open sheet stays open.
+    var panelOpen by rememberSaveable { mutableStateOf(false) }
+    var goToOpen by rememberSaveable { mutableStateOf(false) }
+    var chaptersOpen by rememberSaveable { mutableStateOf(false) }
+    var hintDismissed by rememberSaveable { mutableStateOf(false) }
     // Until the page measures it, no warning: a false one would blame a device that hyphenates.
     var hyphenates by remember(archive) { mutableStateOf(true) }
     val look = current.effective()
@@ -185,14 +187,14 @@ fun TextReader(
     // Shown at opening; a touch in the middle, or turning the page by touch, hides them; in Scroll a
     // touch anywhere does, as scrolling alone cannot tell a finger from a jump. With explore
     // by touch they never hide: hidden, they could not be found (PERSONALITY, principle 3).
-    var controlsShown by remember(archive) { mutableStateOf(true) }
+    var controlsShown by rememberSaveable { mutableStateOf(true) }
     var progress by remember(archive) { mutableStateOf(TextProgress(0f, chapterOf(null))) }
     // In a split file, the chapter the page is in, counted in the file; the bars move inside the file first.
     var fileChapter by remember(archive) { mutableStateOf<Int?>(null) }
     var webView by remember(archive) { mutableStateOf<WebView?>(null) }
     var ready by remember(archive) { mutableStateOf(false) }
     var contents by remember(archive) { mutableStateOf<List<ReaderContentsItem>?>(null) }
-    var contentsOpen by remember(archive) { mutableStateOf(false) }
+    var contentsOpen by rememberSaveable { mutableStateOf(false) }
     // Where a new page of this screen opens (a crash, a change of mode): the last place kept.
     var cfi by remember(archive) { mutableStateOf(session.startCfi) }
     var section by remember(archive) { mutableStateOf(session.startSection) }
