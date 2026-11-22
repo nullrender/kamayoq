@@ -27,6 +27,7 @@ import app.kamayoq.core.reader.TextScope
 import app.kamayoq.core.reader.TextSettings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -177,5 +178,17 @@ class TextSettingsPanelTest {
         compose.onNodeWithText(text(R.string.reader_tab_look)).performClick()
         val sepia = compose.onNodeWithContentDescription(text(R.string.reader_theme_sepia)).fetchSemanticsNode().config.getOrNull(SemanticsProperties.Text)
         assertNull("Sepia also reads $sepia", sepia)
+    }
+
+    // Slice 5, choice after research (restore-notice.md): the three restore notices all say the mode
+    // stayed, as it does.
+    @Test
+    fun `dado Restaurar padrões em Todas numa obra com ajuste próprio, então o aviso diz que ela mantém os próprios e que o modo não mudou`() {
+        settings = TextSettings(TextLookChoices(size = 20), TextLookChoices(margin = 32))
+        show()
+        compose.onNodeWithContentDescription(text(R.string.reader_restore_all_description)).performClick()
+        val notice = text(R.string.reader_restored_all_keeps, text(R.string.reader_property_margins))
+        compose.onNodeWithText(notice).assertExists()
+        assertTrue(notice, notice.endsWith("The mode did not change."))
     }
 }
