@@ -13,7 +13,9 @@ import app.kamayoq.core.reader.EpubArchive
 import app.kamayoq.core.reader.PageLook
 import app.kamayoq.core.reader.PageTheme
 import app.kamayoq.core.reader.PageThemes
+import app.kamayoq.core.reader.ReaderFlow
 import app.kamayoq.core.reader.ReaderMessage
+import app.kamayoq.core.reader.ReadingFont
 import app.kamayoq.core.reader.ShownLook
 import app.kamayoq.core.reader.TextEdit
 import app.kamayoq.core.reader.TextNumber
@@ -46,7 +48,7 @@ class TextQualityMeasureTest {
     private fun shown(settings: TextSettings = TextSettings.DEFAULT) =
         ShownLook(settings.effective(), PageThemes.colors(PageTheme.DARK, systemDark = true))
 
-    private fun open(look: ShownLook) {
+    private fun open(look: ShownLook, flow: ReaderFlow = ReaderFlow.PAGES) {
         val file = File(instrumentation.targetContext.cacheDir, "measure.epub").apply { writeBytes(EpubFixtures.short()) }
         val opened = EpubArchive.open(file).also { archive = it }
         scenario = ActivityScenario.launch(ComponentActivity::class.java).apply {
@@ -59,7 +61,7 @@ class TextQualityMeasureTest {
                         return true
                     }
                 }
-                webView.loadReaderPage(ReaderClient(activity.assets, ReaderBook(opened, token = "measure1", position = null, look = look)), messages::add)
+                webView.loadReaderPage(ReaderClient(activity.assets, ReaderBook(opened, token = "measure1", position = null, flow = flow, look = look)), messages::add)
             }
         }
         val deadline = SystemClock.uptimeMillis() + 60_000
@@ -151,6 +153,30 @@ class TextQualityMeasureTest {
                 "return String(range.comparePoint(anchor.startContainer, anchor.startOffset) === 0) })()",
         )
         Log.i("KamayoqMeasure", "Start of the page still on screen after a larger font: $kept")
+        assertEquals("\"true\"", kept)
+    }
+
+    // Gemini's review of slice 5, finding 9: in Scroll the fork does not anchor again when a new font
+    // arrives after the first layout, so the passage could slide away.
+    @Test
+    fun `dado a rolagem adiante quando a letra cresce então o trecho do começo da tela continua na tela`() {
+        open(shown(), ReaderFlow.SCROLL)
+        repeat(2) {
+            evaluate("document.querySelector('foliate-view').next(); null")
+            SystemClock.sleep(1_500)
+        }
+        evaluate("globalThis.anchor = document.querySelector('foliate-view').lastLocation.range.cloneRange(); null")
+        val bigger = TextSettings.DEFAULT
+            .change(TextScope.ALL_TEXT_WORKS, TextEdit.Number(TextNumber.SIZE, 24))
+            .change(TextScope.ALL_TEXT_WORKS, TextEdit.Font(ReadingFont.GARAMOND))
+        instrumentation.runOnMainSync { webView.applyLook(PageLook.command(shown(bigger))) }
+        SystemClock.sleep(4_000)
+
+        val kept = evaluate(
+            "(() => { const range = document.querySelector('foliate-view').lastLocation.range; " +
+                "return String(range.comparePoint(anchor.startContainer, anchor.startOffset) === 0) })()",
+        )
+        Log.i("KamayoqMeasure", "Scroll: start of the screen still on it after a larger font: $kept")
         assertEquals("\"true\"", kept)
     }
 }
