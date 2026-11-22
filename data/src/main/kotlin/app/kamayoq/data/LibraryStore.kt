@@ -707,16 +707,31 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
     }
 
     /** The image reader's mode for [workId]: the general choice, the work's own and what its metadata says (ImageLook.sq). */
-    fun imageMode(workId: String): ImageModeSettings =
-        ImageModeSettings(ImageModeChoice.AUTOMATIC, null, ImageMode.STRIP)
+    fun imageMode(workId: String): ImageModeSettings = database.transactionWithResult {
+        val subtype = database.workQueries.subtypeOf(workId).executeAsOneOrNull()?.subtype?.let(ComicsSubtype::valueOf)
+        // A name this version does not know reads as not chosen: the work opens instead of failing.
+        val general = database.imageLookQueries.general().executeAsOneOrNull()?.mode?.let(::imageChoice) ?: ImageModeChoice.AUTOMATIC
+        val own = database.imageLookQueries.ofWork(workId).executeAsOneOrNull()?.mode?.let(::imageChoice)
+        ImageModeSettings(general, own, ImageModeSettings.detected(subtype))
+    }
 
     /** Keeps [settings]: the general choice for every image work, and the own one of [workId]. */
-    fun saveImageMode(workId: String, settings: ImageModeSettings) = Unit
+    fun saveImageMode(workId: String, settings: ImageModeSettings) = database.transaction {
+        database.imageLookQueries.ensureGeneral()
+        database.imageLookQueries.saveGeneral(settings.general.takeIf { it != ImageModeChoice.AUTOMATIC }?.wire)
+        database.imageLookQueries.ensureWork(workId)
+        database.imageLookQueries.saveWork(settings.own?.wire, workId)
+    }
+
+    private fun imageChoice(wire: String): ImageModeChoice? = ImageModeChoice.entries.find { it.wire == wire }
 
     /** Whether the hint on the first opening in Pages right to left was already dismissed. */
-    fun rightToLeftHintSeen(): Boolean = false
+    fun rightToLeftHintSeen(): Boolean = database.imageLookQueries.general().executeAsOneOrNull()?.right_to_left_hint_seen == 1L
 
-    fun markRightToLeftHintSeen() = Unit
+    fun markRightToLeftHintSeen() = database.transaction {
+        database.imageLookQueries.ensureGeneral()
+        database.imageLookQueries.markRightToLeftHintSeen()
+    }
 
     private fun flag(on: Boolean): Long = if (on) 1L else 0L
 

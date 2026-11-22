@@ -1,0 +1,14 @@
+-- From version 8 to 9: only adds the image reader's mode (slice 6 of the v1 interface). No work has
+-- a mode of its own yet: every comic opens in what its metadata says, as before.
+CREATE TABLE image_look_general (
+    id INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
+    -- ImageModeChoice wire name from core; null is Automatic, what the work's metadata says.
+    mode TEXT,
+    -- The hint on the first opening in Pages right to left shows once in the app (1 after "Got it").
+    right_to_left_hint_seen INTEGER NOT NULL DEFAULT 0 CHECK (right_to_left_hint_seen IN (0, 1))
+);
+CREATE TABLE work_image_look (
+    work_id TEXT NOT NULL PRIMARY KEY REFERENCES work(id),
+    -- ImageModeChoice wire name from core; Automatic here is kept as chosen, apart from following.
+    mode TEXT
+);
