@@ -221,10 +221,18 @@ class TextReaderSavingTest {
         val shown = evaluate("document.querySelector('foliate-view').lastLocation.fraction").toDouble()
         assertTrue("The book went back: at $shown, saved at ${saved.fraction.value}", shown * BasisPoints.END >= saved.fraction.value - 1)
         assertTrue("A place was handed out before the book opened", saveTimes.none { it < opened })
-        // The same spot, now that the controls work, turns the page: it is Next page indeed.
+        // The same spot, now that the controls work, turns the page: it is Next page indeed. A touch
+        // on the book right after it opens is sometimes lost on the emulator, as in the links test:
+        // at most 3 touches.
         saves.clear()
-        touchScreen(checkNotNull(targets()).first)
-        assertTrue("The spot touched is not Next page", saves.poll(15, TimeUnit.SECONDS) != null)
+        var turned = false
+        repeat(3) {
+            if (!turned) {
+                touchScreen(checkNotNull(targets()).first)
+                turned = saves.poll(5, TimeUnit.SECONDS) != null
+            }
+        }
+        assertTrue("The spot touched is not Next page", turned)
     }
 
     // A changed edition can drop the spine item the CFI names: the fork then opens the book at its
