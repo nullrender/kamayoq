@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,6 +26,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -69,12 +71,19 @@ internal fun ContinueSection(items: List<ContinueItem>, onOpenWork: (String) -> 
         HomeSectionTitle(R.string.home_continue_title)
         ContinueCard(items.first(), onOpenWork, onRead)
         if (items.size > 1) {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 18.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.padding(top = 14.dp),
-            ) {
-                items(items.drop(1), key = { it.work.id }) { item -> StripCover(item, onOpenWork, onRead) }
+            val strip = items.drop(1)
+            // A new first cover starts the strip again, even after a drag. A list keyed by work keeps
+            // the cover that was first where it is, so the work that came in ahead of it, often the
+            // one that just left the card, was cut at the edge or out of sight (S24 test of r745).
+            key(strip.first().work.id) {
+                LazyRow(
+                    state = rememberLazyListState(),
+                    contentPadding = PaddingValues(horizontal = 18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.padding(top = 14.dp),
+                ) {
+                    items(strip, key = { it.work.id }) { item -> StripCover(item, onOpenWork, onRead) }
+                }
             }
         }
     }
