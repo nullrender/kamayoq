@@ -298,6 +298,7 @@
         <item quantity="one">Delete %d downloaded chapter?</item>
         <item quantity="other">Delete %d downloaded chapters?</item>
     </plurals>
+    <string name="delete_download_text">Frees about %s on this device. The progress and the read mark stay. To read it with no internet again, download it again while Kavita still has it.</string>
     <string name="delete_downloads_text">Frees about %s on this device. The progress and the read marks stay. To read them with no internet again, download them again while Kavita still has them.</string>
     <string name="delete_downloads_confirm">Delete %d</string>
     <string name="delete_downloads_cancel">Cancel</string>

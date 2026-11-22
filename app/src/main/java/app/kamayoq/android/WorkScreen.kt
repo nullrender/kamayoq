@@ -346,7 +346,11 @@ internal fun WorkScreen(
             AlertDialog(
                 onDismissRequest = { deletingIds = null },
                 title = { Text(pluralStringResource(R.plurals.delete_downloads_title, doomed.size, doomed.size)) },
-                text = { Text(stringResource(R.string.delete_downloads_text, Formatter.formatShortFileSize(LocalContext.current, bytes))) },
+                // One chapter is "it", not "them": a plural would need the count in the text, which it does not say.
+                text = {
+                    val size = Formatter.formatShortFileSize(LocalContext.current, bytes)
+                    Text(stringResource(if (doomed.size == 1) R.string.delete_download_text else R.string.delete_downloads_text, size))
+                },
                 confirmButton = {
                     TextButton(onClick = {
                         deletingIds = null

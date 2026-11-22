@@ -245,6 +245,7 @@
         <item quantity="one">Apagar %d capítulo baixado?</item>
         <item quantity="other">Apagar %d capítulos baixados?</item>
     </plurals>
+    <string name="delete_download_text">Libera cerca de %s deste aparelho. O progresso e a marca de lido ficam. Para ler sem internet de novo, é preciso baixar outra vez, enquanto o Kavita tiver o conteúdo.</string>
     <string name="delete_downloads_text">Libera cerca de %s deste aparelho. O progresso e as marcas de lido ficam. Para ler sem internet de novo, é preciso baixar outra vez, enquanto o Kavita tiver o conteúdo.</string>
     <string name="delete_downloads_confirm">Apagar %d</string>
     <string name="delete_downloads_cancel">Cancelar</string>
