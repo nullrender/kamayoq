@@ -25,4 +25,19 @@ class ReaderFlowTest {
         assertEquals(ReaderFlow.PAGES, ReaderFlow.of(WorkType.BOOKS, touchExploration = false))
         assertEquals(ReaderFlow.SCROLL, ReaderFlow.of(WorkType.BOOKS, touchExploration = true))
     }
+
+    @Test
+    fun `dado um romance em que a pessoa escolheu Páginas, então ele abre em páginas`() {
+        assertEquals(ReaderFlow.PAGES, ReaderFlow.of(WorkType.NOVELS, touchExploration = false, chosen = ReaderFlow.PAGES))
+    }
+
+    @Test
+    fun `dado um livro em que a pessoa escolheu Rolar, então ele abre em rolagem`() {
+        assertEquals(ReaderFlow.SCROLL, ReaderFlow.of(WorkType.BOOKS, touchExploration = false, chosen = ReaderFlow.SCROLL))
+    }
+
+    @Test
+    fun `dado Páginas escolhido e explorar por toque ligado, então a obra rola mesmo assim`() {
+        assertEquals(ReaderFlow.SCROLL, ReaderFlow.of(WorkType.NOVELS, touchExploration = true, chosen = ReaderFlow.PAGES))
+    }
 }
