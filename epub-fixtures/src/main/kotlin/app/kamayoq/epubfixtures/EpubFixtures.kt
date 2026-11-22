@@ -57,7 +57,8 @@ object EpubFixtures {
      */
     fun ownFont(font: ByteArray): ByteArray {
         val head = """<link rel="stylesheet" type="text/css" href="book.css"/>"""
-        val sections = (1..2).map { number -> Section("s$number.xhtml", "Capítulo $number", paragraphs(number, 16), head) }
+        // A short first chapter, so a test pages into the second one with the first still loaded before it.
+        val sections = (1..2).map { number -> Section("s$number.xhtml", "Capítulo $number", paragraphs(number, if (number == 1) 6 else 16), head) }
         val css = "@font-face { font-family: 'Letra do livro'; src: url(fonts/livro.ttf); }\n" +
             "body { font-family: 'Letra do livro', serif; line-height: 1.7; margin: 0 1em; }\n" +
             "p { margin: 0 0 0.5em; text-indent: 2em; }"

@@ -34,7 +34,8 @@ import org.junit.runner.RunWith
 // Slice 5, found on the S24 on 22/11/2026 (kamayoq-notes, docs/tests/ui-slice-5-s24-plan-2026-11-22.md):
 // in a bought ebook with its own font, choosing one of the app's fonts moved the page about two
 // paragraphs on. The book here brings its font in its stylesheet, with its own line height, spacing,
-// indent and margins.
+// indent and margins, and the reading goes into its second chapter by turning pages, with the first
+// still loaded before it.
 @RunWith(AndroidJUnit4::class)
 class TextOwnFontTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -107,10 +108,18 @@ class TextOwnFontTest {
     private fun choosingFontKeepsThePlace(flow: ReaderFlow, where: String) {
         open(flow)
         assertEquals("the book's own font shows; console: $console", "true", bookFontShows())
+        // Into the second chapter by turning pages, as a person reads: the first one stays loaded before it.
+        var turns = 0
+        while (evaluate("String(document.querySelector('foliate-view').renderer.primaryIndex)") != "1") {
+            if (++turns > 60) throw AssertionError("Never reached the second chapter; console: $console")
+            evaluate("document.querySelector('foliate-view').next(); null")
+            SystemClock.sleep(700)
+        }
         repeat(2) {
             evaluate("document.querySelector('foliate-view').next(); null")
             SystemClock.sleep(1_500)
         }
+        val loaded = evaluate("String(document.querySelector('foliate-view').renderer.getContents().map(c => c.index).join(','))")
         evaluate("globalThis.anchor = document.querySelector('foliate-view').lastLocation.range.cloneRange(); null")
         val before = evaluate("anchor.toString().slice(0, 60)")
         val chosen = TextSettings.DEFAULT.change(TextScope.ALL_TEXT_WORKS, TextEdit.Font(ReadingFont.LITERATA))
@@ -118,7 +127,7 @@ class TextOwnFontTest {
         SystemClock.sleep(4_000)
         val kept = startStillShows()
         val after = evaluate("document.querySelector('foliate-view').lastLocation.range.toString().slice(0, 60)")
-        Log.i("KamayoqMeasure", "$where, book with its own font, Literata chosen: start kept $kept; before \"$before\", now \"$after\"")
+        Log.i("KamayoqMeasure", "$where, book with its own font, Literata chosen in the second chapter after $turns turns (sections loaded: $loaded): start kept $kept; before \"$before\", now \"$after\"")
         assertEquals("before \"$before\", now \"$after\"", "true", kept)
     }
 
