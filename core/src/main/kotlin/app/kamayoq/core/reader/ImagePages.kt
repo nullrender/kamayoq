@@ -10,8 +10,23 @@ object ImagePages {
      * reader's Pages. Right to left, the left side goes forward (product design, "Leitor de imagem", 4).
      * The Strip scrolls, so it has no page to turn.
      */
-    fun zone(x: Double, mode: ImageMode): TapZone = TapZone.CONTROLS
+    fun zone(x: Double, mode: ImageMode): TapZone {
+        val side = TapZones.of(x, ReaderFlow.PAGES)
+        return when (mode) {
+            ImageMode.STRIP -> TapZone.CONTROLS
+            ImageMode.PAGES_LEFT_TO_RIGHT -> side
+            ImageMode.PAGES_RIGHT_TO_LEFT -> when (side) {
+                TapZone.PREVIOUS -> TapZone.NEXT
+                TapZone.NEXT -> TapZone.PREVIOUS
+                TapZone.CONTROLS -> TapZone.CONTROLS
+            }
+        }
+    }
 
     /** The page a turn from [page] reaches; past either end it stays where it is. */
-    fun turned(page: Int, totalPages: Int, zone: TapZone): Int = page
+    fun turned(page: Int, totalPages: Int, zone: TapZone): Int = when (zone) {
+        TapZone.NEXT -> (page + 1).coerceAtMost(totalPages)
+        TapZone.PREVIOUS -> (page - 1).coerceAtLeast(0)
+        TapZone.CONTROLS -> page
+    }
 }
