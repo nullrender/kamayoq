@@ -130,6 +130,8 @@ private sealed interface Opening {
         val before: StoredChapter?,
         val place: ChapterPlace?,
         val rows: List<ReaderChapterRow>,
+        val chapterName: String,
+        val workTitle: String?,
     ) : Opening
 }
 
@@ -395,6 +397,8 @@ fun ReaderHost(
                     onModeSettings = { keepImageMode(store, opening.turns, current.round, workId, it) },
                     chapterRows = current.rows,
                     onOpenChapter = { id -> if (id != current.chapter.chapterId) onOpenChapter(id) },
+                    chapterName = current.chapterName,
+                    workTitle = current.workTitle,
                     onPreviousChapter = current.before?.let { { onOpenChapter(it.id) } },
                     onNext = { current.next?.let { onOpenChapter(it.id) } },
                     onBack = onBack,
@@ -624,6 +628,8 @@ private fun openChapter(
             before = chapters.getOrNull(index - 1),
             place = ChapterPlace(index + 1, chapters.size).takeIf { index >= 0 },
             rows = imageChapterRows(store, chapters),
+            chapterName = chapter.name,
+            workTitle = work?.title,
         )
     } catch (e: Exception) {
         opened.release()

@@ -98,7 +98,7 @@ class PagedReaderTest {
         turnByTalkBack(next)
         turnByTalkBack(next)
 
-        compose.onNodeWithText(app.getString(R.string.end_of_chapter)).assertIsDisplayed()
+        compose.onNodeWithText(app.getString(R.string.reader_image_last_available)).assertIsDisplayed()
     }
 
     @Test

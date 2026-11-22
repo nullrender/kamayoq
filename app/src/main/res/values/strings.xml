@@ -475,4 +475,9 @@
     <string name="reader_image_note_all">Applies to every image work without a mode of its own.</string>
     <string name="reader_image_note_work_follows">This work follows the mode of all image works.</string>
     <string name="reader_image_note_work_own">This work has its own mode; the others keep theirs.</string>
+    <!-- The block after a chapter's last image. %1$s is the chapter's name; the app shows it in capitals. -->
+    <string name="reader_image_chapter_finished">%1$s finished</string>
+    <string name="reader_image_up_next">Up next</string>
+    <string name="reader_image_read_next">Read the next chapter</string>
+    <string name="reader_image_last_available">You reached the last available chapter.</string>
 </resources>

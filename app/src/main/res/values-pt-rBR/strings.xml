@@ -405,4 +405,9 @@
     <string name="reader_image_note_all">Vale para todas as obras de imagem sem modo próprio.</string>
     <string name="reader_image_note_work_follows">Esta obra segue o modo de todas as obras de imagem.</string>
     <string name="reader_image_note_work_own">Esta obra tem modo próprio; as outras continuam com o delas.</string>
+    <!-- The block after a chapter's last image. %1$s is the chapter's name; the app shows it in capitals. -->
+    <string name="reader_image_chapter_finished">%1$s terminou</string>
+    <string name="reader_image_up_next">A seguir</string>
+    <string name="reader_image_read_next">Ler o próximo capítulo</string>
+    <string name="reader_image_last_available">Você chegou ao último capítulo disponível.</string>
 </resources>
