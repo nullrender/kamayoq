@@ -132,6 +132,22 @@ class HomeArrivedTest {
     }
 
     @Test
+    fun `dado um capítulo marcado como lido em Chegou, quando vou à Biblioteca, então a linha da obra conta um novo a menos`() {
+        twoArrived()
+        showHome()
+        waitFor(line)
+        expand()
+        waitFor("Cap. 3")
+        compose.onNode(hasContentDescription(app.getString(R.string.home_mark_read, "Cap. 3"))).performClick()
+        waitUntilGone("Cap. 3")
+
+        compose.goToLibrary(app)
+
+        val oneNew = app.resources.getQuantityString(R.plurals.new_count, 1, 1)
+        compose.waitUntil(10_000) { compose.onAllNodes(hasText(oneNew, substring = true)).fetchSemanticsNodes().isNotEmpty() }
+    }
+
+    @Test
     fun `dado uma obra em Chegou, quando toco no título, então abre a Obra, e ao voltar ela saiu de Chegou`() {
         twoArrived()
         showHome()
