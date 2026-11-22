@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -105,6 +106,11 @@ internal fun HomeScreen(
     onMarkRead: (workId: String, chapterId: String) -> Unit,
     onDownload: (workId: String, chapter: StoredChapter) -> Unit,
     notices: SnackbarHostState,
+    // Kept above the screens, as the Library's are: the reader opened from here takes Home's place,
+    // and Back must find the works it left open and the place in the list.
+    opened: List<String>,
+    onOpenedChange: (List<String>) -> Unit,
+    listState: LazyListState,
 ) {
     // With no work at all, Home shows the ways in, as the first opening does: a folder chosen may be empty.
     if (firstOpening || (content != null && content.isEmpty && hasWorks == false)) {

@@ -179,6 +179,22 @@ class HomeArrivedTest {
     }
 
     @Test
+    fun `dado os capítulos abertos em Chegou, quando toco um capítulo e volto do leitor, então eles continuam abertos`() {
+        twoArrived()
+        showHome()
+        waitFor(line)
+        expand()
+        waitFor("Cap. 3")
+
+        compose.onNode(hasText("Cap. 3") and hasClickAction()).performClick()
+        compose.waitForIdle()
+        pressBack()
+
+        waitFor(heading)
+        waitFor("Cap. 2")
+    }
+
+    @Test
     fun `dado capítulos que chegaram numa obra em pausa, então Chegou não aparece`() {
         twoArrived(state = ReadingState.ON_HOLD)
         showHome()

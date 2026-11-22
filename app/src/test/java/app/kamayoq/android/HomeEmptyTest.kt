@@ -1,6 +1,7 @@
 package app.kamayoq.android
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -43,6 +44,9 @@ class HomeEmptyTest {
                     onMarkRead = { _, _ -> },
                     onDownload = { _, _ -> },
                     notices = SnackbarHostState(),
+                    opened = emptyList(),
+                    onOpenedChange = {},
+                    listState = rememberLazyListState(),
                 )
             }
         }

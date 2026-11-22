@@ -135,6 +135,10 @@ fun LibraryApp(
     // True while the reader shown was opened from Home: closing it goes back there.
     var readerFromHome by rememberSaveable { mutableStateOf(false) }
     var homeContent by remember { mutableStateOf<HomeContent?>(null) }
+    // The works whose new chapters are open on Home, and Home's place in its list; Arrived starts folded.
+    // An ArrayList, as the saved state of a rotation takes it.
+    var homeOpened by rememberSaveable { mutableStateOf<List<String>>(ArrayList()) }
+    val homeList = rememberLazyListState()
     // The chapters of Arrived already on the device, and Home's own notices.
     var homeDownloaded by remember { mutableStateOf(emptySet<String>()) }
     val homeNotices = remember { SnackbarHostState() }
@@ -533,6 +537,9 @@ fun LibraryApp(
                             onMarkRead = ::markFromHome,
                             onDownload = ::downloadFromHome,
                             notices = homeNotices,
+                            opened = homeOpened,
+                            onOpenedChange = { homeOpened = ArrayList(it) },
+                            listState = homeList,
                         )
                         AppTab.SETTINGS -> SettingsScreen(
                             hasFolder = tree != null,
