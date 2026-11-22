@@ -69,4 +69,13 @@ class ReaderBookIndexTest {
             ReaderBookIndex.json(mapOf("a\"b.css" to 1L), position = null, ReaderFlow.PAGES),
         )
     }
+
+    @Test
+    fun `dado a aparência da página, então ela vai no índice para valer antes de o livro abrir`() {
+        val look = ShownLook(TextLook.DEFAULT, PageThemes.colors(PageTheme.LIGHT, systemDark = false))
+        assertEquals(
+            """{"entries":[],"position":null,"flow":"paginated","look":${PageLook.json(look)}}""",
+            ReaderBookIndex.json(emptyMap(), position = null, ReaderFlow.PAGES, look = look),
+        )
+    }
 }

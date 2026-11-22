@@ -19,7 +19,8 @@ object ReaderBookIndex {
      * [section] is where the saved place was, for a [position] the book no longer resolves. A place
      * from Kavita comes as its [section] and [marker], with the number of [sections] Kavita counts:
      * a book that has another number opens at its start. A split file opens at the destination
-     * [start] when it has no [position], and tells the page its [chapters].
+     * [start] when it has no [position], and tells the page its [chapters]. The [look] goes in before
+     * the book opens: applied after, it would move a restored place.
      */
     fun json(
         entries: Map<String, Long>,
@@ -30,6 +31,7 @@ object ReaderBookIndex {
         sections: Int? = null,
         start: String? = null,
         chapters: ReaderChapters? = null,
+        look: ShownLook? = null,
     ): String = buildJsonObject {
         putJsonArray("entries") {
             for ((name, size) in entries) {

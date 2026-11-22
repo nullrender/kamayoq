@@ -22,7 +22,7 @@ class ReaderPolicyTest {
                 "script-src https://appassets.androidplatform.net/reader/",
                 "style-src 'unsafe-inline' blob:",
                 "img-src blob: data:",
-                "font-src blob:",
+                "font-src blob: https://appassets.androidplatform.net/reader/fonts/",
                 "media-src blob:",
                 "connect-src https://appassets.androidplatform.net/book/",
                 "frame-src blob:",

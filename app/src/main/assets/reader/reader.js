@@ -3,6 +3,7 @@ import { EPUB } from './foliate-js/epub.js'
 import { neutralizeRefresh } from './sections.js'
 import { relocatedMessage, contentsOf, navigationQueue, chapterOf, chapterFraction, orderedSender } from './messages.js'
 import { elementOf, markerOf } from './markers.js'
+import { DEFAULT_LOOK, checkedLook, stylesOf, marginOf, markAligned, hostBackgroundOf } from './look.js'
 
 const send = message => kamayoqBridge.postMessage(JSON.stringify(message))
 // What tells where the reader is leaves in order: a place may wait for its chapter to be measured.
@@ -12,6 +13,13 @@ const view = document.createElement('foliate-view')
 document.body.append(view)
 let contents = []
 const navigate = navigationQueue()
+
+// The settings panel's look: in the book's index before it opens, by command while it is open.
+const applyLook = look => {
+    view.renderer.setStyles(stylesOf(look, location.origin))
+    for (const side of ['left', 'right']) view.renderer.setAttribute(`margin-${side}`, marginOf(look))
+    document.body.style.background = hostBackgroundOf(look)
+}
 
 // One entry at a time, on demand: the Kotlin side reads the ZIP, so no ZIP library runs here.
 const open = async token => {
@@ -45,15 +53,13 @@ const open = async token => {
         send({ type: 'link', href: event.detail.href })
     })
     await view.open(book)
-    // Before the book's own styles, without !important: these are defaults, not a replacement for
-    // the edition's typography or colors. Applying them before init avoids moving a restored CFI.
-    view.renderer.setStyles([`
-        :where(html) { font-size: 18px; }
-        :where(body) { line-height: 1.5; text-align: left; hyphens: none; }
-        :where(p) { text-indent: 1.5em; }
-    `, ''])
-    for (const side of ['top', 'bottom', 'left', 'right'])
+    // Each section the book's own way first: alignment and indent leave its centered lines alone.
+    view.renderer.addEventListener('load', ({ detail }) => markAligned(detail.doc))
+    // Applied before init, so a restored CFI does not move. The defaults go under the book's own
+    // styles; only what the person chose goes over them (look.js).
+    for (const side of ['top', 'bottom'])
         view.renderer.setAttribute(`margin-${side}`, '24px')
+    applyLook(checkedLook(index.look) ?? DEFAULT_LOOK)
     const inChapter = index.chapters ? chapterMeter(index.chapters) : null
     // The view handles the paginator's event first and keeps the result in lastLocation; the
     // paginator's event is the one that says why it moved. The marker is taken now, while the range
@@ -255,6 +261,11 @@ addEventListener('message', event => {
     if (event.source !== null || typeof event.data !== 'string') return
     let command
     try { command = JSON.parse(event.data) } catch { return }
+    if (command?.type === 'look') {
+        const look = checkedLook(command.look)
+        if (look && view.renderer) applyLook(look)
+        return
+    }
     if (!command || command.type !== 'contents' || !Number.isInteger(command.index)) return
     const item = contents[command.index]
     if (item) navigate(() => view.goTo(item.href))

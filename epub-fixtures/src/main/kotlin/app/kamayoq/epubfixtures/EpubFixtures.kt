@@ -34,6 +34,23 @@ object EpubFixtures {
         return epub3("Livro curto", sections, sections.map { TocItem(it.title, it.file) })
     }
 
+    /**
+     * EPUB 3 with one section that styles itself as editions do: a scene break centered by a class,
+     * a paragraph in a font of its own, and plain paragraphs, for the reader's settings (slice 5).
+     */
+    fun styled(): ByteArray {
+        val section = Section(
+            "s1.xhtml",
+            "Capítulo 1",
+            paragraphs(1, 4) + "\n" +
+                """<p class="scene">* * *</p>""" + "\n" +
+                """<p class="book-font">Letra do livro.</p>""" + "\n" +
+                paragraphs(2, 4),
+            head = """<style>.scene { text-align: center; text-indent: 0; } .book-font { font-family: monospace; }</style>""",
+        )
+        return epub3("Livro com estilo", listOf(section), listOf(TocItem(section.title, section.file)))
+    }
+
     /** A novel compiled into one spine item above 512 KiB, with its chapters only as anchors. */
     fun compiled(): ByteArray {
         val chapters = 40

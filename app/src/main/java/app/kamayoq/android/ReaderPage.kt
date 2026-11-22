@@ -24,13 +24,14 @@ import app.kamayoq.core.reader.ReaderNavigation
 import app.kamayoq.core.reader.ReaderPolicy
 import app.kamayoq.core.reader.ReaderRoute
 import app.kamayoq.core.reader.ReaderRoutes
+import app.kamayoq.core.reader.ShownLook
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.io.InputStream
 import java.util.concurrent.CopyOnWriteArrayList
 
 /** Everything under `/reader/` that the page may ask for: the assets of the app, fixed in the APK. */
-private val READER_FILES: Set<String> = setOf("index.html", "errors.js", "reader.js", "sections.js", "messages.js", "markers.js") + listOf(
+private val READER_FILES: Set<String> = setOf("index.html", "errors.js", "reader.js", "sections.js", "messages.js", "markers.js", "look.js") + listOf(
     "view",
     "epub",
     "epubcfi",
@@ -39,7 +40,20 @@ private val READER_FILES: Set<String> = setOf("index.html", "errors.js", "reader
     "progress",
     "overlayer",
     "text-walker",
-).map { "foliate-js/$it.js" }
+).map { "foliate-js/$it.js" } + listOf(
+    "Literata.ttf",
+    "Literata-Italic.ttf",
+    "EBGaramond.ttf",
+    "EBGaramond-Italic.ttf",
+    "IBMPlexSerif-Regular.ttf",
+    "IBMPlexSerif-Bold.ttf",
+    "IBMPlexSerif-Italic.ttf",
+    "IBMPlexSerif-BoldItalic.ttf",
+    "AtkinsonHyperlegible-Regular.ttf",
+    "AtkinsonHyperlegible-Bold.ttf",
+    "AtkinsonHyperlegible-Italic.ttf",
+    "AtkinsonHyperlegible-BoldItalic.ttf",
+).map { "fonts/$it" }
 
 private const val READER_PAGE = "${ReaderPolicy.ORIGIN}/reader/index.html"
 
@@ -51,7 +65,7 @@ private const val BRIDGE = "kamayoqBridge"
  * saved place's section, where the book opens when [position] no longer resolves. A place from
  * Kavita comes as [section] and [marker] instead, with the [sections] Kavita counts. A file split
  * by its table of contents brings its [chapters], and opens at the destination [start] when it has
- * no [position].
+ * no [position]. The [look] is the settings panel's.
  */
 class ReaderBook(
     val archive: EpubArchive,
@@ -63,6 +77,7 @@ class ReaderBook(
     val sections: Int? = null,
     val start: String? = null,
     val chapters: ReaderChapters? = null,
+    val look: ShownLook? = null,
 )
 
 /**
@@ -109,11 +124,16 @@ open class ReaderClient(
     fun responseFor(url: String): WebResourceResponse = when (val route = routes.decide(url)) {
         is ReaderRoute.ReaderFile -> WebResourceResponse(
             typeOf(route.path),
-            "UTF-8",
+            if (isFont(route.path)) null else "UTF-8",
             200,
             "OK",
-            // By header, not <meta>: a <meta> policy misses what came before it (CSP3, section 3.3).
-            if (route.path == "index.html") mapOf("Content-Security-Policy" to ReaderPolicy.contentSecurityPolicy) else emptyMap(),
+            when {
+                // By header, not <meta>: a <meta> policy misses what came before it (CSP3, section 3.3).
+                route.path == "index.html" -> mapOf("Content-Security-Policy" to ReaderPolicy.contentSecurityPolicy)
+                // The fonts' folder is under the scripts' one in the CSP: never a type a browser would run.
+                isFont(route.path) -> mapOf("X-Content-Type-Options" to "nosniff")
+                else -> emptyMap()
+            },
             assets.open("reader/${route.path}"),
         )
         ReaderRoute.BookIndex -> bookFile(ByteArrayInputStream(indexOf(requireNotNull(book)).toByteArray()))
@@ -134,12 +154,18 @@ open class ReaderClient(
      */
     private fun failed(url: String) = notFound().also { refused += url }
 
-    private fun typeOf(path: String) = if (path.endsWith(".html")) "text/html" else "text/javascript"
+    private fun typeOf(path: String) = when {
+        path.endsWith(".html") -> "text/html"
+        isFont(path) -> "font/ttf"
+        else -> "text/javascript"
+    }
+
+    private fun isFont(path: String) = path.startsWith("fonts/") && path.endsWith(".ttf")
 
     private fun indexOf(book: ReaderBook) =
         ReaderBookIndex.json(
             book.archive.names.associateWith(book.archive::sizeOf), book.position, book.flow, book.section, book.marker, book.sections,
-            book.start, book.chapters,
+            book.start, book.chapters, book.look,
         )
 
     // Never a type a browser would run: a `<script src>` to a book file fails here too.
@@ -199,6 +225,9 @@ fun WebView.goToPreviousPage() = evaluateJavascript("kamayoqReader.previous()", 
 /** Data returned by a fixed query, not code assembled from the book's titles or destinations. */
 fun WebView.readContents(answer: (List<ReaderContentsItem>?) -> Unit) =
     evaluateJavascript("kamayoqReader.contents()") { answer(ReaderContents.parse(it)) }
+
+/** The settings panel's look, applied with the book open; [command] comes from [app.kamayoq.core.reader.PageLook.command]. */
+fun WebView.applyLook(command: String) = postWebMessage(WebMessage(command), Uri.parse(ReaderPolicy.ORIGIN))
 
 fun WebView.goToContents(index: Int) {
     require(index in 0 until ReaderContents.MAX_ITEMS)
