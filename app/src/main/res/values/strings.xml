@@ -359,4 +359,8 @@
     <string name="home_added_title">Added</string>
     <!-- A work's line in Added: its type, its chapters and when it came, as "Comics · 612 chapters · added yesterday". -->
     <string name="home_added_line">%1$s · %2$s · added %3$s</string>
+    <!-- Home with works in the Library but nothing read, arrived or added yet: why, and what to do. -->
+    <string name="home_empty_title">Nothing to continue yet.</string>
+    <string name="home_empty_text">What you read shows up here, and so does what comes later to your folder or to Kavita. Your works are in the Library.</string>
+    <string name="home_go_library">Open the Library</string>
 </resources>

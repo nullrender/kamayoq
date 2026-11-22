@@ -53,6 +53,7 @@ class WorkHeaderTest {
         compose.setContent {
             LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores, app.covers)
         }
+        compose.goToLibrary(app)
         waitFor(title)
         compose.onNode(hasText(title)).performClick()
         waitFor("Cap. 1")

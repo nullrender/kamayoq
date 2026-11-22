@@ -92,6 +92,7 @@ class ChapterDownloadTest {
             LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, sync, "test-device", app.restores, app.covers)
         }
         if (restoration != null) restoration.setContent(screen) else compose.setContent(screen)
+        compose.goToLibrary(app)
         waitFor(title)
         compose.onNode(hasText(title)).performClick()
         waitFor("Cap. 1")

@@ -45,6 +45,7 @@ class WorkStateTest {
     private fun openWork(title: String) {
         val folder = FolderInMemory(app, listOf(title))
         compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        compose.goToLibrary(app)
         waitFor(title)
         compose.onNode(hasText(title)).performClick()
         waitFor("Cap. 1")
@@ -174,6 +175,7 @@ class WorkStateTest {
     fun `dado uma obra em Quero ler que mudou sozinha para Lendo, quando toco em Voltar a Quero ler na linha, então volta a Quero ler e a linha some`() {
         val folder = FolderInMemory(app, listOf("Gantz"))
         compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        compose.goToLibrary(app)
         waitFor("Gantz")
         app.store.setReadingState(workId("Gantz"), ReadingState.WANT_TO_READ)
         compose.onNode(hasText("Gantz")).performClick()
@@ -192,6 +194,7 @@ class WorkStateTest {
     fun `dado todos os capítulos lidos e a obra em Lendo, então a Obra oferece Marcar como Lido, e tocar põe a obra em Lido`() {
         val folder = FolderInMemory(app, listOf("Gantz"))
         compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        compose.goToLibrary(app)
         waitFor("Gantz")
         readToEnd("Gantz")
         compose.onNode(hasText("Gantz")).performClick()
@@ -217,6 +220,7 @@ class WorkStateTest {
         import(PublicationStatus.COMPLETED)
         val folder = FolderInMemory(app, emptyList())
         compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        compose.goToLibrary(app)
         waitFor("Gantz")
         compose.onNode(hasText("Gantz")).performClick()
 
@@ -235,6 +239,7 @@ class WorkStateTest {
         readToEnd("Gantz")
         val folder = FolderInMemory(app, emptyList())
         compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        compose.goToLibrary(app)
         waitFor("Gantz")
         compose.onNode(hasText("Gantz")).performClick()
 

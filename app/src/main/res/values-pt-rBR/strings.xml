@@ -292,4 +292,7 @@
     <string name="home_download">Baixar %1$s</string>
     <string name="home_added_title">Adicionadas</string>
     <string name="home_added_line">%1$s · %2$s · adicionada %3$s</string>
+    <string name="home_empty_title">Nada para continuar ainda.</string>
+    <string name="home_empty_text">O que você lê aparece aqui, e também o que chegar depois na sua pasta ou no Kavita. Suas obras estão na Biblioteca.</string>
+    <string name="home_go_library">Abrir a Biblioteca</string>
 </resources>

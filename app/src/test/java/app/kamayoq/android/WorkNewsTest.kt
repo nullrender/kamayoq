@@ -42,6 +42,7 @@ class WorkNewsTest {
 
     private fun show() {
         compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        compose.goToLibrary(app)
         waitFor("Sakamoto Days")
     }
 

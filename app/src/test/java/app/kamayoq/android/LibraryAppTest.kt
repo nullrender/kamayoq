@@ -86,12 +86,14 @@ class LibraryAppTest {
     private fun showLibrary(titles: List<String>): FolderInMemory {
         val folder = FolderInMemory(app, titles)
         compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        compose.goToLibrary(app)
         return folder
     }
 
     private fun showWithoutFolder() {
         val folder = FolderInMemory(app, emptyList()).apply { chosen = false }
         compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        compose.goToLibrary(app)
     }
 
     private fun kavitaWork(title: String, format: ChapterFormat = ChapterFormat.ARCHIVE) {
@@ -137,6 +139,7 @@ class LibraryAppTest {
     fun `dado quadrinhos e livros na pasta, então cada obra aparece sob a seção do seu tipo e recolher Quadrinhos esconde só as obras dele`() {
         val folder = FolderInMemory(app, listOf("Sakamoto Days")).apply { books = listOf("Dom Casmurro") }
         compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        compose.goToLibrary(app)
         waitFor("Sakamoto Days")
         waitFor("Dom Casmurro")
         val comics = app.getString(R.string.section_comics)
@@ -163,6 +166,7 @@ class LibraryAppTest {
         val folder = FolderInMemory(app, listOf("Sakamoto Days")).apply { books = listOf("Dom Casmurro") }
         val restoration = StateRestorationTester(compose)
         restoration.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        compose.goToLibrary(app)
         waitFor("Sakamoto Days")
         compose.onNodeWithText(app.getString(R.string.section_comics)).performClick()
         waitUntilGone("Sakamoto Days")
@@ -185,6 +189,7 @@ class LibraryAppTest {
         kavitaWork("Escravo das Sombras")
         val folder = FolderInMemory(app, listOf("Sakamoto Days", "Sombras de Ébano")).apply { books = listOf("Dom Casmurro") }
         compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        compose.goToLibrary(app)
         waitFor("Sakamoto Days")
         waitFor("Escravo das Sombras")
 
@@ -200,6 +205,7 @@ class LibraryAppTest {
     fun `dado uma busca aberta, quando aperto Voltar, então a busca fecha e todas as obras voltam, sem sair da Biblioteca`() {
         val folder = FolderInMemory(app, listOf("Sakamoto Days")).apply { books = listOf("Dom Casmurro") }
         compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        compose.goToLibrary(app)
         waitFor("Sakamoto Days")
         search("casmurro")
         waitUntilGone("Sakamoto Days")
@@ -216,6 +222,7 @@ class LibraryAppTest {
     fun `dado a Biblioteca no topo, quando busco uma obra lá embaixo e fecho a busca, então a lista volta ao topo`() {
         val folder = FolderInMemory(app, (1..40).map { "Obra %02d".format(it) }).apply { books = listOf("Dom Casmurro") }
         compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        compose.goToLibrary(app)
         waitFor("Obra 01")
         search("casmurro")
         waitUntilGone("Obra 01")
@@ -259,7 +266,7 @@ class LibraryAppTest {
     }
 
     @Test
-    fun `dado a Biblioteca, quando toco em Ajustes, então vejo a pasta, o Kavita e o backup e Voltar volta à Biblioteca`() {
+    fun `dado a Biblioteca, quando toco em Ajustes, então vejo a pasta, o Kavita e o backup e Voltar vai ao Início`() {
         showLibrary(listOf("Obra"))
         waitFor("Obra")
 
@@ -270,19 +277,23 @@ class LibraryAppTest {
         compose.onNodeWithText(app.getString(R.string.change_folder)).assertExists()
         compose.onNodeWithText("Obra").assertDoesNotExist()
         pressBack()
-        waitFor("Obra")
-        tab(R.string.nav_library).assertIsSelected()
+        // Home is where the app opens, and where Back from the other places goes (decision of 19/11/2026).
+        waitFor(app.getString(R.string.home_empty_title))
+        tab(R.string.nav_home).assertIsSelected()
     }
 
     @Test
-    fun `dado o Início com obras na biblioteca, então ele diz que o conteúdo dele vem depois e aponta a Biblioteca`() {
+    fun `dado o Início com obras na biblioteca e nada lido nem chegado, então ele diz por que está vazio e leva à Biblioteca`() {
         showLibrary(listOf("Obra"))
         waitFor("Obra")
 
         openTab(R.string.nav_home)
 
-        waitFor(app.getString(R.string.home_later))
+        waitFor(app.getString(R.string.home_empty_title))
         tab(R.string.nav_home).assertIsSelected()
+        compose.onNodeWithText(app.getString(R.string.home_go_library)).performClick()
+        waitFor("Obra")
+        tab(R.string.nav_library).assertIsSelected()
     }
 
     @Test
@@ -327,7 +338,7 @@ class LibraryAppTest {
         openTab(R.string.nav_home)
 
         assertFirstOpening()
-        compose.onNodeWithText(app.getString(R.string.home_later)).assertDoesNotExist()
+        compose.onNodeWithText(app.getString(R.string.home_empty_title)).assertDoesNotExist()
     }
 
     @Test
@@ -385,6 +396,7 @@ class LibraryAppTest {
         val folder = FolderInMemory(app, emptyList()).apply { chosen = false }
         val opening = ChapterOpening(app, folder, app.store, { _, _ -> KavitaChapterFile(kept, outdated = false) }, EpubLimits(maxFileBytes = 1024 * 1024))
         compose.setContent { LibraryApp(app.store, folder, opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        compose.goToLibrary(app)
         waitFor("Livro grande")
 
         compose.onNodeWithText("Livro grande").performClick()
@@ -405,6 +417,7 @@ class LibraryAppTest {
         )
         val opening = ChapterOpening(app, folder, app.store, app.kavitaSync::chapterFile, EpubLimits(maxFileBytes = 1024 * 1024))
         compose.setContent { LibraryApp(app.store, folder, opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        compose.goToLibrary(app)
         waitFor("Os Miseráveis")
 
         compose.onNodeWithText("Os Miseráveis").performClick()
@@ -500,6 +513,7 @@ class LibraryAppTest {
         app.store.saveProgress(stored.id, ChapterProgress(null, StripPosition(1, 3, Instant.EPOCH, "phone-a"), 0))
         val folder = FolderInMemory(app, emptyList()).apply { chosen = false }
         compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, sync, "test-device", app.restores) }
+        compose.goToLibrary(app)
         waitFor("Obra dividida")
 
         compose.onNodeWithText("Obra dividida").performClick()
@@ -532,6 +546,7 @@ class LibraryAppTest {
         app.store.saveProgress(stored.id, ChapterProgress(null, here, 0), marker = "//body/p[2]")
         val folder = FolderInMemory(app, emptyList()).apply { chosen = false }
         compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, sync, "test-device", app.restores) }
+        compose.goToLibrary(app)
         waitFor("Livro dividido")
 
         compose.onNodeWithText("Livro dividido").performClick()
@@ -642,6 +657,7 @@ class LibraryAppTest {
     fun `dado uma pasta só de leitura sem Library, então a tela diz que não há obras, sem dizer que a leitura falhou`() {
         val folder = FolderInMemory(app, emptyList()).apply { readOnlyWithoutLibrary = true }
         compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        compose.goToLibrary(app)
 
         // Rule E5, reading never depends on writing.
         waitFor(app.getString(R.string.no_works_found))
@@ -653,6 +669,7 @@ class LibraryAppTest {
         val folder = FolderInMemory(app, listOf("Obra")).apply { looseFiles = listOf("notas.txt") }
         val restoration = StateRestorationTester(compose)
         restoration.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        compose.goToLibrary(app)
         waitFor(app.getString(R.string.see_ignored_files))
         compose.onNodeWithText(app.getString(R.string.see_ignored_files)).performClick()
         waitFor("Comics/notas.txt")
@@ -686,6 +703,7 @@ class LibraryAppTest {
             novelsModified = modified
         }
         compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        compose.goToLibrary(app)
     }
 
     @Test
@@ -696,6 +714,7 @@ class LibraryAppTest {
             ByteArrayInputStream(EpubFixtures.novel()),
         )
         compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        compose.goToLibrary(app)
         waitFor("Novela em volumes")
 
         compose.onNodeWithText("Novela em volumes").performClick()
@@ -944,6 +963,7 @@ class LibraryAppTest {
         val sync = KavitaSync(app.store, access, File(app.cacheDir, "restored"))
         val folder = FolderInMemory(app, emptyList()).apply { chosen = false }
         compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, access, sync, "test-device", app.restores) }
+        compose.goToLibrary(app)
         val askingForKey = app.getString(R.string.kavita_key_again, "http://kavita.example:5000")
         waitFor(askingForKey)
 

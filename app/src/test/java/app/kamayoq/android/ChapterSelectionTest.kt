@@ -45,6 +45,7 @@ class ChapterSelectionTest {
         compose.setContent {
             LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores, app.covers)
         }
+        compose.goToLibrary(app)
         waitFor("Gantz")
         compose.onNode(hasText("Gantz")).performClick()
         waitFor("Cap. 1")

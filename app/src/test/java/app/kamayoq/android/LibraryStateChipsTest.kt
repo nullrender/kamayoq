@@ -27,6 +27,7 @@ class LibraryStateChipsTest {
     private fun showLibrary(vararg titles: String) {
         val folder = FolderInMemory(app, titles.toList())
         compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+        compose.goToLibrary(app)
         titles.forEach(::waitFor)
     }
 
