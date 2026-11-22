@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
@@ -26,8 +27,9 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 // Defect of the S24 test of r745 (ui-slice-4-s24-plan-2026-11-21.md, "Resultado na r745"): when the
-// work on the card moved into the strip, ahead of the cover that was first, the strip kept that
-// cover as its anchor, and the work that came in was cut at the left edge or out of sight.
+// work on the card moved into the strip, ahead of the cover that was first, the strip came back from
+// the reader anchored on that cover, saved by its key, and the work that came in was cut at the left
+// edge or out of sight. Without a remade screen the strip shows its start (run 45051691215).
 @RunWith(RobolectricTestRunner::class)
 class HomeStripTest {
 
@@ -56,12 +58,15 @@ class HomeStripTest {
         readAgo("Kaiju No. 8", Duration.ofHours(3))
         readAgo("Dandadan", Duration.ofHours(4))
         items = app.store.home().continueReading
-        compose.setContent { KamayoqTheme { ContinueSection(items, onOpenWork = {}, onRead = { _, _ -> }) } }
+        val screen = StateRestorationTester(compose)
+        screen.setContent { KamayoqTheme { ContinueSection(items, onOpenWork = {}, onRead = { _, _ -> }) } }
         compose.waitForIdle()
 
-        // Dandadan, read just now, takes the card; Sakamoto Days leaves it for the strip's start.
+        // Away in the reader, Dandadan, read just now, takes the card, and Sakamoto Days leaves it for
+        // the strip's start. Back on Home the screen is made again from its saved state.
         readAgo("Dandadan", Duration.ofMinutes(1))
         compose.runOnUiThread { items = app.store.home().continueReading }
+        screen.emulateSavedInstanceStateRestore()
         compose.waitForIdle()
 
         assertEquals(listOf("Dandadan", "Sakamoto Days", "Gantz", "Kaiju No. 8"), items.map { it.work.title })
