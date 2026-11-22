@@ -269,10 +269,12 @@ fun TextReader(
                                     }
                                     // Only once this page restored: a new page lays out before it, and
                                     // the guard already left its own opening behind.
-                                    is PageMessage.Relocated -> if (ready) {
+                                    // The place the book opens at comes before the restore: the bars
+                                    // show it at once, and only saving waits for the restore.
+                                    is PageMessage.Relocated -> {
                                         progress = progressOf(message, type, chapterOf)
                                         message.chapter?.let { fileChapter = it }
-                                        session.relocated(message, Instant.now())?.let { place ->
+                                        if (ready) session.relocated(message, Instant.now())?.let { place ->
                                             atEnd = false
                                             cfi = place.cfi
                                             section = place.section
