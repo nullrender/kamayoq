@@ -29,7 +29,9 @@ test('dado a página sob nenhum item, então o próximo é o primeiro e não há
 test('dado um capítulo de 0,2 a 0,6 do livro, então metade dele fica em 0,4', () => {
     assert.ok(Math.abs(withinSpan(0.2, 0.6, 0.5) - 0.4) < 1e-9)
     assert.equal(withinSpan(0.2, 0.6, 0), 0.2)
-    assert.equal(withinSpan(0.2, 0.6, 1), 0.6)
+    // The whole of a chapter stays inside it: its end is where the next one starts (Gemini's review
+    // of slice 5, finding 9).
+    assert.ok(withinSpan(0.2, 0.6, 1) < 0.6 && withinSpan(0.2, 0.6, 1) > 0.599, String(withinSpan(0.2, 0.6, 1)))
 })
 
 test('dado o começo ou o fim do capítulo desconhecido, então não há lugar', () => {
