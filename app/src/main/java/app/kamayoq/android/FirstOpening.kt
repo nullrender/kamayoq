@@ -33,7 +33,8 @@ import androidx.compose.ui.unit.dp
 
 /**
  * The empty app (board PrimeiraAbertura): no tour, the reason it is empty and the ways in, in the
- * order decided on 24/10/2026: files on this device, Kavita, restoring a backup.
+ * order decided on 24/10/2026: files on this device, Kavita, restoring a backup. Restoring is left
+ * out when something is stored, a Kavita server with no work: the restore would refuse it.
  */
 @Composable
 internal fun FirstOpening(
@@ -57,7 +58,9 @@ internal fun FirstOpening(
         Text(stringResource(R.string.empty_where), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 10.dp))
         SourceCard(KamayoqIcons.folder, R.string.source_files, R.string.source_files_note, enabled = true, onClick = onChooseFolder)
         SourceCard(KamayoqIcons.server, R.string.kavita_connect, R.string.source_kavita_note, enabled = true, onClick = onOpenKavita)
-        SourceCard(KamayoqIcons.restore, R.string.restore_backup, R.string.source_restore_note, enabled = !restoreBusy, onClick = onPickBackup)
+        if (canRestore) {
+            SourceCard(KamayoqIcons.restore, R.string.restore_backup, R.string.source_restore_note, enabled = !restoreBusy, onClick = onPickBackup)
+        }
     }
 }
 

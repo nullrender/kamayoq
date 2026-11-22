@@ -107,8 +107,8 @@ internal fun HomeScreen(
     notices: SnackbarHostState,
 ) {
     // With no work at all, Home shows the ways in, as the first opening does: a folder chosen may be empty.
-    if (firstOpening || (content != null && content.isEmpty && hasWorks != true)) {
-        FirstOpening(restoreBusy, onChooseFolder, onOpenKavita, onPickBackup, canRestore = true, modifier = Modifier.fillMaxSize().safeDrawingPadding())
+    if (firstOpening || (content != null && content.isEmpty && hasWorks == false)) {
+        FirstOpening(restoreBusy, onChooseFolder, onOpenKavita, onPickBackup, canRestore, Modifier.fillMaxSize().safeDrawingPadding())
         return
     }
     // The works whose new chapters are open; Arrived starts folded (FEATURES, part 2).
@@ -151,8 +151,9 @@ internal fun HomeScreen(
             items(added, key = { "added-${it.work.id}" }) { AddedRow(it, onOpenWork) }
         }
         // Every section empty: Home says why and what to do (FEATURES, part 2). Nothing before the
-        // first reading of the store, so the screen never says empty about what it has not read.
-        if (content != null && content.isEmpty) {
+        // first reading of the store and of the Library's rows, so the screen never says empty about
+        // what it has not read.
+        if (content != null && content.isEmpty && hasWorks == true) {
             item(key = "empty") {
                 Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(stringResource(R.string.home_empty_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.announced())
