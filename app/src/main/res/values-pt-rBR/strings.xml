@@ -280,4 +280,14 @@
     <string name="home_place">%1$s · %2$d%%</string>
     <string name="home_where_left">%1$s, onde você deixou.</string>
     <string name="home_open_page">Abrir a página de %1$s</string>
+    <string name="home_arrived_title">Chegou</string>
+    <string name="home_arrived_line">%1$s · %2$s</string>
+    <plurals name="home_arrived_count">
+        <item quantity="one">%d capítulo novo</item>
+        <item quantity="other">%d capítulos novos</item>
+    </plurals>
+    <string name="home_arrived_show">Mostrar os capítulos de %1$s</string>
+    <string name="home_arrived_hide">Recolher os capítulos de %1$s</string>
+    <string name="home_mark_read">Marcar %1$s como lido</string>
+    <string name="home_download">Baixar %1$s</string>
 </resources>

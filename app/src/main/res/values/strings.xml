@@ -342,4 +342,17 @@
     <string name="home_where_left">%1$s, where you left it.</string>
     <!-- What a work's cover and title do on Home, for TalkBack. -->
     <string name="home_open_page">Open the page of %1$s</string>
+    <!-- Home's section of new chapters, grouped by work (board SinteseInicio; never "Updates"). -->
+    <string name="home_arrived_title">Arrived</string>
+    <!-- A work's line in Arrived: how many new chapters and when the newest came, as "2 chapters · 2 h ago". -->
+    <string name="home_arrived_line">%1$s · %2$s</string>
+    <!-- The count beside a work in Arrived, for TalkBack. -->
+    <plurals name="home_arrived_count">
+        <item quantity="one">%d new chapter</item>
+        <item quantity="other">%d new chapters</item>
+    </plurals>
+    <string name="home_arrived_show">Show the chapters of %1$s</string>
+    <string name="home_arrived_hide">Hide the chapters of %1$s</string>
+    <string name="home_mark_read">Mark %1$s as read</string>
+    <string name="home_download">Download %1$s</string>
 </resources>

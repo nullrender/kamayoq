@@ -461,6 +461,10 @@ fun LibraryApp(
                                 openWorkId = work
                                 readingChapterId = chapter
                             },
+                            downloaded = emptySet(),
+                            canDownload = { false },
+                            onMarkRead = { _, _ -> },
+                            onDownload = { _, _ -> },
                         )
                         AppTab.SETTINGS -> SettingsScreen(
                             hasFolder = tree != null,
