@@ -153,4 +153,13 @@ class TextSettingsPanelTest {
         compose.onNodeWithText(text(R.string.reader_tab_look)).performClick()
         compose.onNodeWithText(text(R.string.reader_mode_default_novels)).assertExists()
     }
+
+    @Test
+    fun `dado o recuo desligado e os parágrafos no piso de 0,4 em, então o menos de Parágrafos fica desligado`() {
+        settings = TextSettings.DEFAULT
+            .change(TextScope.ALL_TEXT_WORKS, TextEdit.Indent(false))
+            .change(TextScope.ALL_TEXT_WORKS, TextEdit.Number(TextNumber.PARAGRAPH_SPACING, 4))
+        show()
+        compose.onNodeWithContentDescription(text(R.string.reader_paragraphs_down)).performScrollTo().assertIsNotEnabled()
+    }
 }

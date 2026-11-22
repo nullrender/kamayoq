@@ -175,4 +175,33 @@ class TextLookTest {
         val look = TextSettings.DEFAULT.change(all, TextEdit.Font(ReadingFont.LITERATA)).effective()
         assertEquals(setOf(TextProperty.FONT), look.chosen)
     }
+
+    // Gemini's review of slice 5, finding 5: rule 6 broken in three ways.
+    @Test
+    fun `dado parágrafos em 0,2 em, quando desligo o recuo, então o espaço sobe para o piso de 0,4 em`() {
+        val look = TextSettings.DEFAULT
+            .change(all, TextEdit.Number(TextNumber.PARAGRAPH_SPACING, 2))
+            .change(all, TextEdit.Indent(false))
+            .effective()
+        assertEquals(4, look.paragraphSpacing)
+    }
+
+    @Test
+    fun `dado uma obra com parágrafos em zero, quando o geral desliga o recuo, então ela mostra espaço entre parágrafos e não um texto corrido`() {
+        val look = TextSettings.DEFAULT
+            .change(thisWork, TextEdit.Number(TextNumber.PARAGRAPH_SPACING, 0))
+            .change(all, TextEdit.Indent(false))
+            .effective()
+        assertFalse(look.indent)
+        assertEquals(8, look.paragraphSpacing)
+        assertTrue(TextProperty.PARAGRAPH_SPACING in look.chosen)
+    }
+
+    @Test
+    fun `dado parágrafos já no piso sem recuo, quando aperto o menos em Esta obra, então nada muda e a obra não ganha ajuste próprio`() {
+        val settings = TextSettings.DEFAULT.change(all, TextEdit.Indent(false)).change(all, TextEdit.Number(TextNumber.PARAGRAPH_SPACING, 4))
+        val after = settings.change(thisWork, TextEdit.Step(TextNumber.PARAGRAPH_SPACING, up = false))
+        assertEquals(settings, after)
+        assertNull(after.own)
+    }
 }
