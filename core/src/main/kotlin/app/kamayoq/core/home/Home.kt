@@ -74,11 +74,19 @@ object Home {
             .sortedByDescending { it.latest }
 
     /**
-     * The works of Continue reading, the one touched last first: read, or in Reading by read marks
-     * alone with nothing opened (his decision of 22/11/2026).
+     * The works of Continue reading, the one touched last first: in Reading and read, or in Reading by
+     * read marks alone with nothing opened; or begun with no state or in Want to read, before the
+     * state rules put them in Reading (his decisions of 22/11/2026, the second option B of
+     * docs/research/reading-state-triggers.md in kamayoq-notes). On hold, Dropped and Completed stay out.
      */
     fun continueReading(works: List<ReadingWork>): List<String> =
-        works.filter { it.state == ReadingState.READING && lastTouched(it) != null }
+        works.filter { work ->
+            when (work.state) {
+                ReadingState.READING -> lastTouched(work) != null
+                null, ReadingState.WANT_TO_READ -> work.lastReadAt != null
+                ReadingState.ON_HOLD, ReadingState.DROPPED, ReadingState.COMPLETED -> false
+            }
+        }
             .sortedByDescending { lastTouched(it) }
             .take(CONTINUE_SHOWN)
             .map { it.workId }
