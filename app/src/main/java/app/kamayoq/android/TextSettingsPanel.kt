@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -385,7 +386,7 @@ private fun NumberRow(
 private fun shownValue(number: TextNumber, value: Int): String = when (number) {
     TextNumber.SIZE, TextNumber.MARGIN -> value.toString()
     TextNumber.LINE_HEIGHT, TextNumber.PARAGRAPH_SPACING -> {
-        val locale = LocalContext.current.resources.configuration.locales[0]
+        val locale = LocalConfiguration.current.locales[0]
         NumberFormat.getNumberInstance(locale).apply { minimumFractionDigits = 1; maximumFractionDigits = 1 }.format(value / 10.0)
     }
 }
