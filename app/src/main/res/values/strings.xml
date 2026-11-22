@@ -458,4 +458,11 @@
     <string name="home_go_library">Open the Library</string>
     <!-- The handle at the top of a sheet, for TalkBack: dragging it down closes the sheet. -->
     <string name="sheet_handle">Drag handle</string>
+    <!-- Image reader (slice 6). The arrows say which way the pages turn. -->
+    <string name="reader_image_mode_strip">Strip</string>
+    <string name="reader_image_mode_ltr">Pages →</string>
+    <string name="reader_image_mode_rtl">Pages ←</string>
+    <string name="reader_image_place">%1$s · %2$s</string>
+    <string name="reader_image_counter">%1$d / %2$d</string>
+    <string name="reader_page_slider">Images of the chapter</string>
 </resources>

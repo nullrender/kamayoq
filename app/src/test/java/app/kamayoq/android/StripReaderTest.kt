@@ -12,7 +12,6 @@ import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.test.core.app.ApplicationProvider
@@ -48,7 +47,7 @@ class StripReaderTest {
     )
 
     @Test
-    fun `dado o leitor com os controles escondidos, quando o TalkBack pede para mostrá-los, então o Voltar aparece`() {
+    fun `dado o leitor com os controles escondidos, quando o TalkBack pede para mostrá-los, então Voltar à obra aparece`() {
         compose.setContent { ImageReader(app.store, chapter, OpeningTurns(), 0, "Obra · Cap. 1", null, "test-device", ImageMode.STRIP, {}, {}) }
 
         // The tap has an action with a name.
@@ -56,7 +55,7 @@ class StripReaderTest {
         compose.onNode(SemanticsMatcher("has the action '$label'") { it.config.getOrElseNullable(SemanticsActions.OnClick) { null }?.label == label })
             .performSemanticsAction(SemanticsActions.OnClick)
 
-        compose.onNodeWithText(app.getString(R.string.back)).assertExists()
+        compose.onNodeWithContentDescription(app.getString(R.string.reader_back_to_work)).assertExists()
     }
 
     @Test

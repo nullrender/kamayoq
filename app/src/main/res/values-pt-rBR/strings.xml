@@ -388,4 +388,11 @@
     <string name="home_empty_text">O que você lê aparece aqui, e também o que chegar depois na sua pasta ou no Kavita. Suas obras estão na Biblioteca.</string>
     <string name="home_go_library">Abrir a Biblioteca</string>
     <string name="sheet_handle">Alça de arrastar</string>
+    <!-- Image reader (slice 6). The arrows say which way the pages turn. -->
+    <string name="reader_image_mode_strip">Tira</string>
+    <string name="reader_image_mode_ltr">Páginas →</string>
+    <string name="reader_image_mode_rtl">Páginas ←</string>
+    <string name="reader_image_place">%1$s · %2$s</string>
+    <string name="reader_image_counter">%1$d / %2$d</string>
+    <string name="reader_page_slider">Imagens do capítulo</string>
 </resources>

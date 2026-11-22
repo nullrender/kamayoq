@@ -125,6 +125,9 @@ private sealed interface Opening {
         val turn: Long,
         val round: Long,
         val mode: ImageMode,
+        /** The chapter before this one in the work, and this one's place among them. */
+        val before: StoredChapter?,
+        val place: ChapterPlace?,
     ) : Opening
 }
 
@@ -386,6 +389,8 @@ fun ReaderHost(
                     nextChapterName = current.next?.name,
                     deviceId = deviceId,
                     mode = current.mode,
+                    place = current.place,
+                    onPreviousChapter = current.before?.let { { onOpenChapter(it.id) } },
                     onNext = { current.next?.let { onOpenChapter(it.id) } },
                     onBack = onBack,
                 )
@@ -591,7 +596,11 @@ private fun openChapter(
         val moved = store.progress(opened.chapterId).position?.device == KavitaProgress.DEVICE
         val previous = store.alternatives(workId)
             .firstOrNull { moved && it.reason == LibraryStore.PREVIOUS && it.chapterId == opened.chapterId }
-        return Opening.Ready(opened, title, chapters.getOrNull(index + 1), previous, turn.token, round, store.imageMode(workId).effective)
+        return Opening.Ready(
+            opened, title, chapters.getOrNull(index + 1), previous, turn.token, round, store.imageMode(workId).effective,
+            before = chapters.getOrNull(index - 1),
+            place = ChapterPlace(index + 1, chapters.size).takeIf { index >= 0 },
+        )
     } catch (e: Exception) {
         opened.release()
         kavita.finishReading(opened.chapterId, turn.token, opening.turns)
