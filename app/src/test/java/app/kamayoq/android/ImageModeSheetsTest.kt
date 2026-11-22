@@ -9,6 +9,8 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.click
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -63,7 +65,8 @@ class ImageModeSheetsTest {
     fun `dado a folha de ajustes, então ela começa em Esta obra e diz que a obra segue o modo de todas`() {
         compose.setContent { KamayoqTheme { ImageSettingsContent(manga) {} } }
 
-        compose.onNodeWithText(text(R.string.reader_scope_work), substring = true).assertIsSelected()
+        // The note also starts with "This work": the choice is the one that can be selected.
+        compose.onNode(hasText(text(R.string.reader_scope_work), substring = true) and isSelectable()).assertIsSelected()
         compose.onNodeWithText(text(R.string.reader_image_note_work_follows)).assertExists()
     }
 
