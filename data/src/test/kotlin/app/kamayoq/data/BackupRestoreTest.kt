@@ -24,6 +24,13 @@ import app.kamayoq.core.progress.ReadingState
 import app.kamayoq.core.progress.StateMark
 import app.kamayoq.core.progress.StripPosition
 import app.kamayoq.core.progress.TextPosition
+import app.kamayoq.core.reader.PageTheme
+import app.kamayoq.core.reader.ReaderFlow
+import app.kamayoq.core.reader.ReadingFont
+import app.kamayoq.core.reader.TextEdit
+import app.kamayoq.core.reader.TextNumber
+import app.kamayoq.core.reader.TextScope
+import app.kamayoq.core.reader.TextSettings
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.io.InputStream
@@ -153,6 +160,30 @@ class BackupRestoreTest {
         assertEquals(ReadingState.ON_HOLD, restored.readingState(dom).state)
         restored.saveProgress(domChapter, inTheBook.copy(position = place.copy(fraction = BasisPoints.fromStored(4_100))))
         assertEquals(ReadingState.READING, restored.readingState(dom).state)
+    }
+
+    @Test
+    fun `dado ajustes gerais do leitor e os próprios de uma novel com o modo, quando exporto e restauro num app vazio, então voltam iguais`() {
+        val original = emptyStore()
+        original.readFolder(oldFolder, cap1)
+        val witch = original.workId("Release That Witch")
+        val comic = original.workId("Sakamoto Days")
+        val settings = TextSettings.DEFAULT
+            .change(TextScope.ALL_TEXT_WORKS, TextEdit.Theme(PageTheme.SEPIA))
+            .change(TextScope.ALL_TEXT_WORKS, TextEdit.Number(TextNumber.SIZE, 21))
+            .change(TextScope.THIS_WORK, TextEdit.Font(ReadingFont.GARAMOND))
+        original.saveTextSettings(witch, settings)
+        original.saveTextMode(witch, ReaderFlow.PAGES)
+
+        val file = fileOf(original)
+        assertEquals(settings.general, file.textLook)
+
+        val restored = emptyStore()
+        assertTrue(restored.restore(file))
+        assertEquals(settings, restored.textSettings(witch))
+        assertEquals(ReaderFlow.PAGES, restored.textMode(witch))
+        assertEquals(settings.copy(own = null), restored.textSettings(comic))
+        assertEquals(null, restored.textMode(comic))
     }
 
     @Test

@@ -12,6 +12,8 @@ import app.kamayoq.core.progress.ReadingState
 import app.kamayoq.core.progress.StateMark
 import app.kamayoq.core.progress.StripPosition
 import app.kamayoq.core.progress.TextPosition
+import app.kamayoq.core.reader.ReaderFlow
+import app.kamayoq.core.reader.TextLookChoices
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -37,6 +39,8 @@ data class Backup(
     val exportedAt: Instant,
     val works: List<BackupWork>,
     val servers: List<BackupServer> = emptyList(),
+    /** The text reader's settings for every text work (slice 5); none set is the design's defaults. */
+    val textLook: TextLookChoices = TextLookChoices.NONE,
 )
 
 /** A Kavita server and the [libraries] marked in it. The key never comes here: it stays in the device. */
@@ -70,6 +74,10 @@ data class BackupWork(
     val alternatives: List<BackupAlternative> = emptyList(),
     /** The work's reading state; null for a work that never had one. */
     val readingState: BackupReadingState? = null,
+    /** What the work sets apart from the general text settings; null for none. */
+    val textLook: TextLookChoices? = null,
+    /** The mode the person chose for the work; null keeps its type's. */
+    val textMode: ReaderFlow? = null,
 )
 
 /**
@@ -144,11 +152,12 @@ data class BackupOutbox(
 /** The backup file: JSON, so a person can read it, with a format version (decision of 27/10/2026). */
 object BackupFormat {
     /**
+     * 6 carries the text reader's settings, general and per work, and each work's mode (slice 5);
      * 5 carries a work's reading state (slice 2 of the v1 interface); 4 a chapter's key in a split
      * file (step 4, milestone B); 3 a book's place (piece 22); 2 added Kavita (step 3); 1 is from
      * 28/10/2026.
      */
-    const val VERSION = 5
+    const val VERSION = 6
 
     // Pretty and with accents as they are, so the file reads in any text editor. Nulls are written
     // out, so every field shows even when empty.
@@ -173,6 +182,7 @@ object BackupFormat {
         if (version < 3) current = toFormat3(current)
         if (version < 4) current = toFormat4(current)
         if (version < 5) current = toFormat5(current)
+        if (version < 6) current = toFormat6(current)
         return try {
             json.decodeFromJsonElement(BackupFile.serializer(), current).toBackup()
         } catch (e: DateTimeException) {
@@ -207,6 +217,10 @@ object BackupFormat {
     private fun toFormat5(file: JsonObject): JsonObject =
         file.withWorks { it.adding("readingState" to JsonNull) }
 
+    /** Format 6 added the text reader's settings; every file before it has none. */
+    private fun toFormat6(file: JsonObject): JsonObject =
+        file.adding("textLook" to JsonNull).withWorks { it.adding("textLook" to JsonNull, "textMode" to JsonNull) }
+
     // A field the declared format could not have was not written by it: replacing it would drop it
     // without a word, so the file is refused instead.
     private fun JsonObject.adding(vararg fields: Pair<String, JsonElement>): JsonObject {
@@ -239,6 +253,7 @@ private class BackupFile(
     val exportedAt: String,
     val servers: List<ServerEntry>,
     val works: List<WorkEntry>,
+    val textLook: LookEntry?,
 ) {
     fun toBackup() = Backup(appVersion, Instant.parse(exportedAt), works.map { it.toWork() }, servers.map { it.toServer() })
 
@@ -249,6 +264,7 @@ private class BackupFile(
             exportedAt = backup.exportedAt.toString(),
             servers = backup.servers.map(ServerEntry::of),
             works = backup.works.map(WorkEntry::of),
+            textLook = null,
         )
     }
 }
@@ -285,6 +301,8 @@ private class WorkEntry(
     val remoteLibraryId: Int?,
     val alternatives: List<AlternativeEntry>,
     val readingState: ReadingStateEntry?,
+    val textLook: LookEntry?,
+    val textMode: String?,
 ) {
     fun toWork() = BackupWork(
         id = id,
@@ -319,6 +337,8 @@ private class WorkEntry(
             remoteLibraryId = work.remoteLibraryId,
             alternatives = work.alternatives.map(AlternativeEntry::of),
             readingState = work.readingState?.let(ReadingStateEntry::of),
+            textLook = null,
+            textMode = null,
         )
     }
 }
@@ -340,6 +360,20 @@ private class ReadingStateEntry(val state: String?, val automatic: AutomaticEntr
         )
     }
 }
+
+/** The text reader's settings; each field null when not set, names as the app's own, numbers in tenths where it keeps tenths. */
+@Serializable
+private class LookEntry(
+    val font: String?,
+    val size: Int?,
+    val lineHeight: Int?,
+    val paragraphSpacing: Int?,
+    val margin: Int?,
+    val indent: Boolean?,
+    val justify: Boolean?,
+    val theme: String?,
+    val footer: String?,
+)
 
 @Serializable
 private class AutomaticEntry(val from: String?, val at: String)

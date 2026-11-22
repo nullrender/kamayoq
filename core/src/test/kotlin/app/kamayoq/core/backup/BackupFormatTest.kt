@@ -11,6 +11,11 @@ import app.kamayoq.core.progress.ReadingState
 import app.kamayoq.core.progress.StateMark
 import app.kamayoq.core.progress.StripPosition
 import app.kamayoq.core.progress.TextPosition
+import app.kamayoq.core.reader.FooterContent
+import app.kamayoq.core.reader.PageTheme
+import app.kamayoq.core.reader.ReaderFlow
+import app.kamayoq.core.reader.ReadingFont
+import app.kamayoq.core.reader.TextLookChoices
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
@@ -98,10 +103,10 @@ class BackupFormatTest {
     }
 
     @Test
-    fun `dado uma cópia gravada, então o arquivo diz a versão do formato, 5`() {
+    fun `dado uma cópia gravada, então o arquivo diz a versão do formato, 6`() {
         val text = BackupFormat.write(backup(work(chapters = emptyList())))
 
-        assertEquals(5, Json.parseToJsonElement(text).jsonObject["formatVersion"]?.jsonPrimitive?.int)
+        assertEquals(6, Json.parseToJsonElement(text).jsonObject["formatVersion"]?.jsonPrimitive?.int)
     }
 
     private val states = listOf(
@@ -129,6 +134,7 @@ class BackupFormatTest {
         val format4 = BackupFormat.write(original)
             .replaceFirst("\"formatVersion\": ${BackupFormat.VERSION}", "\"formatVersion\": 4")
             .replace(Regex(""",\s*"readingState": null"""), "")
+            .withoutFormat6()
 
         assertTrue("\"formatVersion\": 4" in format4 && "readingState" !in format4, format4)
         assertEquals(original, BackupFormat.read(format4))
@@ -138,6 +144,7 @@ class BackupFormatTest {
     fun `dado um arquivo que diz formato 4 mas traz o estado de uma obra, quando lido, então recusa em vez de apagá-lo`() {
         val text = BackupFormat.write(backup(work(chapters = emptyList()).copy(readingState = states.first())))
             .replaceFirst("\"formatVersion\": ${BackupFormat.VERSION}", "\"formatVersion\": 4")
+            .withoutFormat6()
 
         assertTrue("\"formatVersion\": 4" in text && "readingState" in text, text)
         assertFailsWith<IllegalArgumentException> { BackupFormat.read(text) }
@@ -165,8 +172,9 @@ class BackupFormatTest {
     fun `dado um arquivo do formato 3, quando lido, então todo capítulo é o arquivo inteiro`() {
         val original = backup(work(chapters = listOf(chapter("Comics/Sakamoto Days/Capítulo 2.cbz", halfway))))
         val format3 = BackupFormat.write(original)
-            .replaceFirst("\"formatVersion\": 5", "\"formatVersion\": 3")
+            .replaceFirst("\"formatVersion\": ${BackupFormat.VERSION}", "\"formatVersion\": 3")
             .replace(Regex(""",\s*"readingState": null"""), "")
+            .withoutFormat6()
             .replace(Regex(""",\s*"tocKey": "[^"]*""""), "")
 
         assertTrue("\"formatVersion\": 3" in format3 && "tocKey" !in format3, format3)
@@ -176,8 +184,9 @@ class BackupFormatTest {
     @Test
     fun `dado um arquivo que diz formato 3 mas traz a chave de um capítulo, quando lido, então recusa em vez de apagá-la`() {
         val text = BackupFormat.write(backup(work(title = "Release That Witch", chapters = splitChapters())))
-            .replaceFirst("\"formatVersion\": 5", "\"formatVersion\": 3")
+            .replaceFirst("\"formatVersion\": ${BackupFormat.VERSION}", "\"formatVersion\": 3")
             .replace(Regex(""",\s*"readingState": null"""), "")
+            .withoutFormat6()
 
         assertTrue("\"formatVersion\": 3" in text && "tocKey" in text, text)
         assertFailsWith<IllegalArgumentException> { BackupFormat.read(text) }
@@ -391,9 +400,9 @@ class BackupFormatTest {
     @Test
     fun `dado um arquivo de uma versão do formato que este app não conhece, quando lido, então recusa`() {
         val text = BackupFormat.write(backup(work(chapters = emptyList())))
-            .replaceFirst("\"formatVersion\": 5", "\"formatVersion\": 6")
+            .replaceFirst("\"formatVersion\": ${BackupFormat.VERSION}", "\"formatVersion\": 7")
 
-        assertTrue("\"formatVersion\": 6" in text, text)
+        assertTrue("\"formatVersion\": 7" in text, text)
         assertFailsWith<IllegalArgumentException> { BackupFormat.read(text) }
     }
 
@@ -448,8 +457,9 @@ class BackupFormatTest {
             completeReads = 0,
         )
         val text = BackupFormat.write(backup(work(chapters = listOf(chapter("Books/Dom Casmurro.epub", place, format = ChapterFormat.EPUB)))))
-            .replaceFirst("\"formatVersion\": 5", "\"formatVersion\": 2")
+            .replaceFirst("\"formatVersion\": ${BackupFormat.VERSION}", "\"formatVersion\": 2")
             .replace(Regex(""",\s*"readingState": null"""), "")
+            .withoutFormat6()
 
         assertTrue("\"formatVersion\": 2" in text && "\"section\": 2" in text, text)
         assertFailsWith<IllegalArgumentException> { BackupFormat.read(text) }
@@ -498,5 +508,55 @@ class BackupFormatTest {
         val at = Instant.parse("2026-10-28T21:48:30Z")
 
         assertEquals("kamayoq_2026-10-28_18-48.json", BackupFormat.fileName(at, ZoneId.of("America/Sao_Paulo")))
+    }
+
+    // What a file of format 5 or before lacks: the text reader's settings, null when nothing is set.
+    private fun String.withoutFormat6() = replace(Regex(""",\s*"textLook": null"""), "").replace(Regex(""",\s*"textMode": null"""), "")
+
+    private val ownLook = TextLookChoices(font = ReadingFont.GARAMOND, size = 22, indent = false, paragraphSpacing = 8)
+    private val generalLook = TextLookChoices(theme = PageTheme.SEPIA, justify = true, footer = FooterContent.PROGRESS, lineHeight = 16, margin = 28)
+
+    @Test
+    fun `dado ajustes gerais do leitor e os próprios de uma obra com o modo, quando gravados e relidos, então voltam iguais`() {
+        val original = backup(
+            work(title = "Lorde dos Mistérios", chapters = emptyList()).copy(type = WorkType.NOVELS, textLook = ownLook, textMode = ReaderFlow.PAGES),
+            work(title = "Dom Casmurro", chapters = emptyList()).copy(type = WorkType.BOOKS),
+        ).copy(textLook = generalLook)
+
+        val text = BackupFormat.write(original)
+
+        assertTrue("\"theme\": \"SEPIA\"" in text && "\"textMode\": \"PAGES\"" in text, text)
+        assertEquals(original, BackupFormat.read(text))
+    }
+
+    @Test
+    fun `dado um arquivo do formato 5, quando lido, então nada do leitor vem ajustado`() {
+        val original = backup(work(chapters = emptyList()))
+        val format5 = BackupFormat.write(original)
+            .replaceFirst("\"formatVersion\": ${BackupFormat.VERSION}", "\"formatVersion\": 5")
+            .withoutFormat6()
+
+        assertTrue("\"formatVersion\": 5" in format5 && "textLook" !in format5, format5)
+        val read = BackupFormat.read(format5)
+        assertEquals(TextLookChoices.NONE, read.textLook)
+        assertEquals(null, read.works.single().textLook)
+        assertEquals(null, read.works.single().textMode)
+    }
+
+    @Test
+    fun `dado um arquivo que diz formato 5 mas traz ajustes do leitor, quando lido, então recusa em vez de apagá-los`() {
+        val text = BackupFormat.write(backup(work(chapters = emptyList())).copy(textLook = generalLook))
+            .replaceFirst("\"formatVersion\": ${BackupFormat.VERSION}", "\"formatVersion\": 5")
+
+        assertTrue("\"formatVersion\": 5" in text && "\"textLook\": {" in text, text)
+        assertFailsWith<IllegalArgumentException> { BackupFormat.read(text) }
+    }
+
+    @Test
+    fun `dado um ajuste do leitor com um nome ou um número que o app não conhece, quando lido, então recusa`() {
+        val text = BackupFormat.write(backup(work(chapters = emptyList())).copy(textLook = generalLook))
+        for (bad in listOf(text.replace("\"SEPIA\"", "\"NEON\""), text.replace("\"margin\": 28", "\"margin\": 90"))) {
+            assertFailsWith<IllegalArgumentException> { BackupFormat.read(bad) }
+        }
     }
 }
