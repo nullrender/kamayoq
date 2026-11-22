@@ -1,5 +1,15 @@
 package app.kamayoq.android
 
+import org.junit.Assert.assertTrue
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.Modifier
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
@@ -76,13 +86,21 @@ class TextReaderChromeTest {
 
     @Test
     fun `dado o primeiro capítulo e o livro ainda abrindo, então o capítulo anterior fica desligado e nada aceita toque`() {
+        var asked = 0
         compose.setContent {
             KamayoqTheme {
-                TextReaderBottomBar(false, context.getString(R.string.reader_contents), book, onPreviousChapter = null, onContents = {}, onNextChapter = {})
+                TextReaderBottomBar(
+                    false, context.getString(R.string.reader_contents), book, onPreviousChapter = null, onContents = {}, onNextChapter = {},
+                    onProgress = { asked++ },
+                )
             }
         }
         compose.onNodeWithContentDescription(context.getString(R.string.reader_previous_chapter)).assertIsNotEnabled()
         compose.onNodeWithContentDescription(context.getString(R.string.reader_next_chapter)).assertIsNotEnabled()
+        compose.onNodeWithText(context.getString(R.string.reader_contents), useUnmergedTree = true).performClick()
+        // Gemini's review of slice 5, finding 7: the place opened Go to while the book was still opening.
+        compose.onNodeWithText(context.getString(R.string.reader_book_percent, 12), useUnmergedTree = true).performClick()
+        assertEquals(0, asked)
     }
 
     @Test
@@ -133,8 +151,43 @@ class TextReaderChromeTest {
             }
         }
         val place = context.getString(R.string.reader_book_percent, 12)
-        compose.onNodeWithContentDescription(context.getString(R.string.reader_go_to_place, place))
-            .assertHeightIsAtLeast(48.dp).performClick()
+        val goTo = compose.onNodeWithContentDescription(context.getString(R.string.reader_go_to_place, place))
+        // Gemini's review of slice 5, finding 11: the description, not it and the texts again.
+        assertEquals(null, goTo.fetchSemanticsNode().config.getOrNull(SemanticsProperties.Text))
+        goTo.assertHeightIsAtLeast(48.dp).performClick()
         assertEquals(1, asked)
+    }
+
+    // Gemini's review of slice 5, finding 7: the bars had a fixed height, so a large system font cut
+    // the place under the title.
+    @Test
+    fun `dado a letra do sistema em dobro, então a barra de cima cresce e o lugar cabe nela`() {
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, fontScale = 2f)) {
+                KamayoqTheme { Box(Modifier.testTag("bar")) { TextReaderTopBar("Dom Casmurro", book, onBack = {}) } }
+            }
+        }
+        val bar = compose.onNodeWithTag("bar").getUnclippedBoundsInRoot()
+        val place = compose.onNodeWithText(context.getString(R.string.reader_book_percent, 12), useUnmergedTree = true).getUnclippedBoundsInRoot()
+        assertTrue("place ends at ${place.bottom}, the bar at ${bar.bottom}", place.bottom <= bar.bottom)
+    }
+
+    @Test
+    fun `dado o lugar de uma novel na barra de baixo de 360 dp com letra grande, então os dois textos cabem lado a lado`() {
+        val long = TextProgress(0.19f, ChapterPlace(928, 1430))
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, fontScale = 1.3f)) {
+                KamayoqTheme {
+                    Box(Modifier.width(360.dp).testTag("bar")) {
+                        TextReaderBottomBar(true, context.getString(R.string.reader_chapters), long, onPreviousChapter = {}, onContents = {}, onNextChapter = {}, onProgress = {})
+                    }
+                }
+            }
+        }
+        val bar = compose.onNodeWithTag("bar").getUnclippedBoundsInRoot()
+        val inChapter = compose.onNodeWithText(context.getString(R.string.reader_chapter_percent, 19), useUnmergedTree = true).getUnclippedBoundsInRoot()
+        val place = compose.onNodeWithText(context.getString(R.string.reader_chapter_of, 928, 1430), useUnmergedTree = true).getUnclippedBoundsInRoot()
+        assertTrue("the place runs into the share: ${place.right} > ${inChapter.left}", place.right <= inChapter.left)
+        assertTrue("the share leaves the bar: ${inChapter.right} > ${bar.right}", inChapter.right <= bar.right)
     }
 }

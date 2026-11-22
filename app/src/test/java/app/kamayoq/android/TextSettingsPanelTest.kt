@@ -3,6 +3,8 @@ package app.kamayoq.android
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
@@ -161,5 +163,19 @@ class TextSettingsPanelTest {
             .change(TextScope.ALL_TEXT_WORKS, TextEdit.Number(TextNumber.PARAGRAPH_SPACING, 4))
         show()
         compose.onNodeWithContentDescription(text(R.string.reader_paragraphs_down)).performScrollTo().assertIsNotEnabled()
+    }
+
+    // Gemini's review of slice 5, finding 11: a button with its own description also read the texts
+    // inside it ("EB Garamond, Garamond").
+    @Test
+    fun `dado os botões com descrição própria, então o leitor de tela ouve só a descrição`() {
+        show()
+        for (description in listOf("EB Garamond", text(R.string.reader_restore_all_description))) {
+            val texts = compose.onNodeWithContentDescription(description).fetchSemanticsNode().config.getOrNull(SemanticsProperties.Text)
+            assertNull("$description also reads $texts", texts)
+        }
+        compose.onNodeWithText(text(R.string.reader_tab_look)).performClick()
+        val sepia = compose.onNodeWithContentDescription(text(R.string.reader_theme_sepia)).fetchSemanticsNode().config.getOrNull(SemanticsProperties.Text)
+        assertNull("Sepia also reads $sepia", sepia)
     }
 }
