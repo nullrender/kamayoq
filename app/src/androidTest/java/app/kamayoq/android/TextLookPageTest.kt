@@ -140,9 +140,10 @@ class TextLookPageTest {
     }
 
     @Test
-    fun `dado as margens escolhidas quando o livro abre então as laterais são trinta e dois pixels`() {
+    fun `dado as margens escolhidas quando o livro abre então o paginador recebe o dobro de cada lado e vão zero`() {
         open(shown(TextEdit.Number(TextNumber.MARGIN, 32)))
-        assertInBook("32px|32px", "['left', 'right'].map(side => document.querySelector('foliate-view').renderer.getAttribute('margin-' + side)).join('|')")
+        // Half of each goes beside the text, so 64 shows 32 (TextMarginTest measures what shows).
+        assertInBook("64px|64px|0%", "[...['left', 'right'].map(side => document.querySelector('foliate-view').renderer.getAttribute('margin-' + side)), document.querySelector('foliate-view').renderer.getAttribute('gap')].join('|')")
     }
 
     @Test

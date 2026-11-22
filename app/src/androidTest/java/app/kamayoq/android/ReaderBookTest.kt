@@ -124,9 +124,13 @@ class ReaderBookTest {
     @Test
     fun `dado um livro quando abre então as margens do leitor são vinte e quatro pixels`() {
         restored()
-        assertEquals("\"24px|24px|24px|24px\"", evaluate("""
-            ['top', 'bottom', 'left', 'right'].map(side =>
-                document.querySelector('foliate-view').renderer.getAttribute('margin-' + side)).join('|')
+        // foliate-js puts half of each side margin beside the text, with no column gap: the sides go
+        // as 48 to show 24 (TextMarginTest measures what shows).
+        assertEquals("\"24px|24px|48px|48px|0%\"", evaluate("""
+            (() => {
+                const renderer = document.querySelector('foliate-view').renderer
+                return [...['top', 'bottom', 'left', 'right'].map(side => renderer.getAttribute('margin-' + side)), renderer.getAttribute('gap')].join('|')
+            })()
         """.trimIndent()))
     }
 
