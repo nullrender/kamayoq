@@ -17,11 +17,60 @@ class StripReadingTest {
 
     private fun open(saved: ChapterProgress, total: Int = TOTAL) = assertNotNull(StripReading.open(saved, total, device))
 
-    /** Shows each page in order, one second apart, and returns the last progress. */
+    /**
+     * Shows each page in order, one second apart, and returns the last progress. The page the chapter
+     * opened on gives nothing to save while it is the only one shown.
+     */
     private fun StripReading.read(vararg pages: Int): ChapterProgress {
         var last = progress
-        pages.forEachIndexed { i, page -> last = assertNotNull(show(page, now.plusSeconds(i.toLong()))) }
+        pages.forEachIndexed { i, page -> show(page, now.plusSeconds(i.toLong()))?.let { last = it } }
         return last
+    }
+
+    @Test
+    fun `dado um capítulo nunca aberto, quando abre e mostra só a primeira imagem, então não há nada para gravar`() {
+        val reading = open(ChapterProgress.NEVER_OPENED)
+
+        assertNull(reading.show(0, now))
+        assertEquals(ChapterProgress.NEVER_OPENED, reading.progress)
+    }
+
+    @Test
+    fun `dado um capítulo parado na imagem 7, quando abre e mostra só a imagem 7, então não há nada para gravar`() {
+        val saved = ChapterProgress(readMark = null, position = at(7), completeReads = 0)
+        val reading = open(saved)
+
+        assertNull(reading.show(7, now))
+        assertEquals(saved, reading.progress)
+    }
+
+    @Test
+    fun `dado um capítulo aberto na imagem 7, quando mostra a imagem 8, então grava a imagem 8`() {
+        val reading = open(ChapterProgress(readMark = null, position = at(7), completeReads = 0))
+        reading.show(7, now)
+
+        assertEquals(StripPosition(8, TOTAL, now.plusSeconds(1), device), reading.show(8, now.plusSeconds(1))?.position)
+    }
+
+    @Test
+    fun `dado um capítulo que saiu da imagem da abertura, quando volta a ela, então grava a volta`() {
+        val reading = open(ChapterProgress(readMark = null, position = at(7), completeReads = 0))
+        reading.show(7, now)
+        reading.show(8, now.plusSeconds(1))
+
+        assertEquals(StripPosition(7, TOTAL, now.plusSeconds(2), device), reading.show(7, now.plusSeconds(2))?.position)
+    }
+
+    @Test
+    fun `dado um capítulo de uma imagem, quando chega ao bloco de fim, então grava e fica lido`() {
+        val reading = open(ChapterProgress.NEVER_OPENED, total = 1)
+        assertNull(reading.show(0, now))
+
+        val progress = assertNotNull(reading.show(1, now.plusSeconds(1)))
+
+        assertEquals(ReadMark(now.plusSeconds(1), ReadMarkSource.READ_TO_END), progress.readMark)
+        assertEquals(1, progress.completeReads)
+        assertEquals(StripPosition(1, 1, now.plusSeconds(1), device), progress.position)
     }
 
     @Test

@@ -109,6 +109,9 @@ class StripReaderTest {
         var shown by mutableStateOf(true)
         compose.setContent { if (shown) StripReader(app.store, chapter, turns, round, "Obra · Cap. 1", null, "test-device", {}, {}) }
         compose.waitForIdle()
+        // Opening saves nothing; reaching the end block does.
+        compose.onNode(hasScrollToIndexAction()).performScrollToIndex(1)
+        compose.waitForIdle()
 
         shown = false
         compose.waitForIdle()
@@ -141,12 +144,37 @@ class StripReaderTest {
 
         compose.onNode(hasScrollToIndexAction()).performScrollToIndex(1)
         compose.waitForIdle()
+        compose.onNode(hasScrollToIndexAction()).performScrollToIndex(2)
+        compose.waitForIdle()
         shown = false
         compose.waitForIdle()
         mayEnd.countDown()
         holder.join()
         runBlocking { turns.waitForSaves() }
 
+        // The image the chapter opened on is not one of them: opening saves nothing.
         assertEquals(2, ShadowLog.getLogsForTag("Kamayoq").count { it.msg == "Saving the reading position failed" })
+    }
+
+    @Test
+    fun `dado um capítulo aberto, quando a pessoa sai sem passar da imagem da abertura, então nada é gravado`() {
+        // Each save fails here (the chapter is not in the store), so the log counts the saves asked for.
+        // Tall pages: a chapter that fits on the screen shows its end block at once, and that is a reading.
+        val tall = OpenedChapter(
+            "chapter",
+            List(3) { PageImage(100, 10_000) { ByteArrayInputStream(ByteArray(0)) } },
+            ChapterProgress.NEVER_OPENED,
+        ) {}
+        val turns = OpeningTurns()
+        val round = runBlocking { turns.open { it } }
+        var shown by mutableStateOf(true)
+        compose.setContent { if (shown) StripReader(app.store, tall, turns, round, "Obra · Cap. 1", null, "test-device", {}, {}) }
+        compose.waitForIdle()
+
+        shown = false
+        compose.waitForIdle()
+        runBlocking { turns.waitForSaves() }
+
+        assertEquals(0, ShadowLog.getLogsForTag("Kamayoq").count { it.msg == "Saving the reading position failed" })
     }
 }
