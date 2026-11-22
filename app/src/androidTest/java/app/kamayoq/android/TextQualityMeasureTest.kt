@@ -99,7 +99,7 @@ class TextQualityMeasureTest {
         evaluate("(() => { const doc = document.querySelector('foliate-view').renderer.getContents()[0].doc; return String($expression) })()").trim('"')
 
     @Test
-    fun `dado a letra e o tamanho padrão então a linha tem de 35 a 50 caracteres a letra 16 px ou mais e a entrelinha de 1 4 a 1 6`() {
+    fun `dado a letra e o tamanho padrão então a linha tem até 50 caracteres a letra 16 px ou mais e a entrelinha de 1 4 a 1 6`() {
         open(shown())
         // The characters of the second line of the first paragraph, one by one by where each sits:
         // the first line is shorter by the indent.
@@ -116,7 +116,11 @@ class TextQualityMeasureTest {
         val ratio = line.removeSuffix("px").toDouble() / fontPx
         Log.i("KamayoqMeasure", "Default look: $perLine characters per line, $size, line height $ratio, frame $width px wide")
 
-        assertTrue("$perLine characters per line", perLine in 35.0..50.0)
+        // Gustavo's decision of 22/11/2026 on the criterion (kamayoq-notes, research line-length-defaults,
+        // options 1 and 4): under 35 on a phone no longer fails, since the 35 had no study behind it and
+        // no source gives another floor; the ceiling of 50 stays. He picks the default font on the S24
+        // with real passages. The count still goes to the log.
+        assertTrue("$perLine characters per line", perLine > 0 && perLine <= 50.0)
         assertTrue("font $size", fontPx >= 16)
         assertTrue("line height $ratio", ratio in 1.4..1.6)
     }
