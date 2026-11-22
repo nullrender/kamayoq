@@ -31,7 +31,7 @@ import java.io.InputStream
 import java.util.concurrent.CopyOnWriteArrayList
 
 /** Everything under `/reader/` that the page may ask for: the assets of the app, fixed in the APK. */
-private val READER_FILES: Set<String> = setOf("index.html", "errors.js", "reader.js", "sections.js", "messages.js", "markers.js", "look.js") + listOf(
+private val READER_FILES: Set<String> = setOf("index.html", "errors.js", "reader.js", "sections.js", "messages.js", "markers.js", "look.js", "taps.js") + listOf(
     "view",
     "epub",
     "epubcfi",

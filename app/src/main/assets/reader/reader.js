@@ -4,6 +4,7 @@ import { neutralizeRefresh } from './sections.js'
 import { relocatedMessage, contentsOf, navigationQueue, chapterOf, chapterFraction, orderedSender } from './messages.js'
 import { elementOf, markerOf } from './markers.js'
 import { DEFAULT_LOOK, checkedLook, stylesOf, marginOf, markAligned, hostBackgroundOf } from './look.js'
+import { tapFraction } from './taps.js'
 
 const send = message => kamayoqBridge.postMessage(JSON.stringify(message))
 // What tells where the reader is leaves in order: a place may wait for its chapter to be measured.
@@ -54,7 +55,21 @@ const open = async token => {
     })
     await view.open(book)
     // Each section the book's own way first: alignment and indent leave its centered lines alone.
-    view.renderer.addEventListener('load', ({ detail }) => markAligned(detail.doc))
+    view.renderer.addEventListener('load', ({ detail }) => {
+        const doc = detail.doc
+        markAligned(doc)
+        // A plain touch goes to the app, which turns the page or shows the controls (core TapZones).
+        doc.addEventListener('click', event => {
+            const x = tapFraction({
+                clientX: event.clientX,
+                frameLeft: doc.defaultView?.frameElement?.getBoundingClientRect().left ?? Number.NaN,
+                width: innerWidth,
+                onLink: Boolean(event.target?.closest?.('a[href]')),
+                selecting: !(doc.getSelection()?.isCollapsed ?? true),
+            })
+            if (x !== null) send({ type: 'tap', x })
+        })
+    })
     // Applied before init, so a restored CFI does not move. The defaults go under the book's own
     // styles; only what the person chose goes over them (look.js).
     for (const side of ['top', 'bottom'])
