@@ -124,19 +124,23 @@ class HomeTest {
     }
 
     @Test
-    fun `dado obras fora de Lendo ou nunca abertas, então não entram em Continuar lendo`() {
+    // His decision of 22/11/2026 (option B of docs/research/reading-state-triggers.md): a work begun
+    // and not yet in Reading is in Continue reading too; until then this test said it was not.
+    fun `dado obras em pausa, abandonadas, lidas ou nunca abertas, então não entram em Continuar lendo, e as começadas sem estado ou em Quero ler entram`() {
         val result = Home.continueReading(
             listOf(
                 ReadingWork("want", ReadingState.WANT_TO_READ, hoursAgo(1)),
                 ReadingWork("on-hold", ReadingState.ON_HOLD, hoursAgo(1)),
+                ReadingWork("dropped", ReadingState.DROPPED, hoursAgo(1)),
                 ReadingWork("completed", ReadingState.COMPLETED, hoursAgo(1)),
-                ReadingWork("none", null, hoursAgo(1)),
+                ReadingWork("none", null, hoursAgo(2)),
                 ReadingWork("never", ReadingState.READING, null),
+                ReadingWork("none-never", null, null),
                 ReadingWork("reading", ReadingState.READING, hoursAgo(3)),
             ),
         )
 
-        assertEquals(listOf("reading"), result)
+        assertEquals(listOf("want", "none", "reading"), result)
     }
 
     @Test

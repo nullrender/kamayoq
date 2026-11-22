@@ -84,12 +84,14 @@ class HomeStoreTest {
         assertEquals(later, item.lastReadAt)
     }
 
+    // His decision of 22/11/2026 (option B): until then a work opened and still with no state was
+    // left out, and this test said so.
     @Test
-    fun `dado uma obra aberta e ainda sem estado, então ela não entra em Continuar lendo`() {
+    fun `dado uma obra aberta e ainda sem estado, então ela entra em Continuar lendo`() {
         read(first, *folder)
         store.saveProgress(chapter("Gantz", "Cap. 001").id, ChapterProgress(null, StripPosition(5, 20, later, "phone-a"), 0))
 
-        assertEquals(emptyList(), store.home().continueReading)
+        assertEquals(listOf("Gantz"), store.home().continueReading.map { it.work.title })
     }
 
     @Test

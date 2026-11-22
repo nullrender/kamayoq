@@ -179,6 +179,15 @@ class HomeContinueTest {
     }
 
     @Test
+    fun `dado uma obra começada e ainda sem estado, então o Início a mostra em Continuar lendo`() {
+        folderRead()
+        readAgo("Sakamoto Days", Duration.ofMinutes(130), state = null)
+        showHome()
+
+        waitFor(continueCap1)
+    }
+
+    @Test
     fun `dado uma obra lida mas fora de Lendo, então o Início não mostra Continuar lendo`() {
         folderRead()
         readAgo("Sakamoto Days", Duration.ofMinutes(130), state = ReadingState.ON_HOLD)
