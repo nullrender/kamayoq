@@ -80,16 +80,21 @@ class WorkNewsTest {
         openWork()
         waitFor(newTwoHoursAgo)
 
+        val work = app.store.works().single().id
+        compose.waitUntil(10_000) { app.store.lastVisit(work) != null }
+        val firstVisit = checkNotNull(app.store.lastVisit(work))
         pressBack()
         waitFor("Sakamoto Days")
         openWork()
-        compose.waitForIdle()
 
+        // The second visit written, and what it found shown: not still on its way.
+        compose.waitUntil(10_000) { checkNotNull(app.store.lastVisit(work)) > firstVisit }
+        compose.waitForIdle()
         assertEquals(0, count(newTwoHoursAgo))
     }
 
     @Test
-    fun `dado a Obra aberta, quando leio um capítulo e volto à Obra, então o novo continua dizendo que é novo`() {
+    fun `dado a Obra aberta, quando abro um capítulo e volto à Obra, então o novo continua dizendo que é novo`() {
         cap2ArrivedTwoHoursAgo()
         show()
         openWork()

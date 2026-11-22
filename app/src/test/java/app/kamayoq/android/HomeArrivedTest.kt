@@ -198,8 +198,9 @@ class HomeArrivedTest {
     fun `dado capítulos que chegaram numa obra em pausa, então Chegou não aparece`() {
         twoArrived(state = ReadingState.ON_HOLD)
         showHome()
-        compose.waitForIdle()
 
+        // Home read and empty, not still being read.
+        waitFor(app.getString(R.string.home_empty_title))
         assertEquals(0, count(heading))
     }
 

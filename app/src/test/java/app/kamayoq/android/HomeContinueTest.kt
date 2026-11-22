@@ -170,8 +170,9 @@ class HomeContinueTest {
         folderRead()
         readAgo("Sakamoto Days", Duration.ofMinutes(130), state = ReadingState.ON_HOLD)
         showHome()
-        compose.waitForIdle()
 
+        // Home read and empty, not still being read.
+        waitFor(app.getString(R.string.home_empty_title))
         assertEquals(0, count(heading))
     }
 }
