@@ -222,12 +222,13 @@ fun TextReader(
                 modifier = Modifier.weight(1f).fillMaxWidth().semantics {
                     // For explore by touch, switch access and keyboards, which have no side of the page to touch.
                     customActions = listOf(
+                        // Nothing until the book opens: a turn asked of a page with no book fails in it.
                         CustomAccessibilityAction(previousPage) {
-                            if (atEnd) atEnd = false else webView?.goToPreviousPage()
+                            if (ready) { if (atEnd) atEnd = false else webView?.goToPreviousPage() }
                             ready
                         },
                         CustomAccessibilityAction(nextPage) {
-                            if (!atEnd) webView?.goToNextPage()
+                            if (ready && !atEnd) webView?.goToNextPage()
                             ready
                         },
                     )

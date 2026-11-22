@@ -63,13 +63,16 @@ const open = async token => {
         const doc = detail.doc
         markAligned(doc)
         // A plain touch goes to the app, which turns the page or shows the controls (core TapZones).
+        // A touch that starts on a selection only takes it away, and the selection is gone by the click.
+        let selectedAtDown = false
+        doc.addEventListener('pointerdown', () => { selectedAtDown = !(doc.getSelection()?.isCollapsed ?? true) }, true)
         doc.addEventListener('click', event => {
             const x = tapFraction({
                 clientX: event.clientX,
                 frameLeft: doc.defaultView?.frameElement?.getBoundingClientRect().left ?? Number.NaN,
                 width: innerWidth,
                 onLink: Boolean(event.target?.closest?.('a[href]')),
-                selecting: !(doc.getSelection()?.isCollapsed ?? true),
+                selecting: selectedAtDown || !(doc.getSelection()?.isCollapsed ?? true),
             })
             if (x !== null) send({ type: 'tap', x })
         })
@@ -275,6 +278,13 @@ const atLastPage = () => {
     if (!renderer.atEnd) return false
     return !renderer.sections.slice(renderer.primaryUnitIndex + 1).some(unit => unit.linear !== 'no')
 }
+
+// The page around the section's frames (below a short chapter in Scroll, the sides of a wide screen):
+// a touch there is a tap too. A touch inside a frame stays in that frame's document.
+document.addEventListener('click', event => {
+    const x = tapFraction({ clientX: event.clientX, frameLeft: 0, width: innerWidth, onLink: false, selecting: false })
+    if (x !== null) send({ type: 'tap', x })
+})
 
 globalThis.kamayoqReader = {
     // Past the last page there is no page to turn to: the app shows its end block (piece 23).
