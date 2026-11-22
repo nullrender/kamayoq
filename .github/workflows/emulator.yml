@@ -1,6 +1,7 @@
 name: Emulator
 
-# The real WebView, which Robolectric cannot run (docs/research/android-tests-for-recreation.md).
+# The real WebView, which Robolectric cannot run (docs/research/android-tests-for-recreation.md), and
+# the image reader's real decoder and screen.
 # Kept apart from ci.yml, by paths, so a change away from the reader spends no emulator minutes.
 on:
   workflow_dispatch:
@@ -18,6 +19,9 @@ on:
       - app/src/main/assets/reader/**
       - app/src/main/java/app/kamayoq/android/Reader*.kt
       - app/src/main/java/app/kamayoq/android/Text*.kt
+      - app/src/main/java/app/kamayoq/android/Image*.kt
+      - app/src/main/java/app/kamayoq/android/StripReader.kt
+      - app/src/main/java/app/kamayoq/android/PagedReader.kt
       - core/src/main/kotlin/app/kamayoq/core/reader/**
       - epub-fixtures/**
       - third_party/foliate-js/**
