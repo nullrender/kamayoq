@@ -19,7 +19,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -183,7 +185,9 @@ fun TextReader(
     val previousPage = stringResource(R.string.reader_previous_page)
     val nextPage = stringResource(R.string.reader_next_page)
     Box(modifier = Modifier.fillMaxSize().background(Color(shown.colors.background))) {
-    Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
+    // The cutout only: the system bars come and go over a full screen (a sheet brings them back), and
+    // a page that followed them would change size and lay the book out again at another place.
+    Column(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.displayCutout)) {
         val failure = problem
         if (failure != null) {
             // Under the top bar, which stays for Back.
