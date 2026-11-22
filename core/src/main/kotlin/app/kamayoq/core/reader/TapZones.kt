@@ -8,5 +8,10 @@ object TapZones {
     const val SIDE = 0.3
 
     /** [x] is the touch's place across the page, from 0 (left) to 1 (right). Scroll has no page to turn. */
-    fun of(x: Double, flow: ReaderFlow): TapZone = TapZone.CONTROLS
+    fun of(x: Double, flow: ReaderFlow): TapZone = when {
+        flow == ReaderFlow.SCROLL -> TapZone.CONTROLS
+        x < SIDE -> TapZone.PREVIOUS
+        x > 1 - SIDE -> TapZone.NEXT
+        else -> TapZone.CONTROLS
+    }
 }

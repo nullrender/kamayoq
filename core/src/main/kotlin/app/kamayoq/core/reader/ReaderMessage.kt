@@ -74,8 +74,15 @@ sealed interface ReaderMessage {
                 "failed" -> failed(message)
                 "link" -> link(message)
                 "end" -> if (message.keys == setOf("type")) End else Refused("unexpected fields")
+                "tap" -> tap(message)
                 else -> Refused("unknown type")
             }
+        }
+
+        private fun tap(message: JsonObject): ReaderMessage {
+            if (message.keys != setOf("type", "x")) return Refused("unexpected fields")
+            val x = (message["x"] as? JsonPrimitive)?.takeUnless { it.isString }?.doubleOrNull
+            return if (x != null && x >= 0.0 && x <= 1.0) Tap(x) else Refused("bad tap")
         }
 
         private fun relocated(message: JsonObject): ReaderMessage {
