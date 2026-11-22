@@ -1,6 +1,7 @@
 package app.kamayoq.android
 
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -135,6 +136,20 @@ class HomeContinueTest {
         pressBack()
 
         waitFor(app.getString(R.string.home_place, "Cap. 1", 50))
+    }
+
+    @Test
+    fun `dado o cartão, então todo botão dele tem um nome para o TalkBack`() {
+        folderRead()
+        readAgo("Sakamoto Days", Duration.ofMinutes(130))
+        showHome()
+        waitFor(continueCap1)
+
+        val unnamed = compose.onAllNodes(hasClickAction()).fetchSemanticsNodes().filter { node ->
+            node.config.getOrNull(SemanticsProperties.Text).isNullOrEmpty() &&
+                node.config.getOrNull(SemanticsProperties.ContentDescription).isNullOrEmpty()
+        }
+        assertEquals(0, unnamed.size)
     }
 
     @Test
