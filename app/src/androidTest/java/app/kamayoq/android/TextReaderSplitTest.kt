@@ -291,7 +291,11 @@ class TextReaderSplitTest {
         compose.onNodeWithContentDescription(compose.activity.getString(R.string.reader_previous_chapter)).performClick()
         val back = awaitSaveIn(0)
 
-        assertTrue("Chapter 0 came back at ${back.progress.points()}, it was at $partway", (back.progress.points() ?: 0) >= partway)
+        // Going to the kept place by its CFI lays the screen out from that passage, and the share of
+        // the chapter, read at the screen's end, lands a little before (766 for 787 on the emulator,
+        // run 45045711701); the start would be far behind (74 before the fix, run 45045551459).
+        val points = back.progress.points() ?: 0
+        assertTrue("Chapter 0 came back at $points, it was at $partway", points in (partway - 100)..(partway + 100))
     }
 
     // Gemini's review of slice 5, finding 3: in a split file, the chapter list handed every chapter to
