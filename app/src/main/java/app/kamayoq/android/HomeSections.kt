@@ -10,30 +10,42 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.kamayoq.core.home.Home
+import app.kamayoq.core.library.WorkType
+import app.kamayoq.data.ArrivedItem
 import app.kamayoq.data.ContinueItem
+import app.kamayoq.data.LibraryStore
+import app.kamayoq.data.StoredChapter
 import java.time.Instant
 
 /** A section's title on Home, read as a heading. */
@@ -138,5 +150,116 @@ private fun StripCover(item: ContinueItem, onRead: (String, String) -> Unit) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+    }
+}
+
+/**
+ * A work of Arrived (board SinteseInicio): one line per work, its chapters folded; the arrow opens
+ * the newest ones, each with mark as read and, from Kavita, download or downloaded.
+ */
+@Composable
+internal fun ArrivedGroup(
+    item: ArrivedItem,
+    open: Boolean,
+    onToggle: () -> Unit,
+    downloaded: Set<String>,
+    canDownload: (StoredChapter) -> Boolean,
+    onOpenWork: (String) -> Unit,
+    onRead: (String, String) -> Unit,
+    onMarkRead: (String, String) -> Unit,
+    onDownload: (String, StoredChapter) -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    val palette = LocalPalette.current
+    val title = item.work.title
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                modifier = Modifier.weight(1f).heightIn(min = 64.dp)
+                    .clickable(onClickLabel = stringResource(R.string.home_open_page, title), role = Role.Button) { onOpenWork(item.work.id) },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                ProvisionalCover(title, initialSize = 68.sp, modifier = Modifier.size(width = 44.dp, height = 64.dp).clip(RoundedCornerShape(6.dp)))
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        stringResource(
+                            R.string.home_arrived_line,
+                            pluralStringResource(R.plurals.chapter_count, item.count, item.count),
+                            elapsedText(item.latest),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.onSurfaceVariant,
+                    )
+                }
+            }
+            // The counter in the colour of the work's type (board), read as words.
+            val counted = pluralStringResource(R.plurals.home_arrived_count, item.count, item.count)
+            val comics = item.work.type == WorkType.COMICS
+            Box(
+                modifier = Modifier.sizeIn(minWidth = 28.dp, minHeight = 28.dp)
+                    .background(typeLabel(item.work.type, palette), CircleShape)
+                    .padding(horizontal = 8.dp)
+                    .clearAndSetSemantics { contentDescription = counted },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    item.count.toString(),
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                    color = if (comics) palette.onImageType else palette.onTextType,
+                )
+            }
+            IconButton(onClick = onToggle, modifier = Modifier.size(48.dp)) {
+                Icon(
+                    KamayoqIcons.expand,
+                    contentDescription = stringResource(if (open) R.string.home_arrived_hide else R.string.home_arrived_show, title),
+                    modifier = Modifier.size(20.dp).rotate(if (open) 180f else 0f),
+                )
+            }
+        }
+        if (open) {
+            item.chapters.forEach { row ->
+                val chapter = row.chapter
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 74.dp, end = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                            .clickable(role = Role.Button) { onRead(item.work.id, chapter.id) }
+                            .padding(vertical = 4.dp),
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Text(chapter.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(elapsedText(row.arrivedAt), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                    }
+                    IconButton(onClick = { onMarkRead(item.work.id, chapter.id) }, modifier = Modifier.size(48.dp)) {
+                        Icon(KamayoqIcons.eye, contentDescription = stringResource(R.string.home_mark_read, chapter.name), modifier = Modifier.size(20.dp))
+                    }
+                    // Download only where the origin offers it: a local file is already on the device.
+                    if (chapter.origin == LibraryStore.KAVITA) {
+                        if (chapter.id in downloaded) {
+                            Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                                Icon(
+                                    KamayoqIcons.downloaded,
+                                    contentDescription = stringResource(R.string.chapter_downloaded),
+                                    tint = colors.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        } else if (canDownload(chapter)) {
+                            IconButton(onClick = { onDownload(item.work.id, chapter) }, modifier = Modifier.size(48.dp)) {
+                                Icon(KamayoqIcons.download, contentDescription = stringResource(R.string.home_download, chapter.name), modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

@@ -7,7 +7,16 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -88,11 +97,15 @@ internal fun HomeScreen(
     canDownload: (StoredChapter) -> Boolean,
     onMarkRead: (workId: String, chapterId: String) -> Unit,
     onDownload: (workId: String, chapter: StoredChapter) -> Unit,
+    notices: SnackbarHostState,
 ) {
     if (firstOpening) {
         FirstOpening(restoreBusy, onChooseFolder, onOpenKavita, onPickBackup, Modifier.fillMaxSize().safeDrawingPadding())
         return
     }
+    // The works whose new chapters are open; Arrived starts folded (FEATURES, part 2).
+    var opened by rememberSaveable { mutableStateOf(ArrayList<String>()) }
+    Box(modifier = Modifier.fillMaxSize()) {
     LazyColumn(modifier = Modifier.fillMaxSize().safeDrawingPadding(), contentPadding = PaddingValues(bottom = 16.dp)) {
         item(key = "header") {
             Text(
@@ -103,9 +116,28 @@ internal fun HomeScreen(
         }
         // A section with nothing in it is left out (FEATURES, part 2).
         val continueReading = content?.continueReading.orEmpty()
+        val arrived = content?.arrived.orEmpty()
         if (continueReading.isNotEmpty()) {
             item(key = "continue") { ContinueSection(continueReading, onOpenWork, onRead) }
-        } else {
+        }
+        if (arrived.isNotEmpty()) {
+            item(key = "arrived-title") { HomeSectionTitle(R.string.home_arrived_title) }
+            items(arrived, key = { "arrived-${it.work.id}" }) { group ->
+                val open = group.work.id in opened
+                ArrivedGroup(
+                    item = group,
+                    open = open,
+                    onToggle = { opened = ArrayList(if (open) opened - group.work.id else opened + group.work.id) },
+                    downloaded = downloaded,
+                    canDownload = canDownload,
+                    onOpenWork = onOpenWork,
+                    onRead = onRead,
+                    onMarkRead = onMarkRead,
+                    onDownload = onDownload,
+                )
+            }
+        }
+        if (continueReading.isEmpty() && arrived.isEmpty()) {
             item(key = "later") {
                 Text(
                     stringResource(R.string.home_later),
@@ -115,5 +147,8 @@ internal fun HomeScreen(
                 )
             }
         }
+    }
+    // Over the screen's foot, where a notice with Undo does not move what is under the finger.
+    SnackbarHost(notices, modifier = Modifier.align(Alignment.BottomCenter))
     }
 }

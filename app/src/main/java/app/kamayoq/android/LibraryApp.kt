@@ -31,7 +31,9 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -48,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -67,6 +70,7 @@ import app.kamayoq.data.HomeContent
 import app.kamayoq.data.home
 import app.kamayoq.data.LibraryStore
 import app.kamayoq.data.RestoreResult
+import app.kamayoq.data.StoredChapter
 import app.kamayoq.data.StoredWork
 import app.kamayoq.data.WorkCovers
 import app.kamayoq.data.kavita.StoredKavitaKey
@@ -129,6 +133,9 @@ fun LibraryApp(
     // True while the reader shown was opened from Home: closing it goes back there.
     var readerFromHome by rememberSaveable { mutableStateOf(false) }
     var homeContent by remember { mutableStateOf<HomeContent?>(null) }
+    // The chapters of Arrived already on the device, and Home's own notices.
+    var homeDownloaded by remember { mutableStateOf(emptySet<String>()) }
+    val homeNotices = remember { SnackbarHostState() }
     // When the reader last opened, in milliseconds: a change of state the app made since then is
     // told on the Work screen as the reader closes (FEATURES, part 3: always with a notice).
     var readingSince by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -322,9 +329,42 @@ fun LibraryApp(
         if (openWorkId == null) news = WorkNews.NONE
     }
 
-    // Read again whenever Home shows: what any other screen did may change it.
-    LaunchedEffect(tab, rows, openWorkId, readingChapterId, progressVersion) {
-        if (tab == AppTab.HOME && openWorkId == null) homeContent = withContext(Dispatchers.IO) { store.home() }
+    // Read again whenever Home shows: what any other screen did may change it, and a download that ends.
+    val downloadsNow by kavitaSync.downloads.collectAsState()
+    LaunchedEffect(tab, rows, openWorkId, readingChapterId, progressVersion, downloadsNow) {
+        if (tab != AppTab.HOME || openWorkId != null) return@LaunchedEffect
+        val (content, there) = withContext(Dispatchers.IO) {
+            val read = store.home()
+            read to read.arrived.flatMap { it.chapters }.map { it.chapter }.filter(kavitaSync::isDownloaded).map { it.id }.toSet()
+        }
+        homeContent = content
+        homeDownloaded = there
+    }
+    val homeResources = LocalResources.current
+    // A marking said with Undo, as on the Work screen.
+    fun markFromHome(work: String, chapter: String) {
+        scope.launch {
+            val change = withContext(Dispatchers.IO) { store.markRead(work, listOf(chapter), Instant.now()) }
+            progressVersion++
+            if (change.changed == 0) return@launch
+            val answer = homeNotices.showSnackbar(
+                homeResources.getQuantityString(R.plurals.marked_read, change.changed, change.changed),
+                actionLabel = homeResources.getString(R.string.undo),
+                duration = SnackbarDuration.Long,
+            )
+            if (answer == SnackbarResult.ActionPerformed) {
+                withContext(Dispatchers.IO) { store.undoMarks(change) }
+                progressVersion++
+            }
+        }
+    }
+    fun downloadFromHome(work: String, chapter: StoredChapter) {
+        scope.launch {
+            val count = withContext(Dispatchers.IO) { kavitaSync.download(work, listOf(chapter)) }
+            val message = if (count > 0) homeResources.getQuantityString(R.plurals.download_started, count, count)
+            else homeResources.getString(R.string.download_already_coming)
+            homeNotices.showSnackbar(message, duration = SnackbarDuration.Long)
+        }
     }
 
     val workId = openWorkId
@@ -461,10 +501,11 @@ fun LibraryApp(
                                 openWorkId = work
                                 readingChapterId = chapter
                             },
-                            downloaded = emptySet(),
-                            canDownload = { false },
-                            onMarkRead = { _, _ -> },
-                            onDownload = { _, _ -> },
+                            downloaded = homeDownloaded,
+                            canDownload = kavitaSync::canDownload,
+                            onMarkRead = ::markFromHome,
+                            onDownload = ::downloadFromHome,
+                            notices = homeNotices,
                         )
                         AppTab.SETTINGS -> SettingsScreen(
                             hasFolder = tree != null,

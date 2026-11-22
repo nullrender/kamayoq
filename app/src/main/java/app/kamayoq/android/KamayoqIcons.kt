@@ -31,6 +31,19 @@ internal object KamayoqIcons {
 
     val play = filled("play", "M8 5.5v13a1 1 0 0 0 1.5.9l10.5-6.5a1 1 0 0 0 0-1.8L9.5 4.6A1 1 0 0 0 8 5.5z")
 
+    val eye = stroked(
+        "eye",
+        2f,
+        "M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z",
+        "M14.6 12a2.6 2.6 0 1 1-5.2 0a2.6 2.6 0 1 1 5.2 0",
+    )
+
+    val download = stroked("download", 2f, "M12 5v10", "M7.5 11l4.5 4.5 4.5-4.5", "M5 19h14")
+
+    val downloaded = filled("downloaded", "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm4.7 6.7l-5.5 6-3.4-3.2 1.2-1.3 2.1 2 4.3-4.7z")
+
+    val expand = stroked("expand", 2f, "M6 9l6 6 6-6")
+
     val home = filled("home", "M12 3.2l8.5 7.3V20a1 1 0 0 1-1 1h-4.5v-6.5h-6V21H4.5a1 1 0 0 1-1-1v-9.5z")
 
     val library = filled(
