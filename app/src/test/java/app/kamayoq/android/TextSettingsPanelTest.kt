@@ -74,7 +74,7 @@ class TextSettingsPanelTest {
 
         compose.onNodeWithContentDescription(text(R.string.reader_margins_down)).performScrollTo().performClick()
 
-        assertEquals(20, settings.own?.margin)
+        assertEquals(12, settings.own?.margin)
         assertNull(settings.general.margin)
         compose.onNodeWithText(text(R.string.reader_note_work_own, text(R.string.reader_property_margins))).assertExists()
     }
