@@ -203,7 +203,7 @@ const chapterMeter = chapters => {
         // Before the first chapter that starts in this section: still in the one before it.
         return started ?? Math.max(here[0].chapter - 1, 0)
     }
-    const measure = async location => {
+    const meterOf = async location => {
         const section = location?.section?.current
         const pieces = sizeOf(section) > PIECES_ABOVE && targets.some(target => target.section === section)
         const chapter = pieces ? await inPieces(location, section) : chapterOf(chapters.ofItem, location?.tocItem)
@@ -212,8 +212,8 @@ const chapterMeter = chapters => {
         return { chapter, chapterFraction: chapterFraction(location?.fraction, start, end) }
     }
     // Where a chapter starts and ends in the book, for Go to inside it.
-    measure.span = chapter => Promise.all([startOf(chapter), startOf(chapter + 1)])
-    return measure
+    meterOf.span = chapter => Promise.all([startOf(chapter), startOf(chapter + 1)])
+    return meterOf
 }
 
 // The paginator shows a section above this size in pieces (CHUNK_THRESHOLD in paginator.js).
