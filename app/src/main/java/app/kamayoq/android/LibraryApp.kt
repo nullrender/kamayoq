@@ -312,6 +312,8 @@ fun LibraryApp(
     LaunchedEffect(openWorkId) {
         if (openWorkId == null && rows != null) {
             visitWrite?.join()
+            // The reader opened from Home closes into the Library's reading too: after its last saves.
+            opening.turns.waitForSaves()
             show(withContext(Dispatchers.IO) { readRows() })
         }
     }
@@ -344,6 +346,8 @@ fun LibraryApp(
     LaunchedEffect(tab, rows, openWorkId, readingChapterId, progressVersion, downloadsNow) {
         if (tab != AppTab.HOME || openWorkId != null) return@LaunchedEffect
         visitWrite?.join()
+        // The reader's last saves wait in their turn: read before them, Home would show the place before.
+        opening.turns.waitForSaves()
         val (content, there) = withContext(Dispatchers.IO) {
             val read = store.home()
             read to read.arrived.flatMap { it.chapters }.map { it.chapter }.filter(kavitaSync::isDownloaded).map { it.id }.toSet()
@@ -390,7 +394,11 @@ fun LibraryApp(
                     readerFromHome = false
                     openWorkId = null
                 }
-                progressVersion++
+                // The Work screen reads the chapters again on this; after the reader's last saves.
+                scope.launch {
+                    opening.turns.waitForSaves()
+                    progressVersion++
+                }
             }
             BackHandler(onBack = close)
             ReaderHost(
