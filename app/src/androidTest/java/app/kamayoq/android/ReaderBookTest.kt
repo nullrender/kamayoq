@@ -79,6 +79,19 @@ class ReaderBookTest {
         }
     }
 
+    /**
+     * The first move of the person to another place within 5 s. The page lays out again when the
+     * reading font arrives (slice 5) and says so, by ANCHOR, with the same place: that is no turn.
+     */
+    private fun turnAfterSwipe(from: String): ReaderMessage.Relocated? {
+        val deadline = SystemClock.uptimeMillis() + 5_000
+        while (SystemClock.uptimeMillis() < deadline) {
+            val message = nextRelocated(seconds = 1) ?: continue
+            if (message.reason.byPerson && message.cfi != from) return message
+        }
+        return null
+    }
+
     private fun firstRelocated() = nextRelocated() ?: throw AssertionError("No position arrived; console: $console")
 
     private fun restored() {
@@ -194,7 +207,7 @@ class ReaderBookTest {
         var turned: ReaderMessage.Relocated? = null
         for (attempt in 1..3) {
             swipeScreen(location[0] + width * 0.8f to y, location[0] + width * 0.2f to y)
-            turned = nextRelocated(seconds = 5)?.takeIf { it.cfi != first.cfi }
+            turned = turnAfterSwipe(first.cfi)
             if (turned != null) break
         }
 
