@@ -14,6 +14,7 @@ import app.kamayoq.core.progress.ReadingState
 import app.kamayoq.core.progress.StripPosition
 import java.time.Duration
 import java.time.Instant
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -104,6 +105,27 @@ class HomeContinueTest {
 
         waitFor(heading)
         assertEquals(0, count(app.getString(R.string.back)))
+    }
+
+    @Test
+    fun `dado uma gravação do leitor ainda na fila quando ele fecha, então o Início mostra o lugar que ela grava`() {
+        folderRead()
+        readAgo("Sakamoto Days", Duration.ofMinutes(130))
+        showHome()
+        waitFor(continueCap1)
+        compose.onNode(hasText(continueCap1) and hasClickAction()).performClick()
+        compose.waitForIdle()
+
+        // The reader's last page, saved in its turn and slower than the way back to Home.
+        val chapter = app.store.chapters(app.store.works().single { it.title == "Sakamoto Days" }.id).single().id
+        val round = runBlocking { app.opening.turns.open { it } }
+        app.opening.turns.inLine(round) {
+            Thread.sleep(1_500)
+            app.store.saveProgress(chapter, ChapterProgress(null, StripPosition(10, 20, Instant.now(), "test-device"), 0))
+        }
+        pressBack()
+
+        waitFor(app.getString(R.string.home_place, "Cap. 1", 50))
     }
 
     @Test
