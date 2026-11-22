@@ -194,8 +194,6 @@
     <string name="settings_folder">Folder on this device</string>
     <string name="settings_kavita">Kavita</string>
     <string name="settings_backup">Backup</string>
-    <!-- Home has no content of its own until a later build; this says so plainly. -->
-    <string name="home_later">Continue reading, new chapters and recently added works will be here in a coming build. Your works are in the Library.</string>
     <!-- The first opening (board PrimeiraAbertura), in the order decided on 24/10/2026: files, Kavita, restore. -->
     <string name="empty_title">Your library is empty.</string>
     <string name="empty_humor">The shelves are in place. The works are missing.</string>

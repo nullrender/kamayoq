@@ -127,8 +127,8 @@ fun LibraryApp(
     var collapsed by rememberSaveable(stateSaver = COLLAPSED_SAVER) { mutableStateOf(emptySet<WorkType>()) }
     // Kept above the screens, so a work opened from the results comes back to them.
     var searching by rememberSaveable { mutableStateOf(false) }
-    // The app opens on the Library until Home has content of its own (slice 4).
-    var tab by rememberSaveable { mutableStateOf(AppTab.LIBRARY) }
+    // Home is where the app opens (decision of 19/11/2026, with slice 4).
+    var tab by rememberSaveable { mutableStateOf(AppTab.HOME) }
     var query by rememberSaveable { mutableStateOf("") }
     var stateFilter by rememberSaveable { mutableStateOf(StateFilter.ALL) }
     var readingChapterId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -468,8 +468,8 @@ fun LibraryApp(
             }
         }
         else -> {
-            // Back from Home or Settings goes to the Library, the place the app opens on.
-            BackHandler(enabled = tab != AppTab.LIBRARY) { tab = AppTab.LIBRARY }
+            // Back from the Library or Settings goes to Home, the place the app opens on.
+            BackHandler(enabled = tab != AppTab.HOME) { tab = AppTab.HOME }
             // Back closes the search first, as it closes a sheet (AGENTS.md).
             BackHandler(enabled = tab == AppTab.LIBRARY && searching) {
                 searching = false
@@ -506,6 +506,8 @@ fun LibraryApp(
                                 backupPicker.launch(arrayOf("*/*"))
                             },
                             content = homeContent,
+                            hasWorks = rows.orEmpty().isNotEmpty(),
+                            onOpenLibrary = { tab = AppTab.LIBRARY },
                             onOpenWork = { openWorkId = it },
                             onRead = { work, chapter ->
                                 readerFromHome = true

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -19,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -91,6 +93,8 @@ internal fun HomeScreen(
     onOpenKavita: () -> Unit,
     onPickBackup: () -> Unit,
     content: HomeContent?,
+    hasWorks: Boolean,
+    onOpenLibrary: () -> Unit,
     onOpenWork: (String) -> Unit,
     onRead: (workId: String, chapterId: String) -> Unit,
     downloaded: Set<String>,
@@ -99,7 +103,8 @@ internal fun HomeScreen(
     onDownload: (workId: String, chapter: StoredChapter) -> Unit,
     notices: SnackbarHostState,
 ) {
-    if (firstOpening) {
+    // With no work at all, Home shows the ways in, as the first opening does: a folder chosen may be empty.
+    if (firstOpening || (content != null && content.isEmpty && !hasWorks)) {
         FirstOpening(restoreBusy, onChooseFolder, onOpenKavita, onPickBackup, Modifier.fillMaxSize().safeDrawingPadding())
         return
     }
@@ -142,14 +147,15 @@ internal fun HomeScreen(
             item(key = "added-title") { HomeSectionTitle(R.string.home_added_title) }
             items(added, key = { "added-${it.work.id}" }) { AddedRow(it, onOpenWork) }
         }
-        if (continueReading.isEmpty() && arrived.isEmpty() && added.isEmpty()) {
-            item(key = "later") {
-                Text(
-                    stringResource(R.string.home_later),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                )
+        // Every section empty: Home says why and what to do (FEATURES, part 2). Nothing before the
+        // first reading of the store, so the screen never says empty about what it has not read.
+        if (content != null && content.isEmpty) {
+            item(key = "empty") {
+                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(R.string.home_empty_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.announced())
+                    Text(stringResource(R.string.home_empty_text), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Button(onClick = onOpenLibrary, modifier = Modifier.sizeIn(minHeight = 48.dp)) { Text(stringResource(R.string.home_go_library)) }
+                }
             }
         }
     }
