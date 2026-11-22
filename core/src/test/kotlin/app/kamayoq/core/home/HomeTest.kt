@@ -140,6 +140,19 @@ class HomeTest {
     }
 
     @Test
+    fun `dado uma obra em Lendo só por marcas à mão, sem nada aberto, então ela entra em Continuar lendo na hora da última marca`() {
+        val result = Home.continueReading(
+            listOf(
+                ReadingWork("read", ReadingState.READING, hoursAgo(5)),
+                ReadingWork("marked", ReadingState.READING, lastReadAt = null, lastMarkedAt = hoursAgo(2)),
+                ReadingWork("nothing", ReadingState.READING, lastReadAt = null, lastMarkedAt = null),
+            ),
+        )
+
+        assertEquals(listOf("marked", "read"), result)
+    }
+
+    @Test
     fun `dado oito obras em Lendo, então Continuar lendo mostra seis, o cartão e a faixa com a próxima na borda`() {
         val result = Home.continueReading((1..8).map { ReadingWork("w$it", ReadingState.READING, hoursAgo(it.toLong())) })
 

@@ -21,6 +21,8 @@ data class ContinueItem(
     val chapterCount: Int,
     val position: ReadingPosition?,
     val lastReadAt: Instant,
+    // No chapter of it was opened: it is in Reading by read marks alone, and [lastReadAt] is the last mark.
+    val byMarks: Boolean,
     // Kavita's reading went to another chapter than this device's: where to go on is the person's,
     // asked on the Work screen before the reader opens (progress contract, case 5).
     val crossing: Boolean,
@@ -54,7 +56,8 @@ fun LibraryStore.home(): HomeContent = atOneMoment {
     val states = works.associate { it.id to readingState(it.id).state }
     val visits = works.associate { it.id to lastVisit(it.id) }
     val lastRead = works.associate { work -> work.id to chapters.getValue(work.id).mapNotNull { progress.getValue(it.id).position?.at }.maxOrNull() }
-    val continueReading = Home.continueReading(works.map { ReadingWork(it.id, states[it.id], lastRead[it.id]) }).mapNotNull { id ->
+    val lastMarked = works.associate { work -> work.id to chapters.getValue(work.id).mapNotNull { progress.getValue(it.id).readMark?.at }.maxOrNull() }
+    val continueReading = Home.continueReading(works.map { ReadingWork(it.id, states[it.id], lastRead[it.id], lastMarked[it.id]) }).mapNotNull { id ->
         val list = chapters.getValue(id)
         val resume = resumeChapter(id)?.takeIf { it.present }
         val target = ContinueTargets.of(list.map { ChapterReading(it.id, progress.getValue(it.id)) }, resume?.id) ?: return@mapNotNull null
@@ -64,7 +67,8 @@ fun LibraryStore.home(): HomeContent = atOneMoment {
             goesOn = target.goesOn,
             chapterCount = list.size,
             position = progress.getValue(target.chapterId).position,
-            lastReadAt = checkNotNull(lastRead[id]),
+            lastReadAt = checkNotNull(lastRead[id] ?: lastMarked[id]),
+            byMarks = lastRead[id] == null,
             crossing = resume != null && alternatives(id).any { it.reason == LibraryStore.CONFLICT && it.chapterId != resume.id },
         )
     }

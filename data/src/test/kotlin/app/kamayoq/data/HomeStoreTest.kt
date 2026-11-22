@@ -72,6 +72,19 @@ class HomeStoreTest {
     }
 
     @Test
+    fun `dado uma obra em Lendo só por marcas à mão, então Continuar lendo a traz apontando para o primeiro capítulo não lido`() {
+        read(first, *folder)
+        store.markRead(work("Sakamoto Days").id, listOf(chapter("Sakamoto Days", "Cap. 001").id), later)
+
+        val item = store.home().continueReading.single()
+
+        assertEquals("Sakamoto Days", item.work.title)
+        assertEquals("Cap. 002", item.target.name)
+        assertTrue(item.byMarks)
+        assertEquals(later, item.lastReadAt)
+    }
+
+    @Test
     fun `dado uma obra aberta e ainda sem estado, então ela não entra em Continuar lendo`() {
         read(first, *folder)
         store.saveProgress(chapter("Gantz", "Cap. 001").id, ChapterProgress(null, StripPosition(5, 20, later, "phone-a"), 0))

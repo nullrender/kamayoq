@@ -87,6 +87,19 @@ class HomeContinueTest {
     }
 
     @Test
+    fun `dado uma obra em Lendo só por marcas à mão, então o cartão diz quando foi marcada e continua no capítulo seguinte`() {
+        val folder = FolderInMemory(app, listOf("Gantz")).apply { moreChapters = mapOf("Gantz" to listOf("Cap. 2.cbz")) }
+        val paths = listOf("Comics/Gantz/Cap. 1.cbz", "Comics/Gantz/Cap. 2.cbz")
+        app.store.importLocal(folder.tree.toString(), FolderConvention.read(paths), paths.associateWith { FileStamp(10, 1) }, at = Instant.now().minus(Duration.ofDays(30)))
+        val work = app.store.works().single().id
+        app.store.markRead(work, listOf(app.store.chapters(work).first().id), Instant.now().minus(Duration.ofMinutes(130)))
+        compose.setContent { LibraryApp(app.store, folder, app.opening, app.backups, app.kavita, app.kavitaSync, "test-device", app.restores) }
+
+        waitFor(app.getString(R.string.home_continue, "Cap. 2"))
+        waitFor(app.getString(R.string.home_marked_ago, app.resources.getQuantityString(R.plurals.elapsed_hours, 2, 2)))
+    }
+
+    @Test
     fun `dado uma obra lida pela última vez há 20 dias, então o cartão diz onde a pessoa deixou, sem dizer há quanto tempo`() {
         folderRead()
         readAgo("Sakamoto Days", Duration.ofDays(20))

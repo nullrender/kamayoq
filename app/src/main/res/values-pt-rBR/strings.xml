@@ -281,6 +281,7 @@
     <string name="home_continue">Continuar · %1$s</string>
     <string name="home_place">%1$s · %2$d%%</string>
     <string name="home_where_left">%1$s, onde você deixou.</string>
+    <string name="home_marked_ago">Marcado como lido %1$s</string>
     <string name="home_open_page">Abrir a página de %1$s</string>
     <string name="home_arrived_title">Chegou</string>
     <string name="home_arrived_line">%1$s · %2$s</string>

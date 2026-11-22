@@ -342,6 +342,8 @@
     <string name="home_place">%1$s · %2$d%%</string>
     <!-- On the card after weeks with no reading of the work, instead of how long ago (PERSONALITY). -->
     <string name="home_where_left">%1$s, where you left it.</string>
+    <!-- Continue reading for a work in Reading by read marks alone: nothing was read here to time. -->
+    <string name="home_marked_ago">Marked as read %1$s</string>
     <!-- What a work's cover and title do on Home, for TalkBack. -->
     <string name="home_open_page">Open the page of %1$s</string>
     <!-- Home's section of new chapters, grouped by work (board SinteseInicio; never "Updates"). -->

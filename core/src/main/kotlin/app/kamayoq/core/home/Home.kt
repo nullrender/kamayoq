@@ -16,8 +16,11 @@ data class ArrivalWork(val workId: String, val state: ReadingState?, val lastVis
 /** A work in Arrived: its [count] new chapters, the [shown] ones newest first, and when the newest came. */
 data class ArrivedGroup(val workId: String, val count: Int, val shown: List<ArrivedChapter>, val latest: Instant)
 
-/** A work and the moment its reading last moved, null when nothing of it was opened. */
-data class ReadingWork(val workId: String, val state: ReadingState?, val lastReadAt: Instant?)
+/**
+ * A work and the moment its reading last moved, null when nothing of it was opened, and the last
+ * read mark put on any of its chapters, null for none.
+ */
+data class ReadingWork(val workId: String, val state: ReadingState?, val lastReadAt: Instant?, val lastMarkedAt: Instant? = null)
 
 /** A work and when it came into the Library after the zero mark, null for one from before it. */
 data class AddedWork(val workId: String, val addedAt: Instant?, val lastVisit: Instant?)
