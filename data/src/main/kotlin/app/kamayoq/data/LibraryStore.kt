@@ -180,6 +180,9 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
 
     private val database = KamayoqDatabase(driver)
 
+    /** Runs [block] in one transaction: what it reads is the store at one moment. */
+    internal fun <T> atOneMoment(block: () -> T): T = database.transactionWithResult { block() }
+
     fun syncItems(server: String): List<SyncItem> =
         database.chapterQueries.syncItems(server, ::syncItem).executeAsList()
 

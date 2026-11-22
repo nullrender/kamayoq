@@ -39,9 +39,11 @@ data class HomeContent(val continueReading: List<ContinueItem>, val arrived: Lis
 
 /**
  * Home as the store has it now, by the rules of core Home. Only works present in the Library: what
- * left the folder or an unmarked library leaves Home too.
+ * left the folder or an unmarked library leaves Home too. Read in one transaction: the folder and
+ * Kavita are read at the same time, and a chapter that arrived between two of these readings would
+ * be in one and not in the other.
  */
-fun LibraryStore.home(): HomeContent {
+fun LibraryStore.home(): HomeContent = atOneMoment {
     val works = works()
     val byId = works.associateBy { it.id }
     val chapters = works.associate { it.id to chapters(it.id) }
@@ -82,5 +84,5 @@ fun LibraryStore.home(): HomeContent {
     val added = Home.added(works.map { AddedWork(it.id, addedAt[it.id], visits[it.id]) }).map { id ->
         AddedItem(byId.getValue(id), chapters.getValue(id).size, checkNotNull(addedAt[id]))
     }
-    return HomeContent(continueReading, arrived, added)
+    HomeContent(continueReading, arrived, added)
 }
