@@ -35,6 +35,7 @@ import app.kamayoq.core.library.ChapterFormat
 import app.kamayoq.core.library.FolderConvention
 import app.kamayoq.core.library.WorkType
 import app.kamayoq.core.progress.ChapterProgress
+import app.kamayoq.core.progress.StripPosition
 import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.progress.strip
 import app.kamayoq.core.reader.FileTooLargeException
@@ -128,6 +129,7 @@ private sealed interface Opening {
         /** The chapter before this one in the work, and this one's place among them. */
         val before: StoredChapter?,
         val place: ChapterPlace?,
+        val rows: List<ReaderChapterRow>,
     ) : Opening
 }
 
@@ -391,6 +393,8 @@ fun ReaderHost(
                     modeSettings = current.mode,
                     place = current.place,
                     onModeSettings = { keepImageMode(store, opening.turns, current.round, workId, it) },
+                    chapterRows = current.rows,
+                    onOpenChapter = { id -> if (id != current.chapter.chapterId) onOpenChapter(id) },
                     onPreviousChapter = current.before?.let { { onOpenChapter(it.id) } },
                     onNext = { current.next?.let { onOpenChapter(it.id) } },
                     onBack = onBack,
@@ -427,6 +431,14 @@ private fun chapterRows(store: LibraryStore, workId: String, type: WorkType): Li
         val share = (progress.position as? TextPosition)?.fraction?.value?.div(100)
         ReaderChapterRow(chapter.id, chapter.name, read, share?.takeIf { !read && it in 1..99 })
     }
+}
+
+/** A comic's chapters for the image reader's Chapters sheet, with how far a chapter begun goes. */
+private fun imageChapterRows(store: LibraryStore, chapters: List<StoredChapter>): List<ReaderChapterRow> = chapters.map { chapter ->
+    val progress = store.progress(chapter.id)
+    val read = progress.readMark != null
+    val percent = (progress.position as? StripPosition)?.let { it.page * 100 / it.totalPages }
+    ReaderChapterRow(chapter.id, chapter.name, read, percent?.takeIf { !read && it in 1..99 })
 }
 
 /** The panel's settings, in the same line as the saves of the place, off the main thread. */
@@ -611,6 +623,7 @@ private fun openChapter(
             opened, title, chapters.getOrNull(index + 1), previous, turn.token, round, store.imageMode(workId),
             before = chapters.getOrNull(index - 1),
             place = ChapterPlace(index + 1, chapters.size).takeIf { index >= 0 },
+            rows = imageChapterRows(store, chapters),
         )
     } catch (e: Exception) {
         opened.release()

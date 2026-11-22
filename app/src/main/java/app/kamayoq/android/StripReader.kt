@@ -87,6 +87,8 @@ fun ImageReader(
     place: ChapterPlace? = null,
     onPreviousChapter: (() -> Unit)? = null,
     onModeSettings: (ImageModeSettings) -> Unit = {},
+    chapterRows: List<ReaderChapterRow>? = null,
+    onOpenChapter: (String) -> Unit = {},
 ) {
     val reading = remember(chapter) { StripReading.open(chapter.progress, chapter.pages.size, deviceId) }
     if (reading == null) {
