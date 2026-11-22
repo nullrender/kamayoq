@@ -117,4 +117,11 @@ class TextLookStoreTest {
         store.markPagesHintSeen()
         assertTrue(store.pagesHintSeen())
     }
+
+    // Gemini's review of slice 5, finding 10: a number past an Int was cut to 32 bits before the check.
+    @Test
+    fun `dado um tamanho guardado que passa de um Int, então ele vale como não escolhido e não como o resto do corte`() {
+        driver.execute(null, "INSERT INTO text_look_general (id, size) VALUES (1, 4294967316)", 0)
+        assertNull(store.textSettings("any").general.size)
+    }
 }
