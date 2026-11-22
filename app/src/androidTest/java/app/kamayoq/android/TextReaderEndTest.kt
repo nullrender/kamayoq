@@ -2,6 +2,7 @@ package app.kamayoq.android
 
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -56,6 +57,8 @@ class TextReaderEndTest {
                     seen += message::class.simpleName.orEmpty()
                     messages += message
                 },
+                onSettings = {},
+                onFlow = {},
             )
         }
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60)
@@ -178,5 +181,19 @@ class TextReaderEndTest {
         Thread.sleep(1_000)
 
         assertEquals(1, saves.maxOf { it.completeReads })
+    }
+
+    // Gemini's review of slice 5, finding 11: a new mode opens the book again, and the end block stayed
+    // over the new page, which stayed hidden under it.
+    @Test
+    fun `dado o bloco de fim quando troco o modo no painel então o livro volta à tela`() {
+        readToTheEnd()
+        compose.waitUntil(15_000) { endBlockShows() }
+
+        compose.onNodeWithContentDescription(compose.activity.getString(R.string.reader_settings_description)).performClick()
+        compose.onNodeWithText(compose.activity.getString(R.string.reader_tab_look)).performClick()
+        compose.onNodeWithText(compose.activity.getString(R.string.reader_mode_scroll)).performClick()
+
+        compose.waitUntil(15_000) { !endBlockShows() }
     }
 }

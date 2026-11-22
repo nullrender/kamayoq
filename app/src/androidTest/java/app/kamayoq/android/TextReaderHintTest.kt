@@ -2,6 +2,7 @@ package app.kamayoq.android
 
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -79,5 +80,21 @@ class TextReaderHintTest {
         open(WorkType.NOVELS)
         compose.waitForIdle()
         assertEquals(false, shown(R.string.reader_hint_ok))
+    }
+
+    // Gemini's review of slice 5, finding 11: the bars stayed behind the veil, reachable by keyboard
+    // and switch access while the hint asked to be read first.
+    @Test
+    fun `dado a dica na tela então as barras ficam escondidas até Entendi`() {
+        open(WorkType.BOOKS)
+        compose.waitForIdle()
+        val back = compose.activity.getString(R.string.reader_back_to_work)
+        assertEquals(true, shown(R.string.reader_hint_ok))
+        assertEquals(0, compose.onAllNodesWithContentDescription(back).fetchSemanticsNodes().size)
+
+        compose.onNodeWithText(compose.activity.getString(R.string.reader_hint_ok)).performClick()
+        compose.waitForIdle()
+
+        assertEquals(1, compose.onAllNodesWithContentDescription(back).fetchSemanticsNodes().size)
     }
 }

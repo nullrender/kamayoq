@@ -1,6 +1,7 @@
 package app.kamayoq.android
 
 import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -32,5 +33,12 @@ class PagesHintTest {
         compose.onNodeWithText(context.getString(R.string.reader_hint_ok)).assertHeightIsAtLeast(48.dp).performClick()
 
         assertEquals(1, dismissed)
+    }
+
+    // Gemini's review of slice 5, finding 11: the veil was a clickable node with no label.
+    @Test
+    fun `dado a dica, então o único alvo de toque é o Entendi`() {
+        compose.setContent { KamayoqTheme { PagesHint(onDismiss = {}) } }
+        assertEquals(1, compose.onAllNodes(hasClickAction()).fetchSemanticsNodes().size)
     }
 }
