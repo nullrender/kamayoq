@@ -116,6 +116,7 @@ fun TextReader(
         chapterOf = { chapter }, onPreviousChapter = onPreviousChapter, onNextChapter = onNextChapter,
         settings = settings, onSettings = onSettings, onFlow = onFlow,
         chapterRows = chapterRows, chapterIdOf = { chapterId }, onOpenWorkChapter = onOpenWorkChapter,
+        pagesHint = pagesHint, onPagesHintSeen = onPagesHintSeen,
     )
 }
 
@@ -127,7 +128,7 @@ fun TextReader(
  * what the panel changes, and without [onSettings] there is no panel. A novel's [chapterRows] are
  * its chapters for the Chapters sheet, [chapterIdOf] the one the page is in (from the chapter of a
  * split file), and [onOpenWorkChapter] opens another; without rows, Chapters shows the file's contents.
- * The [pagesHint] and [onPagesHintSeen] are not used yet.
+ * With [pagesHint], the first opening in Pages shows the hint, and Got it calls [onPagesHintSeen].
  */
 @Composable
 fun TextReader(
@@ -169,6 +170,7 @@ fun TextReader(
     var panelOpen by remember(archive) { mutableStateOf(false) }
     var goToOpen by remember(archive) { mutableStateOf(false) }
     var chaptersOpen by remember(archive) { mutableStateOf(false) }
+    var hintDismissed by remember(archive) { mutableStateOf(false) }
     // Until the page measures it, no warning: a false one would blame a device that hyphenates.
     var hyphenates by remember(archive) { mutableStateOf(true) }
     val look = current.effective()
@@ -334,6 +336,13 @@ fun TextReader(
             onProgress = { goToOpen = true },
             end = { if (onSettings != null) SettingsButton(enabled = ready) { panelOpen = true } },
         )
+    }
+    // Over the bars too: the hint is read before anything else is touched.
+    if (pagesHint && !hintDismissed && ready && flow == ReaderFlow.PAGES && problem == null) {
+        PagesHint(onDismiss = {
+            hintDismissed = true
+            onPagesHintSeen()
+        })
     }
     }
 

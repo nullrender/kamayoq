@@ -89,6 +89,7 @@ private sealed interface Opening {
         val settings: TextSettings,
         val mode: ReaderFlow?,
         val rows: List<ReaderChapterRow>?,
+        val hintSeen: Boolean,
     ) : Opening
 
     /** A compiled novel: one file read across its chapters; [next] is the chapter after the file. */
@@ -104,6 +105,7 @@ private sealed interface Opening {
         val settings: TextSettings,
         val mode: ReaderFlow?,
         val rows: List<ReaderChapterRow>?,
+        val hintSeen: Boolean,
     ) : Opening
 
     /** In a book, [sections] says the pages are sections. */
@@ -309,6 +311,8 @@ fun ReaderHost(
                 chapterRows = current.rows,
                 chapterId = current.text.chapterId,
                 onOpenWorkChapter = onOpenChapter,
+                pagesHint = !current.hintSeen,
+                onPagesHintSeen = { keepHintSeen(store, opening.turns, current.round) },
                 chosenFlow = current.mode,
                 settings = current.settings,
                 onSettings = { kept -> keepSettings(store, opening.turns, current.round, current.workId, kept) },
@@ -348,6 +352,8 @@ fun ReaderHost(
                 chapterRows = current.rows,
                 chapterIdOf = { inFile -> inFile?.let(ids::getOrNull) ?: readingNow ?: ids[current.split.opened] },
                 onOpenWorkChapter = onOpenChapter,
+                pagesHint = !current.hintSeen,
+                onPagesHintSeen = { keepHintSeen(store, opening.turns, current.round) },
                 chosenFlow = current.mode,
                 settings = current.settings,
                 onSettings = { kept -> keepSettings(store, opening.turns, current.round, current.workId, kept) },
@@ -420,6 +426,16 @@ private fun keepSettings(store: LibraryStore, turns: OpeningTurns, round: Long, 
             store.saveTextSettings(workId, settings)
         } catch (e: Exception) {
             Log.e("Kamayoq", "Saving the reader's settings failed", e)
+        }
+    }
+}
+
+private fun keepHintSeen(store: LibraryStore, turns: OpeningTurns, round: Long) {
+    turns.inLine(round) {
+        try {
+            store.markPagesHintSeen()
+        } catch (e: Exception) {
+            Log.e("Kamayoq", "Saving that the Pages hint was seen failed", e)
         }
     }
 }
@@ -635,7 +651,7 @@ private fun openText(
             when (val file = store.splitOpening(text.chapterId, SplitContents.of(text.archive))) {
                 is SplitOpening -> return Opening.ReadySplit(
                     text, work ?: chapter.name, file, round, type, afterFile, order, workId, store.textSettings(workId), store.textMode(workId),
-                    chapterRows(store, workId, type),
+                    chapterRows(store, workId, type), store.pagesHintSeen(),
                 )
                 // A file that lost its division since the folder was read: one chapter took the
                 // place of the ones it had, and the reading is that chapter's from here on, with its
@@ -655,7 +671,7 @@ private fun openText(
         val marker = turn?.let { store.syncItem(whole.chapterId)?.knownPlace(progress.position as? TextPosition)?.marker }
         return Opening.ReadyText(
             whole, title, progress, round, turn, marker, type, nextNow, order, workId, store.textSettings(workId), store.textMode(workId),
-            chapterRows(store, workId, type),
+            chapterRows(store, workId, type), store.pagesHintSeen(),
         )
     } catch (e: Exception) {
         text.release()
