@@ -38,7 +38,7 @@ import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.progress.strip
 import app.kamayoq.core.reader.FileTooLargeException
-import app.kamayoq.core.reader.ImageMode
+import app.kamayoq.core.reader.ImageModeSettings
 import app.kamayoq.core.reader.ReaderFlow
 import app.kamayoq.core.reader.SplitReading
 import app.kamayoq.core.reader.TextSettings
@@ -124,7 +124,7 @@ private sealed interface Opening {
         val previous: StoredAlternative?,
         val turn: Long,
         val round: Long,
-        val mode: ImageMode,
+        val mode: ImageModeSettings,
         /** The chapter before this one in the work, and this one's place among them. */
         val before: StoredChapter?,
         val place: ChapterPlace?,
@@ -388,8 +388,9 @@ fun ReaderHost(
                     title = current.title,
                     nextChapterName = current.next?.name,
                     deviceId = deviceId,
-                    mode = current.mode,
+                    modeSettings = current.mode,
                     place = current.place,
+                    onModeSettings = { keepImageMode(store, opening.turns, current.round, workId, it) },
                     onPreviousChapter = current.before?.let { { onOpenChapter(it.id) } },
                     onNext = { current.next?.let { onOpenChapter(it.id) } },
                     onBack = onBack,
@@ -435,6 +436,16 @@ private fun keepSettings(store: LibraryStore, turns: OpeningTurns, round: Long, 
             store.saveTextSettings(workId, settings)
         } catch (e: Exception) {
             Log.e("Kamayoq", "Saving the reader's settings failed", e)
+        }
+    }
+}
+
+private fun keepImageMode(store: LibraryStore, turns: OpeningTurns, round: Long, workId: String, settings: ImageModeSettings) {
+    turns.inLine(round) {
+        try {
+            store.saveImageMode(workId, settings)
+        } catch (e: Exception) {
+            Log.e("Kamayoq", "Saving the image reader's mode failed", e)
         }
     }
 }
@@ -597,7 +608,7 @@ private fun openChapter(
         val previous = store.alternatives(workId)
             .firstOrNull { moved && it.reason == LibraryStore.PREVIOUS && it.chapterId == opened.chapterId }
         return Opening.Ready(
-            opened, title, chapters.getOrNull(index + 1), previous, turn.token, round, store.imageMode(workId).effective,
+            opened, title, chapters.getOrNull(index + 1), previous, turn.token, round, store.imageMode(workId),
             before = chapters.getOrNull(index - 1),
             place = ChapterPlace(index + 1, chapters.size).takeIf { index >= 0 },
         )

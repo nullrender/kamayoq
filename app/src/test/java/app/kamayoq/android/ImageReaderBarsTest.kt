@@ -41,7 +41,7 @@ class ImageReaderBarsTest {
 
     private fun show(mode: ImageMode, onPreviousChapter: (() -> Unit)? = null) = compose.setContent {
         ImageReader(
-            app.store, chapter, OpeningTurns(), 0, "Kaoru Hana wa Rin to Saku · Cap. 2", "Cap. 3", "test-device", mode, {}, {},
+            app.store, chapter, OpeningTurns(), 0, "Kaoru Hana wa Rin to Saku · Cap. 2", "Cap. 3", "test-device", detectedAs(mode), {}, {},
             place = ChapterPlace(2, 5),
             onPreviousChapter = onPreviousChapter,
         )

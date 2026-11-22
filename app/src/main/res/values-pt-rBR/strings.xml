@@ -395,4 +395,14 @@
     <string name="reader_image_place">%1$s · %2$s</string>
     <string name="reader_image_counter">%1$d / %2$d</string>
     <string name="reader_page_slider">Imagens do capítulo</string>
+    <string name="reader_image_mode_automatic">Automático</string>
+    <string name="reader_image_detected">detectado: %1$s</string>
+    <string name="reader_image_mode_title">Modo de leitura</string>
+    <string name="reader_image_mode_note">Vale para esta obra. Tocar aplica e fecha.</string>
+    <string name="reader_image_scope_all">Todas as obras de imagem</string>
+    <string name="reader_image_restore_work">Usar o modo geral</string>
+    <string name="reader_image_restore_all">Restaurar padrão</string>
+    <string name="reader_image_note_all">Vale para todas as obras de imagem sem modo próprio.</string>
+    <string name="reader_image_note_work_follows">Esta obra segue o modo de todas as obras de imagem.</string>
+    <string name="reader_image_note_work_own">Esta obra tem modo próprio; as outras continuam com o delas.</string>
 </resources>

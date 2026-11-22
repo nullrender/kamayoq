@@ -42,7 +42,7 @@ class PagedReaderTest {
     ) {}
 
     private fun show(mode: ImageMode, pages: Int = 3, turns: OpeningTurns = OpeningTurns(), round: Long = 0) = compose.setContent {
-        ImageReader(app.store, chapter(pages), turns, round, "Obra · Cap. 1", null, "test-device", mode, {}, {})
+        ImageReader(app.store, chapter(pages), turns, round, "Obra · Cap. 1", null, "test-device", detectedAs(mode), {}, {})
     }
 
     private fun image(number: Int, of: Int = 3) = compose.onNodeWithContentDescription(app.getString(R.string.reader_page_label, number, of))

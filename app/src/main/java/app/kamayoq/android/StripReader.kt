@@ -53,6 +53,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import app.kamayoq.core.progress.StripReading
 import app.kamayoq.core.reader.ImageMode
+import app.kamayoq.core.reader.ImageModeSettings
 import app.kamayoq.core.reader.StripBands
 import app.kamayoq.data.LibraryStore
 import app.kamayoq.data.ProgressSaving
@@ -77,11 +78,12 @@ fun ImageReader(
     title: String,
     nextChapterName: String?,
     deviceId: String,
-    mode: ImageMode,
+    modeSettings: ImageModeSettings,
     onNext: () -> Unit,
     onBack: () -> Unit,
     place: ChapterPlace? = null,
     onPreviousChapter: (() -> Unit)? = null,
+    onModeSettings: (ImageModeSettings) -> Unit = {},
 ) {
     val reading = remember(chapter) { StripReading.open(chapter.progress, chapter.pages.size, deviceId) }
     if (reading == null) {
@@ -96,6 +98,9 @@ fun ImageReader(
     // The image on screen, for the bars; a jump asked by the slider, until the pages reach it.
     var shownPage by remember(reading) { mutableIntStateOf(reading.startPage) }
     var seek by remember(reading) { mutableStateOf<Int?>(null) }
+    // A change applies at once and is kept; the chapter goes on at the image on screen.
+    val settings by remember(modeSettings) { mutableStateOf(modeSettings) }
+    val mode = settings.effective
     val onShown: (Int) -> Unit = { page ->
         shownPage = page
         reading.show(page, Instant.now())?.let { progress ->
@@ -147,16 +152,18 @@ fun ImageReader(
         if (showControls) {
             val placeText = place?.let { stringResource(R.string.reader_chapter_of, it.number, it.total) }
             ImageReaderTopBar(title, placeText, mode, onBack, Modifier.align(Alignment.TopCenter).safeDrawingPadding())
-            ImageReaderBottomBar(
-                page = shownPage,
-                total = chapter.pages.size,
-                mode = mode,
-                onSeek = { seek = it },
-                onPreviousChapter = onPreviousChapter,
-                onNextChapter = nextChapterName?.let { onNext },
-                modifier = Modifier.align(Alignment.BottomCenter).safeDrawingPadding(),
-            )
+            Column(modifier = Modifier.align(Alignment.BottomCenter).safeDrawingPadding()) {
+                ImageReaderBottomBar(
+                    page = shownPage,
+                    total = chapter.pages.size,
+                    mode = mode,
+                    onSeek = { seek = it },
+                    onPreviousChapter = onPreviousChapter,
+                    onNextChapter = nextChapterName?.let { onNext },
+                )
+            }
         }
+
     }
 }
 
