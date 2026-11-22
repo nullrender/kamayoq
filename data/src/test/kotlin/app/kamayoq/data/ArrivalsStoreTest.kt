@@ -259,4 +259,18 @@ class ArrivalsStoreTest {
         assertEquals(mapOf(store.chapter("Sakamoto Days", "Cap. 002").id to later), store.newChapters(work))
         assertNull(store.lastVisit(work))
     }
+
+    @Test
+    fun `dado uma visita à Obra, quando o relógio volta atrás e ela é aberta de novo, então a última visita não recua e o capítulo visto não volta a ser novo`() {
+        store.read(first, "Comics/Sakamoto Days/Cap. 001.cbz")
+        store.read(later, "Comics/Sakamoto Days/Cap. 001.cbz", "Comics/Sakamoto Days/Cap. 002.cbz")
+        val work = store.work("Sakamoto Days").id
+        store.visitWork(work, latest)
+
+        // The device's clock set back to before Cap. 002 arrived.
+        store.visitWork(work, later.minusSeconds(3_600))
+
+        assertEquals(latest, store.lastVisit(work))
+        assertEquals(emptyMap(), store.newChapters(work))
+    }
 }
