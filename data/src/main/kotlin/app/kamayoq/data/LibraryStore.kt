@@ -722,7 +722,7 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         footer = FooterContent.entries.find { it.wire == footer },
     )
 
-    private fun Long.inLimits(number: TextNumber): Int? = toInt().takeIf { it in number.min..number.max }
+    private fun Long.inLimits(number: TextNumber): Int? = takeIf { it in number.min.toLong()..number.max.toLong() }?.toInt()
 
     /** The stamp of the cover kept for [workId], null with none (WorkDetails.sq). */
     fun coverStamp(workId: String): String? =
