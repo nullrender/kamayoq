@@ -10,7 +10,6 @@ import android.view.WindowManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -22,7 +21,6 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -143,13 +141,16 @@ fun ImageReader(
     ) {
         val toggle = { showControls = !showControls }
         val sought = { seek = null }
+        val end: @Composable () -> Unit = {
+            ImageEndBlock(chapterName, workTitle, nextChapterName, onNext, chapterRows?.let { { chaptersOpen = true } }, onBack)
+        }
         // A new mode lays the chapter out again from the image on screen, not from where it opened.
         key(mode) {
             val from = remember { shownPage }
             if (mode == ImageMode.STRIP) {
-                StripPages(chapter, from, nextChapterName, onShown, toggle, onNext, seek, sought)
+                StripPages(chapter, from, end, onShown, toggle, seek, sought)
             } else {
-                PagedPages(chapter, from, nextChapterName, mode, onShown, toggle, onNext, seek, sought)
+                PagedPages(chapter, from, end, mode, onShown, toggle, seek, sought)
             }
         }
         if (!showControls) {
@@ -203,10 +204,9 @@ fun ImageReader(
 private fun StripPages(
     chapter: OpenedChapter,
     startPage: Int,
-    nextChapterName: String?,
+    end: @Composable () -> Unit,
     onShown: (Int) -> Unit,
     onToggleControls: () -> Unit,
-    onNext: () -> Unit,
     seek: Int?,
     onSought: () -> Unit,
 ) {
@@ -241,7 +241,7 @@ private fun StripPages(
                 val label = stringResource(R.string.reader_page_label, index + 1, chapter.pages.size)
                 Box(modifier = Modifier.semantics { contentDescription = label }) { StripPage(page, screenWidth) }
             }
-            item { EndOfChapter(nextChapterName, onNext) }
+            item { end() }
         }
     }
 }
@@ -321,23 +321,6 @@ private fun decodeBands(page: PageImage, width: Int, height: Int, screenWidth: I
         }
     } finally {
         decoder.recycle()
-    }
-}
-
-/** The end-of-chapter block, in its minimal first version. */
-@Composable
-internal fun EndOfChapter(nextChapterName: String?, onNext: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(stringResource(R.string.end_of_chapter), style = MaterialTheme.typography.titleMedium)
-        if (nextChapterName != null) {
-            Button(onClick = onNext) { Text(stringResource(R.string.next_chapter, nextChapterName)) }
-        } else {
-            Text(stringResource(R.string.no_next_chapter), style = MaterialTheme.typography.bodyMedium)
-        }
     }
 }
 

@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Log
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -50,11 +51,10 @@ import kotlinx.coroutines.withContext
 internal fun PagedPages(
     chapter: OpenedChapter,
     startPage: Int,
-    nextChapterName: String?,
+    end: @Composable () -> Unit,
     mode: ImageMode,
     onShown: (Int) -> Unit,
     onToggleControls: () -> Unit,
-    onNext: () -> Unit,
     seek: Int?,
     onSought: () -> Unit,
 ) {
@@ -103,7 +103,7 @@ internal fun PagedPages(
             modifier = Modifier.fillMaxSize(),
         ) { index ->
             if (index == total) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { EndOfChapter(nextChapterName, onNext) }
+                Box(modifier = Modifier.fillMaxSize().background(LocalPalette.current.background), contentAlignment = Alignment.Center) { end() }
             } else {
                 val label = stringResource(R.string.reader_page_label, index + 1, total)
                 Box(modifier = Modifier.fillMaxSize().semantics { contentDescription = label }, contentAlignment = Alignment.Center) {
