@@ -13,6 +13,7 @@ import app.kamayoq.core.progress.StateMark
 import app.kamayoq.core.progress.StripPosition
 import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.reader.FooterContent
+import app.kamayoq.core.reader.ImageModeChoice
 import app.kamayoq.core.reader.PageTheme
 import app.kamayoq.core.reader.ReaderFlow
 import app.kamayoq.core.reader.ReadingFont
@@ -45,6 +46,8 @@ data class Backup(
     val servers: List<BackupServer> = emptyList(),
     /** The text reader's settings for every text work (slice 5); none set is the design's defaults. */
     val textLook: TextLookChoices = TextLookChoices.NONE,
+    /** The image reader's mode for every image work (slice 6); Automatic follows each work's metadata. */
+    val imageMode: ImageModeChoice = ImageModeChoice.AUTOMATIC,
 )
 
 /** A Kavita server and the [libraries] marked in it. The key never comes here: it stays in the device. */
@@ -82,6 +85,8 @@ data class BackupWork(
     val textLook: TextLookChoices? = null,
     /** The mode the person chose for the work; null keeps its type's. */
     val textMode: ReaderFlow? = null,
+    /** The image reader's mode the person chose for the work alone; null follows the general one. */
+    val imageMode: ImageModeChoice? = null,
 )
 
 /**
@@ -156,12 +161,13 @@ data class BackupOutbox(
 /** The backup file: JSON, so a person can read it, with a format version (decision of 27/10/2026). */
 object BackupFormat {
     /**
+     * 7 carries the image reader's mode, general and per work (slice 6);
      * 6 carries the text reader's settings, general and per work, and each work's mode (slice 5);
      * 5 carries a work's reading state (slice 2 of the v1 interface); 4 a chapter's key in a split
      * file (step 4, milestone B); 3 a book's place (piece 22); 2 added Kavita (step 3); 1 is from
      * 28/10/2026.
      */
-    const val VERSION = 6
+    const val VERSION = 7
 
     // Pretty and with accents as they are, so the file reads in any text editor. Nulls are written
     // out, so every field shows even when empty.
@@ -187,6 +193,7 @@ object BackupFormat {
         if (version < 4) current = toFormat4(current)
         if (version < 5) current = toFormat5(current)
         if (version < 6) current = toFormat6(current)
+        if (version < 7) current = toFormat7(current)
         return try {
             json.decodeFromJsonElement(BackupFile.serializer(), current).toBackup()
         } catch (e: DateTimeException) {
@@ -225,6 +232,10 @@ object BackupFormat {
     private fun toFormat6(file: JsonObject): JsonObject =
         file.adding("textLook" to JsonNull).withWorks { it.adding("textLook" to JsonNull, "textMode" to JsonNull) }
 
+    /** Format 7 added the image reader's mode; every file before it has none chosen. */
+    private fun toFormat7(file: JsonObject): JsonObject =
+        file.adding("imageMode" to JsonNull).withWorks { it.adding("imageMode" to JsonNull) }
+
     // A field the declared format could not have was not written by it: replacing it would drop it
     // without a word, so the file is refused instead.
     private fun JsonObject.adding(vararg fields: Pair<String, JsonElement>): JsonObject {
@@ -258,6 +269,7 @@ private class BackupFile(
     val servers: List<ServerEntry>,
     val works: List<WorkEntry>,
     val textLook: LookEntry?,
+    val imageMode: String?,
 ) {
     fun toBackup() = Backup(
         appVersion, Instant.parse(exportedAt), works.map { it.toWork() }, servers.map { it.toServer() },
@@ -272,6 +284,7 @@ private class BackupFile(
             servers = backup.servers.map(ServerEntry::of),
             works = backup.works.map(WorkEntry::of),
             textLook = backup.textLook.takeIf { it != TextLookChoices.NONE }?.let(LookEntry::of),
+            imageMode = null,
         )
     }
 }
@@ -310,6 +323,7 @@ private class WorkEntry(
     val readingState: ReadingStateEntry?,
     val textLook: LookEntry?,
     val textMode: String?,
+    val imageMode: String?,
 ) {
     fun toWork() = BackupWork(
         id = id,
@@ -348,6 +362,7 @@ private class WorkEntry(
             readingState = work.readingState?.let(ReadingStateEntry::of),
             textLook = work.textLook?.let(LookEntry::of),
             textMode = work.textMode?.name,
+            imageMode = null,
         )
     }
 }

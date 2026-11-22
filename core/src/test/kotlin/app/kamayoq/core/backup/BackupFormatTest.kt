@@ -12,6 +12,7 @@ import app.kamayoq.core.progress.StateMark
 import app.kamayoq.core.progress.StripPosition
 import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.reader.FooterContent
+import app.kamayoq.core.reader.ImageModeChoice
 import app.kamayoq.core.reader.PageTheme
 import app.kamayoq.core.reader.ReaderFlow
 import app.kamayoq.core.reader.ReadingFont
@@ -103,10 +104,10 @@ class BackupFormatTest {
     }
 
     @Test
-    fun `dado uma cópia gravada, então o arquivo diz a versão do formato, 6`() {
+    fun `dado uma cópia gravada, então o arquivo diz a versão do formato, 7`() {
         val text = BackupFormat.write(backup(work(chapters = emptyList())))
 
-        assertEquals(6, Json.parseToJsonElement(text).jsonObject["formatVersion"]?.jsonPrimitive?.int)
+        assertEquals(7, Json.parseToJsonElement(text).jsonObject["formatVersion"]?.jsonPrimitive?.int)
     }
 
     private val states = listOf(
@@ -400,9 +401,9 @@ class BackupFormatTest {
     @Test
     fun `dado um arquivo de uma versão do formato que este app não conhece, quando lido, então recusa`() {
         val text = BackupFormat.write(backup(work(chapters = emptyList())))
-            .replaceFirst("\"formatVersion\": ${BackupFormat.VERSION}", "\"formatVersion\": 7")
+            .replaceFirst("\"formatVersion\": ${BackupFormat.VERSION}", "\"formatVersion\": 8")
 
-        assertTrue("\"formatVersion\": 7" in text, text)
+        assertTrue("\"formatVersion\": 8" in text, text)
         assertFailsWith<IllegalArgumentException> { BackupFormat.read(text) }
     }
 
@@ -511,7 +512,7 @@ class BackupFormatTest {
     }
 
     // What a file of format 5 or before lacks: the text reader's settings, null when nothing is set.
-    private fun String.withoutFormat6() = replace(Regex(""",\s*"textLook": null"""), "").replace(Regex(""",\s*"textMode": null"""), "")
+    private fun String.withoutFormat6() = withoutFormat7().replace(Regex(""",\s*"textLook": null"""), "").replace(Regex(""",\s*"textMode": null"""), "")
 
     private val ownLook = TextLookChoices(font = ReadingFont.GARAMOND, size = 22, indent = false, paragraphSpacing = 8)
     private val generalLook = TextLookChoices(theme = PageTheme.SEPIA, justify = true, footer = FooterContent.PROGRESS, lineHeight = 16, margin = 28)
@@ -547,6 +548,7 @@ class BackupFormatTest {
     fun `dado um arquivo que diz formato 5 mas traz ajustes do leitor, quando lido, então recusa em vez de apagá-los`() {
         val text = BackupFormat.write(backup(work(chapters = emptyList())).copy(textLook = generalLook))
             .replaceFirst("\"formatVersion\": ${BackupFormat.VERSION}", "\"formatVersion\": 5")
+            .withoutFormat7()
 
         assertTrue("\"formatVersion\": 5" in text && "\"textLook\": {" in text, text)
         assertFailsWith<IllegalArgumentException> { BackupFormat.read(text) }
@@ -558,5 +560,51 @@ class BackupFormatTest {
         for (bad in listOf(text.replace("\"SEPIA\"", "\"NEON\""), text.replace("\"margin\": 28", "\"margin\": 90"))) {
             assertFailsWith<IllegalArgumentException> { BackupFormat.read(bad) }
         }
+    }
+
+    // What a file of format 6 or before lacks: the image reader's mode, null when nothing is chosen.
+    private fun String.withoutFormat7() = replace(Regex(""",\s*"imageMode": null"""), "")
+
+    @Test
+    fun `dado o modo geral do leitor de imagens e o próprio de duas obras, quando gravados e relidos, então voltam iguais`() {
+        val original = backup(
+            work(title = "Kaoru Hana wa Rin to Saku", chapters = emptyList()).copy(imageMode = ImageModeChoice.STRIP),
+            work(title = "Solo Leveling", chapters = emptyList()).copy(imageMode = ImageModeChoice.AUTOMATIC),
+            work(title = "Sakamoto Days", chapters = emptyList()),
+        ).copy(imageMode = ImageModeChoice.PAGES_LEFT_TO_RIGHT)
+
+        val text = BackupFormat.write(original)
+
+        assertTrue("\"imageMode\": \"PAGES_LEFT_TO_RIGHT\"" in text && "\"imageMode\": \"AUTOMATIC\"" in text, text)
+        assertEquals(original, BackupFormat.read(text))
+    }
+
+    @Test
+    fun `dado um arquivo do formato 6, quando lido, então nenhum modo do leitor de imagens vem escolhido`() {
+        val original = backup(work(chapters = emptyList()))
+        val format6 = BackupFormat.write(original)
+            .replaceFirst("\"formatVersion\": ${BackupFormat.VERSION}", "\"formatVersion\": 6")
+            .withoutFormat7()
+
+        assertTrue("\"formatVersion\": 6" in format6 && "imageMode" !in format6, format6)
+        val read = BackupFormat.read(format6)
+        assertEquals(ImageModeChoice.AUTOMATIC, read.imageMode)
+        assertEquals(null, read.works.single().imageMode)
+    }
+
+    @Test
+    fun `dado um arquivo que diz formato 6 mas traz o modo do leitor de imagens, quando lido, então recusa em vez de apagá-lo`() {
+        val text = BackupFormat.write(backup(work(chapters = emptyList())).copy(imageMode = ImageModeChoice.STRIP))
+            .replaceFirst("\"formatVersion\": ${BackupFormat.VERSION}", "\"formatVersion\": 6")
+
+        assertTrue("\"formatVersion\": 6" in text && "\"imageMode\": \"STRIP\"" in text, text)
+        assertFailsWith<IllegalArgumentException> { BackupFormat.read(text) }
+    }
+
+    @Test
+    fun `dado um modo do leitor de imagens com um nome que o app não conhece, quando lido, então recusa`() {
+        val text = BackupFormat.write(backup(work(chapters = emptyList())).copy(imageMode = ImageModeChoice.STRIP))
+
+        assertFailsWith<IllegalArgumentException> { BackupFormat.read(text.replace("\"STRIP\"", "\"DOUBLE_PAGE\"")) }
     }
 }

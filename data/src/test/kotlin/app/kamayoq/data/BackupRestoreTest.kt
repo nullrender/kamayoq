@@ -24,6 +24,8 @@ import app.kamayoq.core.progress.ReadingState
 import app.kamayoq.core.progress.StateMark
 import app.kamayoq.core.progress.StripPosition
 import app.kamayoq.core.progress.TextPosition
+import app.kamayoq.core.reader.ImageModeChoice
+import app.kamayoq.core.reader.ImageScope
 import app.kamayoq.core.reader.PageTheme
 import app.kamayoq.core.reader.ReaderFlow
 import app.kamayoq.core.reader.ReadingFont
@@ -184,6 +186,27 @@ class BackupRestoreTest {
         assertEquals(ReaderFlow.PAGES, restored.textMode(witch))
         assertEquals(settings.copy(own = null), restored.textSettings(comic))
         assertEquals(null, restored.textMode(comic))
+    }
+
+    @Test
+    fun `dado o modo geral do leitor de imagens e o próprio de um quadrinho, quando exporto e restauro num app vazio, então voltam iguais`() {
+        val original = emptyStore()
+        original.readFolder(oldFolder, cap1)
+        val comic = original.workId("Sakamoto Days")
+        val witch = original.workId("Release That Witch")
+        val mode = original.imageMode(comic)
+            .choose(ImageScope.ALL_IMAGE_WORKS, ImageModeChoice.PAGES_LEFT_TO_RIGHT)
+            .choose(ImageScope.THIS_WORK, ImageModeChoice.PAGES_RIGHT_TO_LEFT)
+        original.saveImageMode(comic, mode)
+
+        val file = fileOf(original)
+        assertEquals(ImageModeChoice.PAGES_LEFT_TO_RIGHT, file.imageMode)
+
+        val restored = emptyStore()
+        assertTrue(restored.restore(file))
+        assertEquals(mode, restored.imageMode(comic))
+        assertEquals(ImageModeChoice.PAGES_LEFT_TO_RIGHT, restored.imageMode(witch).general)
+        assertEquals(null, restored.imageMode(witch).own)
     }
 
     @Test
