@@ -74,7 +74,7 @@ internal fun ContinueSection(items: List<ContinueItem>, onOpenWork: (String) -> 
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.padding(top = 14.dp),
             ) {
-                items(items.drop(1), key = { it.work.id }) { item -> StripCover(item, onRead) }
+                items(items.drop(1), key = { it.work.id }) { item -> StripCover(item, onOpenWork, onRead) }
             }
         }
     }
@@ -85,6 +85,12 @@ internal fun ContinueSection(items: List<ContinueItem>, onOpenWork: (String) -> 
 private fun placeOf(item: ContinueItem): String {
     val position = item.position?.takeIf { !atEnd(it) && percentOf(it) > 0 }
     return position?.let { stringResource(R.string.home_place, item.target.name, percentOf(it)) } ?: item.target.name
+}
+
+// With two chapters in conflict the Work screen asks where to go on, before any reader opens
+// (progress contract, case 5): Home takes the person there instead.
+private fun goOn(item: ContinueItem, onOpenWork: (String) -> Unit, onRead: (String, String) -> Unit) {
+    if (item.crossing) onOpenWork(item.work.id) else onRead(item.work.id, item.target.id)
 }
 
 @Composable
@@ -126,7 +132,7 @@ private fun ContinueCard(item: ContinueItem, onOpenWork: (String) -> Unit, onRea
                 Text(elapsedText(item.lastReadAt), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             }
             Spacer(modifier = Modifier.size(4.dp))
-            Button(onClick = { onRead(item.work.id, item.target.id) }, modifier = Modifier.sizeIn(minHeight = 48.dp)) {
+            Button(onClick = { goOn(item, onOpenWork, onRead) }, modifier = Modifier.sizeIn(minHeight = 48.dp)) {
                 Icon(KamayoqIcons.play, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
@@ -141,10 +147,10 @@ private fun ContinueCard(item: ContinueItem, onOpenWork: (String) -> Unit, onRea
 
 // A cover of the strip opens the reader where the work goes on, as the board's do.
 @Composable
-private fun StripCover(item: ContinueItem, onRead: (String, String) -> Unit) {
+private fun StripCover(item: ContinueItem, onOpenWork: (String) -> Unit, onRead: (String, String) -> Unit) {
     Column(
         modifier = Modifier.width(76.dp).clip(RoundedCornerShape(8.dp))
-            .clickable(role = Role.Button) { onRead(item.work.id, item.target.id) },
+            .clickable(role = Role.Button) { goOn(item, onOpenWork, onRead) },
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         ProvisionalCover(item.work.title, initialSize = 110.sp, modifier = Modifier.size(width = 76.dp, height = 106.dp).clip(RoundedCornerShape(8.dp)))
