@@ -29,7 +29,7 @@
     <string name="reader_restore_work">Use the general ones</string>
     <string name="reader_restore_work_description">Use the general settings in this work, dropping its own</string>
     <string name="reader_restored_all">General defaults restored: font, text, theme and footer. The mode did not change.</string>
-    <string name="reader_restored_all_keeps">General defaults restored: font, text, theme and footer. This work keeps its own (%1$s).</string>
+    <string name="reader_restored_all_keeps">General defaults restored: font, text, theme and footer. This work keeps its own (%1$s). The mode did not change.</string>
     <string name="reader_restored_work">This work is back on the general settings: font, text, theme and footer. The mode did not change.</string>
     <string name="reader_already_general">This work already uses the general settings.</string>
     <string name="reader_tab_text">Text</string>

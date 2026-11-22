@@ -29,7 +29,7 @@
     <string name="reader_restore_work">Usar os gerais</string>
     <string name="reader_restore_work_description">Usar os ajustes gerais nesta obra, descartando os ajustes próprios dela</string>
     <string name="reader_restored_all">Padrões gerais restaurados: letra, texto, tema e rodapé. O modo não mudou.</string>
-    <string name="reader_restored_all_keeps">Padrões gerais restaurados: letra, texto, tema e rodapé. Esta obra mantém os próprios (%1$s).</string>
+    <string name="reader_restored_all_keeps">Padrões gerais restaurados: letra, texto, tema e rodapé. Esta obra mantém os próprios (%1$s). O modo não mudou.</string>
     <string name="reader_restored_work">Esta obra voltou aos ajustes gerais: letra, texto, tema e rodapé. O modo não mudou.</string>
     <string name="reader_already_general">Esta obra já usa os ajustes gerais.</string>
     <string name="reader_tab_text">Texto</string>
