@@ -176,7 +176,7 @@ data class TextSettings(val general: TextLookChoices, val own: TextLookChoices?)
                 val number = if (edit is TextEdit.Number) edit.number else (edit as TextEdit.Step).number
                 val wanted = when (edit) {
                     is TextEdit.Number -> edit.value
-                    else -> before.valueOf(number) + if ((edit as TextEdit.Step).up) number.step else -number.step
+                    else -> nextStep(number, before.valueOf(number), (edit as TextEdit.Step).up)
                 }
                 val value = bounded(number, wanted, before.indent)
                 // A change that changes nothing, as minus at the floor, gives no setting of its own.
@@ -218,6 +218,16 @@ data class TextSettings(val general: TextLookChoices, val own: TextLookChoices?)
 
         /** With no indent, the space between paragraphs stays at 0.4 em or more. */
         const val MIN_INDENTLESS_SPACING = 4
+
+        /**
+         * The panel's next step from [value] in the touch's direction. A value off the steps, as a
+         * backup may bring, goes back to them at the first touch: 13 gives 16 up and 12 down.
+         */
+        private fun nextStep(number: TextNumber, value: Int, up: Boolean): Int {
+            val offset = value - number.min
+            val index = if (up) Math.floorDiv(offset, number.step) + 1 else Math.floorDiv(offset + number.step - 1, number.step) - 1
+            return number.min + index * number.step
+        }
 
         /** The space a paragraph gets when the indent goes: 0.8 em from none, the floor from less than it. */
         private fun indentless(spacing: Int) = if (spacing == 0) INDENTLESS_SPACING else MIN_INDENTLESS_SPACING
