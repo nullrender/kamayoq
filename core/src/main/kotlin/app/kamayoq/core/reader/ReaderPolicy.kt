@@ -15,7 +15,8 @@ object ReaderPolicy {
         "script-src $ORIGIN/reader/",
         "style-src 'unsafe-inline' blob:",
         "img-src blob: data:",
-        "font-src blob:",
+        // The reader's own four fonts (slice 5), by their folder; a book's fonts come as blobs.
+        "font-src blob: $ORIGIN/reader/fonts/",
         "media-src blob:",
         "connect-src $ORIGIN/book/",
         "frame-src blob:",

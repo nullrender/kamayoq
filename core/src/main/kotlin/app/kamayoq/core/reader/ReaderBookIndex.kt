@@ -47,6 +47,7 @@ object ReaderBookIndex {
         marker?.let { put("marker", it) }
         sections?.let { put("sections", it) }
         start?.let { put("start", it) }
+        look?.let { put("look", PageLook.json(it)) }
         chapters?.let {
             putJsonObject("chapters") {
                 putJsonArray("keys") { for (key in it.keys) add(key) }
