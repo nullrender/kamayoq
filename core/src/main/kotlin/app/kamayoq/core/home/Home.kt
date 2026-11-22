@@ -63,8 +63,9 @@ object Home {
     fun arrived(works: List<ArrivalWork>): List<ArrivedGroup> =
         works.filter { it.state == ReadingState.READING || it.state == ReadingState.WANT_TO_READ }
             .mapNotNull { work ->
+                // The chapters of one reading share their arrival: the later in the work is the newer.
                 val fresh = work.chapters.filter { isNew(it.arrivedAt, work.lastVisit, it.read) }
-                    .sortedByDescending { it.arrivedAt }
+                    .sortedWith(compareByDescending<ArrivedChapter> { it.arrivedAt }.thenByDescending { it.order })
                 fresh.firstOrNull()?.let { newest -> ArrivedGroup(work.workId, fresh.size, fresh.take(ARRIVED_SHOWN), newest.arrivedAt) }
             }
             .sortedByDescending { it.latest }
