@@ -99,7 +99,8 @@ class HomeStoreTest {
 
         assertEquals("Kaoru Hana", group.work.title)
         assertEquals(2, group.count)
-        assertEquals(listOf("Cap. 002", "Cap. 003").toSet(), group.chapters.map { it.chapter.name }.toSet())
+        // Both came in the same reading: the later in the work comes first.
+        assertEquals(listOf("Cap. 003", "Cap. 002"), group.chapters.map { it.chapter.name })
         assertEquals(later, group.latest)
 
         store.markRead(group.work.id, group.chapters.map { it.chapter.id }, latest)

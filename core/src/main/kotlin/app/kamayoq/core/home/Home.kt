@@ -4,8 +4,11 @@ import app.kamayoq.core.progress.ReadingState
 import java.time.Duration
 import java.time.Instant
 
-/** A chapter that arrived after the zero mark of its source, at [arrivedAt]. */
-data class ArrivedChapter(val id: String, val arrivedAt: Instant, val read: Boolean)
+/**
+ * A chapter that arrived after the zero mark of its source, at [arrivedAt]; [order] is its place in
+ * the work's reading order, for the chapters that came in the same reading.
+ */
+data class ArrivedChapter(val id: String, val arrivedAt: Instant, val read: Boolean, val order: Int = 0)
 
 /** A work the person already has, with the chapters that arrived in it and the last opening of its Work screen. */
 data class ArrivalWork(val workId: String, val state: ReadingState?, val lastVisit: Instant?, val chapters: List<ArrivedChapter>)

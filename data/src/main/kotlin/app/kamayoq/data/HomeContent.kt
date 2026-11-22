@@ -63,9 +63,12 @@ fun LibraryStore.home(): HomeContent {
         )
     }
     val arrivalWorks = works.map { work ->
+        val order = chapters.getValue(work.id).map { it.id }
         ArrivalWork(
             work.id, states[work.id], visits[work.id],
-            arrivals(work.id).map { (chapterId, at) -> ArrivedChapter(chapterId, at, progress[chapterId]?.readMark != null) },
+            arrivals(work.id).map { (chapterId, at) ->
+                ArrivedChapter(chapterId, at, progress[chapterId]?.readMark != null, order = order.indexOf(chapterId))
+            },
         )
     }
     val arrived = Home.arrived(arrivalWorks).map { group ->

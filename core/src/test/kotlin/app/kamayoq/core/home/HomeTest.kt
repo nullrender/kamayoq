@@ -88,6 +88,17 @@ class HomeTest {
     }
 
     @Test
+    fun `dado quinze capítulos que chegaram na mesma leitura, então Chegou mostra os dez últimos na ordem da obra, do mais novo ao mais velho`() {
+        // In reading order, as the store lists them: the tie on the arrival must not keep that order.
+        val chapters = (1..15).map { ArrivedChapter("c$it", hoursAgo(2), false, order = it) }.toTypedArray()
+
+        val group = Home.arrived(listOf(work("w", ReadingState.READING, null, *chapters))).single()
+
+        assertEquals(15, group.count)
+        assertEquals((15 downTo 6).map { "c$it" }, group.shown.map { it.id })
+    }
+
+    @Test
     fun `dado uma obra cujos capítulos chegados foram lidos ou vistos na Obra, então ela não entra em Chegou`() {
         val groups = Home.arrived(
             listOf(
