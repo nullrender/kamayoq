@@ -1313,13 +1313,15 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
                 readingState = backupState(version.work_id),
                 textLook = textSettings(version.work_id).own,
                 textMode = textMode(version.work_id),
+                imageMode = database.imageLookQueries.ofWork(version.work_id).executeAsOneOrNull()?.mode?.let(::imageChoice),
             )
         }
         val servers = database.kavitaServerQueries.all().executeAsList().map { server ->
             val libraries = database.kavitaLibraryQueries.ofServer(server.id).executeAsList().map { it.toInt() }
             BackupServer(server.id, server.address, server.last_version, server.account_id?.toInt(), libraries)
         }
-        Backup(appVersion, exportedAt, works, servers, generalLook())
+        val imageMode = database.imageLookQueries.general().executeAsOneOrNull()?.mode?.let(::imageChoice) ?: ImageModeChoice.AUTOMATIC
+        Backup(appVersion, exportedAt, works, servers, generalLook(), imageMode)
     }
 
     private fun backupState(workId: String): BackupReadingState? =
@@ -1375,6 +1377,14 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
                 database.textLookQueries.ensureWork(work.id)
                 database.textLookQueries.saveMode(mode.wire, work.id)
             }
+            work.imageMode?.let { mode ->
+                database.imageLookQueries.ensureWork(work.id)
+                database.imageLookQueries.saveWork(mode.wire, work.id)
+            }
+        }
+        if (backup.imageMode != ImageModeChoice.AUTOMATIC) {
+            database.imageLookQueries.ensureGeneral()
+            database.imageLookQueries.saveGeneral(backup.imageMode.wire)
         }
         true
     }

@@ -274,6 +274,8 @@ private class BackupFile(
     fun toBackup() = Backup(
         appVersion, Instant.parse(exportedAt), works.map { it.toWork() }, servers.map { it.toServer() },
         textLook?.toChoices() ?: TextLookChoices.NONE,
+        // A name this version does not know is a file it cannot read, as with any other field.
+        imageMode?.let(ImageModeChoice::valueOf) ?: ImageModeChoice.AUTOMATIC,
     )
 
     companion object {
@@ -284,7 +286,7 @@ private class BackupFile(
             servers = backup.servers.map(ServerEntry::of),
             works = backup.works.map(WorkEntry::of),
             textLook = backup.textLook.takeIf { it != TextLookChoices.NONE }?.let(LookEntry::of),
-            imageMode = null,
+            imageMode = backup.imageMode.takeIf { it != ImageModeChoice.AUTOMATIC }?.name,
         )
     }
 }
@@ -342,6 +344,7 @@ private class WorkEntry(
         readingState = readingState?.toState(),
         textLook = textLook?.toChoices(),
         textMode = textMode?.let(ReaderFlow::valueOf),
+        imageMode = imageMode?.let(ImageModeChoice::valueOf),
     )
 
     companion object {
@@ -362,7 +365,7 @@ private class WorkEntry(
             readingState = work.readingState?.let(ReadingStateEntry::of),
             textLook = work.textLook?.let(LookEntry::of),
             textMode = work.textMode?.name,
-            imageMode = null,
+            imageMode = work.imageMode?.name,
         )
     }
 }
