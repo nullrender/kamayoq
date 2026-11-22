@@ -43,6 +43,7 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import app.kamayoq.core.reader.ImageMode
 import app.kamayoq.core.reader.ImagePages
 import app.kamayoq.core.reader.TapZone
@@ -136,8 +137,11 @@ private fun Modifier.pinchZoom(onZoomed: (Boolean) -> Unit): Modifier = composed
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
     var size by remember { mutableStateOf(IntSize.Zero) }
+    val zoomedIn = stringResource(R.string.reader_page_zoomed)
     this
         .onSizeChanged { size = it }
+        // Said with the page: one who zoomed in by accident knows why a drag no longer turns it.
+        .semantics { if (scale > 1f) stateDescription = zoomedIn }
         .pointerInput(Unit) {
             awaitEachGesture {
                 awaitFirstDown(requireUnconsumed = false)

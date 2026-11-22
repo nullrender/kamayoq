@@ -2,6 +2,9 @@ package app.kamayoq.android
 
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -29,6 +32,8 @@ class PagedZoomTest {
     private val app = ApplicationProvider.getApplicationContext<KamayoqApp>()
 
     private fun image(number: Int) = compose.onNodeWithContentDescription(app.getString(R.string.reader_page_label, number, 3))
+
+    private val zoomedIn get() = SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, app.getString(R.string.reader_page_zoomed))
 
     private fun show() {
         val chapter = OpenedChapter("chapter", List(3) { PageImage(100, 150) { ByteArrayInputStream(ByteArray(0)) } }, ChapterProgress.NEVER_OPENED) {}
@@ -68,6 +73,7 @@ class PagedZoomTest {
         show()
 
         pinch(out = true)
+        image(1).assert(zoomedIn)
         swipe()
 
         image(1).assertIsDisplayed()
@@ -78,8 +84,10 @@ class PagedZoomTest {
     fun `dado a página ampliada, quando os dedos se juntam de volta, então arrastar vira a página de novo`() {
         show()
         pinch(out = true)
+        image(1).assert(zoomedIn)
 
         pinch(out = false)
+        image(1).assert(!zoomedIn)
         swipe()
 
         image(2).assertIsDisplayed()

@@ -410,4 +410,5 @@
     <string name="reader_image_up_next">A seguir</string>
     <string name="reader_image_read_next">Ler o próximo capítulo</string>
     <string name="reader_image_last_available">Você chegou ao último capítulo disponível.</string>
+    <string name="reader_page_zoomed">Ampliada</string>
 </resources>

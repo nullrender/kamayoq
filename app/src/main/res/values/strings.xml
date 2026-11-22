@@ -480,4 +480,5 @@
     <string name="reader_image_up_next">Up next</string>
     <string name="reader_image_read_next">Read the next chapter</string>
     <string name="reader_image_last_available">You reached the last available chapter.</string>
+    <string name="reader_page_zoomed">Zoomed in</string>
 </resources>
