@@ -78,3 +78,8 @@ test('dado uma aparência certa, então ela passa sem nada a mais', () => {
     const good = look({ size: 20, chosen: ['size'] })
     assert.deepEqual(checkedLook({ ...good, extra: 'x' }), good)
 })
+
+test('dado um nome de letra herdado de Object.prototype, então a aparência é recusada', () => {
+    for (const font of ['toString', 'constructor', '__proto__', 'hasOwnProperty'])
+        assert.equal(checkedLook(look({ font })), null, font)
+})
