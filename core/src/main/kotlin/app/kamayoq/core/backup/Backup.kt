@@ -12,8 +12,12 @@ import app.kamayoq.core.progress.ReadingState
 import app.kamayoq.core.progress.StateMark
 import app.kamayoq.core.progress.StripPosition
 import app.kamayoq.core.progress.TextPosition
+import app.kamayoq.core.reader.FooterContent
+import app.kamayoq.core.reader.PageTheme
 import app.kamayoq.core.reader.ReaderFlow
+import app.kamayoq.core.reader.ReadingFont
 import app.kamayoq.core.reader.TextLookChoices
+import app.kamayoq.core.reader.TextNumber
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -255,7 +259,10 @@ private class BackupFile(
     val works: List<WorkEntry>,
     val textLook: LookEntry?,
 ) {
-    fun toBackup() = Backup(appVersion, Instant.parse(exportedAt), works.map { it.toWork() }, servers.map { it.toServer() })
+    fun toBackup() = Backup(
+        appVersion, Instant.parse(exportedAt), works.map { it.toWork() }, servers.map { it.toServer() },
+        textLook?.toChoices() ?: TextLookChoices.NONE,
+    )
 
     companion object {
         fun of(backup: Backup) = BackupFile(
@@ -264,7 +271,7 @@ private class BackupFile(
             exportedAt = backup.exportedAt.toString(),
             servers = backup.servers.map(ServerEntry::of),
             works = backup.works.map(WorkEntry::of),
-            textLook = null,
+            textLook = backup.textLook.takeIf { it != TextLookChoices.NONE }?.let(LookEntry::of),
         )
     }
 }
@@ -319,6 +326,8 @@ private class WorkEntry(
         remoteLibraryId = remoteLibraryId,
         alternatives = alternatives.map { it.toAlternative() },
         readingState = readingState?.toState(),
+        textLook = textLook?.toChoices(),
+        textMode = textMode?.let(ReaderFlow::valueOf),
     )
 
     companion object {
@@ -337,8 +346,8 @@ private class WorkEntry(
             remoteLibraryId = work.remoteLibraryId,
             alternatives = work.alternatives.map(AlternativeEntry::of),
             readingState = work.readingState?.let(ReadingStateEntry::of),
-            textLook = null,
-            textMode = null,
+            textLook = work.textLook?.let(LookEntry::of),
+            textMode = work.textMode?.name,
         )
     }
 }
@@ -373,7 +382,40 @@ private class LookEntry(
     val justify: Boolean?,
     val theme: String?,
     val footer: String?,
-)
+) {
+    // A name or a number this version does not know is a file it cannot read: an error, as with any
+    // other field, never a setting dropped without a word.
+    fun toChoices() = TextLookChoices(
+        font = font?.let(ReadingFont::valueOf),
+        size = size?.inside(TextNumber.SIZE),
+        lineHeight = lineHeight?.inside(TextNumber.LINE_HEIGHT),
+        paragraphSpacing = paragraphSpacing?.inside(TextNumber.PARAGRAPH_SPACING),
+        margin = margin?.inside(TextNumber.MARGIN),
+        indent = indent,
+        justify = justify,
+        theme = theme?.let(PageTheme::valueOf),
+        footer = footer?.let(FooterContent::valueOf),
+    )
+
+    private fun Int.inside(number: TextNumber): Int {
+        require(this in number.min..number.max) { "A ${number.name} of $this is outside ${number.min}..${number.max}" }
+        return this
+    }
+
+    companion object {
+        fun of(look: TextLookChoices) = LookEntry(
+            font = look.font?.name,
+            size = look.size,
+            lineHeight = look.lineHeight,
+            paragraphSpacing = look.paragraphSpacing,
+            margin = look.margin,
+            indent = look.indent,
+            justify = look.justify,
+            theme = look.theme?.name,
+            footer = look.footer?.name,
+        )
+    }
+}
 
 @Serializable
 private class AutomaticEntry(val from: String?, val at: String)

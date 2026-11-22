@@ -653,9 +653,7 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
 
     /** The text reader's settings as [workId] opens: the general ones and the work's own (TextLook.sq). */
     fun textSettings(workId: String): TextSettings = database.transactionWithResult {
-        val general = database.textLookQueries.general().executeAsOneOrNull()?.let { row ->
-            lookChoices(row.font, row.size, row.line_height, row.paragraph_spacing, row.margin, row.indent, row.justify, row.theme, row.footer)
-        } ?: TextLookChoices.NONE
+        val general = generalLook()
         val own = database.textLookQueries.ofWork(workId).executeAsOneOrNull()?.let { row ->
             lookChoices(row.font, row.size, row.line_height, row.paragraph_spacing, row.margin, row.indent, row.justify, row.theme, row.footer)
         }?.takeIf { it.properties.isNotEmpty() }
@@ -664,21 +662,28 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
 
     /** Keeps [settings]: the general ones for every text work, and the own ones of [workId]. */
     fun saveTextSettings(workId: String, settings: TextSettings) = database.transaction {
-        val queries = database.textLookQueries
-        queries.ensureGeneral()
-        with(settings.general) {
-            queries.saveGeneral(
-                font?.wire, size?.toLong(), lineHeight?.toLong(), paragraphSpacing?.toLong(), margin?.toLong(),
-                indent?.let(::flag), justify?.let(::flag), theme?.wire, footer?.wire,
-            )
-        }
-        queries.ensureWork(workId)
-        with(settings.own ?: TextLookChoices.NONE) {
-            queries.saveWork(
-                font?.wire, size?.toLong(), lineHeight?.toLong(), paragraphSpacing?.toLong(), margin?.toLong(),
-                indent?.let(::flag), justify?.let(::flag), theme?.wire, footer?.wire, workId,
-            )
-        }
+        writeGeneralLook(settings.general)
+        writeOwnLook(workId, settings.own ?: TextLookChoices.NONE)
+    }
+
+    private fun generalLook(): TextLookChoices = database.textLookQueries.general().executeAsOneOrNull()?.let { row ->
+        lookChoices(row.font, row.size, row.line_height, row.paragraph_spacing, row.margin, row.indent, row.justify, row.theme, row.footer)
+    } ?: TextLookChoices.NONE
+
+    private fun writeGeneralLook(look: TextLookChoices) = with(look) {
+        database.textLookQueries.ensureGeneral()
+        database.textLookQueries.saveGeneral(
+            font?.wire, size?.toLong(), lineHeight?.toLong(), paragraphSpacing?.toLong(), margin?.toLong(),
+            indent?.let(::flag), justify?.let(::flag), theme?.wire, footer?.wire,
+        )
+    }
+
+    private fun writeOwnLook(workId: String, look: TextLookChoices) = with(look) {
+        database.textLookQueries.ensureWork(workId)
+        database.textLookQueries.saveWork(
+            font?.wire, size?.toLong(), lineHeight?.toLong(), paragraphSpacing?.toLong(), margin?.toLong(),
+            indent?.let(::flag), justify?.let(::flag), theme?.wire, footer?.wire, workId,
+        )
     }
 
     /** The mode the person chose for [workId]; null keeps its type's default. */
@@ -1276,13 +1281,15 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
                     )
                 },
                 readingState = backupState(version.work_id),
+                textLook = textSettings(version.work_id).own,
+                textMode = textMode(version.work_id),
             )
         }
         val servers = database.kavitaServerQueries.all().executeAsList().map { server ->
             val libraries = database.kavitaLibraryQueries.ofServer(server.id).executeAsList().map { it.toInt() }
             BackupServer(server.id, server.address, server.last_version, server.account_id?.toInt(), libraries)
         }
-        Backup(appVersion, exportedAt, works, servers)
+        Backup(appVersion, exportedAt, works, servers, generalLook())
     }
 
     private fun backupState(workId: String): BackupReadingState? =
@@ -1328,6 +1335,16 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
                 else -> "$RESTORED:${work.versionId}"
             }
             restoreWork(work, source, index.toLong())
+        }
+        // The reader's settings: the general ones, and each work's own and mode, once per work, as a
+        // work's editions all carry the same.
+        if (backup.textLook != TextLookChoices.NONE) writeGeneralLook(backup.textLook)
+        for (work in backup.works.distinctBy { it.id }) {
+            work.textLook?.let { writeOwnLook(work.id, it) }
+            work.textMode?.let { mode ->
+                database.textLookQueries.ensureWork(work.id)
+                database.textLookQueries.saveMode(mode.wire, work.id)
+            }
         }
         true
     }
