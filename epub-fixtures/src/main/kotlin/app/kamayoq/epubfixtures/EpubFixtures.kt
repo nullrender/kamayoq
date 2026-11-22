@@ -51,6 +51,24 @@ object EpubFixtures {
         return epub3("Livro com estilo", listOf(section), listOf(TocItem(section.title, section.file)))
     }
 
+    /**
+     * EPUB 3 whose stylesheet brings its own font, as bought ebooks do, with its own line height,
+     * paragraph spacing, indent and side margins. [font] is a TrueType file the caller supplies.
+     */
+    fun ownFont(font: ByteArray): ByteArray {
+        val head = """<link rel="stylesheet" type="text/css" href="book.css"/>"""
+        val sections = (1..2).map { number -> Section("s$number.xhtml", "Capítulo $number", paragraphs(number, 16), head) }
+        val css = "@font-face { font-family: 'Letra do livro'; src: url(fonts/livro.ttf); }\n" +
+            "body { font-family: 'Letra do livro', serif; line-height: 1.7; margin: 0 1em; }\n" +
+            "p { margin: 0 0 0.5em; text-indent: 2em; }"
+        val extra = """<item id="css" href="book.css" media-type="text/css"/>""" + "\n" +
+            """<item id="font" href="fonts/livro.ttf" media-type="font/ttf"/>"""
+        return epub3(
+            "Livro com letra própria", sections, sections.map { TocItem(it.title, it.file) },
+            extraItems = extra, files = listOf("OEBPS/book.css" to css.encodeToByteArray(), "OEBPS/fonts/livro.ttf" to font),
+        )
+    }
+
     /** A novel compiled into one spine item above 512 KiB, with its chapters only as anchors. */
     fun compiled(): ByteArray {
         val chapters = 40
@@ -241,13 +259,22 @@ object EpubFixtures {
     private class Section(val file: String, val title: String, val body: String, val head: String = "")
     private class TocItem(val label: String, val href: String)
 
-    private fun epub3(title: String, sections: List<Section>, toc: List<TocItem>, metadata: String = ""): ByteArray {
-        val manifest = """<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>""" + "\n" + sectionItems(sections)
+    private fun epub3(
+        title: String,
+        sections: List<Section>,
+        toc: List<TocItem>,
+        metadata: String = "",
+        extraItems: String = "",
+        files: List<Pair<String, ByteArray>> = emptyList(),
+    ): ByteArray {
+        val manifest = """<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>""" + "\n" + sectionItems(sections) +
+            (if (extraItems.isEmpty()) "" else "\n" + extraItems)
         val modified = """<meta property="dcterms:modified">2026-01-01T00:00:00Z</meta>""" + metadata
         return zipped(
             sections,
             PACKAGE to packageDocument("3.0", title, modified, manifest, "<spine>", sections),
             "OEBPS/nav.xhtml" to nav(toc),
+            files = files,
         )
     }
 
@@ -336,7 +363,7 @@ object EpubFixtures {
         "<p>" + sentence.repeat(PARAGRAPH_BYTES / sentence.length + 1).take(PARAGRAPH_BYTES) + "</p>"
     }
 
-    private fun zipped(sections: List<Section>, vararg documents: Pair<String, String>): ByteArray {
+    private fun zipped(sections: List<Section>, vararg documents: Pair<String, String>, files: List<Pair<String, ByteArray>> = emptyList()): ByteArray {
         val container = """
             <?xml version="1.0" encoding="UTF-8"?>
             <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
@@ -349,13 +376,16 @@ object EpubFixtures {
             zip.putDeflated("META-INF/container.xml", container)
             for ((name, text) in documents) zip.putDeflated(name, text)
             for (item in sections) zip.putDeflated("OEBPS/${item.file}", section(item))
+            for ((name, content) in files) zip.putDeflated(name, content)
         }
         return bytes.toByteArray()
     }
 
-    private fun ZipOutputStream.putDeflated(name: String, text: String) {
+    private fun ZipOutputStream.putDeflated(name: String, text: String) = putDeflated(name, text.encodeToByteArray())
+
+    private fun ZipOutputStream.putDeflated(name: String, content: ByteArray) {
         putNextEntry(ZipEntry(name).apply { time = ENTRY_TIME })
-        write(text.encodeToByteArray())
+        write(content)
         closeEntry()
     }
 
