@@ -309,6 +309,9 @@
     <string name="selection_delete_downloads">Delete downloads</string>
     <string name="selection_none_downloaded">None of these is downloaded. Nothing was deleted.</string>
     <string name="download_already_coming">They\'re already downloading.</string>
+    <!-- Download on one chapter of Arrived, when nothing went in line. -->
+    <string name="download_one_coming">It\'s already downloading.</string>
+    <string name="download_one_here">It\'s on this device already.</string>
     <!-- How long ago something happened, on Home and the Work screen (board SinteseInicio: "há 2 h"). -->
     <string name="elapsed_just_now">just now</string>
     <plurals name="elapsed_minutes">
