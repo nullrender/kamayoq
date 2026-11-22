@@ -1,0 +1,17 @@
+package app.kamayoq.core.reader
+
+/**
+ * Turning pages in the image reader's Pages. Index 0 is the first image and [totalPages] the
+ * end-of-chapter block after the last one, as in the reading position (StripPosition).
+ */
+object ImagePages {
+    /**
+     * What a touch at [x] (0 at the left edge, 1 at the right) asks for, by the same sides as the text
+     * reader's Pages. Right to left, the left side goes forward (product design, "Leitor de imagem", 4).
+     * The Strip scrolls, so it has no page to turn.
+     */
+    fun zone(x: Double, mode: ImageMode): TapZone = TapZone.CONTROLS
+
+    /** The page a turn from [page] reaches; past either end it stays where it is. */
+    fun turned(page: Int, totalPages: Int, zone: TapZone): Int = page
+}
