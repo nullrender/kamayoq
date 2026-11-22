@@ -46,8 +46,9 @@ class PagedZoomTest {
     /** Two fingers apart from the middle ([out]) or toward it. */
     private fun pinch(out: Boolean) {
         compose.onRoot().performTouchInput {
+            // Inside the screen: a finger put down outside it never reaches the page.
             val near = 40f
-            val far = 220f
+            val far = width * 0.4f
             val (from, to) = if (out) near to far else far to near
             pinch(center - Offset(from, 0f), center - Offset(to, 0f), center + Offset(from, 0f), center + Offset(to, 0f))
         }
