@@ -325,10 +325,12 @@ fun TextReader(
             TextReaderFooter(look.footer, progress, shown.colors)
         }
     }
-    if (controlsShown || problem != null) {
+    // While the hint shows, nothing else on screen takes focus: it is read first (finding 11).
+    val hintShowing = pagesHint && !hintDismissed && ready && flow == ReaderFlow.PAGES && problem == null
+    if ((controlsShown || problem != null) && !hintShowing) {
         TextReaderTopBar(title, progress, onBack, Modifier.align(Alignment.TopCenter).statusBarsPadding())
     }
-    if (controlsShown && problem == null && !panelOpen) {
+    if (controlsShown && problem == null && !panelOpen && !hintShowing) {
         TextReaderBottomBar(
             enabled = ready,
             contentsLabel = stringResource(if (type == WorkType.NOVELS) R.string.reader_chapters else R.string.reader_contents),
@@ -342,7 +344,7 @@ fun TextReader(
         )
     }
     // Over the bars too: the hint is read before anything else is touched.
-    if (pagesHint && !hintDismissed && ready && flow == ReaderFlow.PAGES && problem == null) {
+    if (hintShowing) {
         PagesHint(onDismiss = {
             hintDismissed = true
             onPagesHintSeen()
@@ -369,6 +371,9 @@ fun TextReader(
             onDismiss = { panelOpen = false },
         )
     }
+
+    // A new mode opens the book again: the end block of the old page does not stay over the new one.
+    LaunchedEffect(flow) { atEnd = false }
 
     // A new look with the page open goes by command: reopening would cost the place on screen.
     LaunchedEffect(shown, ready) {
