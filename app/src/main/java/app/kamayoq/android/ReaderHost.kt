@@ -39,7 +39,9 @@ import app.kamayoq.core.progress.StripPosition
 import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.progress.strip
 import app.kamayoq.core.reader.FileTooLargeException
+import app.kamayoq.core.reader.ImageModeDetection
 import app.kamayoq.core.reader.ImageModeSettings
+import app.kamayoq.core.reader.ImageSignals
 import app.kamayoq.core.reader.ReaderFlow
 import app.kamayoq.core.reader.SplitReading
 import app.kamayoq.core.reader.TextSettings
@@ -440,6 +442,12 @@ private fun chapterRows(store: LibraryStore, workId: String, type: WorkType): Li
     }
 }
 
+/**
+ * What the image reader's Automatic reads of a chapter: its images' sizes, the work's genre and tag
+ * items from Kavita and from the archive's ComicInfo, and ComicInfo's Manga field.
+ */
+internal fun imageSignals(chapter: OpenedChapter, workWords: List<String>): ImageSignals = ImageSignals(emptyList())
+
 /** A comic's chapters for the image reader's Chapters sheet, with how far a chapter begun goes. */
 private fun imageChapterRows(store: LibraryStore, chapters: List<StoredChapter>): List<ReaderChapterRow> = chapters.map { chapter ->
     val progress = store.progress(chapter.id)
@@ -637,7 +645,7 @@ private fun openChapter(
         val previous = store.alternatives(workId)
             .firstOrNull { moved && it.reason == LibraryStore.PREVIOUS && it.chapterId == opened.chapterId }
         return Opening.Ready(
-            opened, title, chapters.getOrNull(index + 1), previous, turn.token, round, store.imageMode(workId),
+            opened, title, chapters.getOrNull(index + 1), previous, turn.token, round, store.imageMode(workId, ImageModeDetection.detect(imageSignals(opened, store.details(workId).tags)).mode),
             before = chapters.getOrNull(index - 1),
             place = ChapterPlace(index + 1, chapters.size).takeIf { index >= 0 },
             rows = imageChapterRows(store, chapters),

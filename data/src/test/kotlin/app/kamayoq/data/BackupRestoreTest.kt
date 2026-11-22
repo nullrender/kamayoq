@@ -24,6 +24,7 @@ import app.kamayoq.core.progress.ReadingState
 import app.kamayoq.core.progress.StateMark
 import app.kamayoq.core.progress.StripPosition
 import app.kamayoq.core.progress.TextPosition
+import app.kamayoq.core.reader.ImageMode
 import app.kamayoq.core.reader.ImageModeChoice
 import app.kamayoq.core.reader.ImageScope
 import app.kamayoq.core.reader.PageTheme
@@ -194,7 +195,7 @@ class BackupRestoreTest {
         original.readFolder(oldFolder, cap1)
         val comic = original.workId("Sakamoto Days")
         val witch = original.workId("Release That Witch")
-        val mode = original.imageMode(comic)
+        val mode = original.imageMode(comic, ImageMode.STRIP)
             .choose(ImageScope.ALL_IMAGE_WORKS, ImageModeChoice.PAGES_LEFT_TO_RIGHT)
             .choose(ImageScope.THIS_WORK, ImageModeChoice.PAGES_RIGHT_TO_LEFT)
         original.saveImageMode(comic, mode)
@@ -204,9 +205,9 @@ class BackupRestoreTest {
 
         val restored = emptyStore()
         assertTrue(restored.restore(file))
-        assertEquals(mode, restored.imageMode(comic))
-        assertEquals(ImageModeChoice.PAGES_LEFT_TO_RIGHT, restored.imageMode(witch).general)
-        assertEquals(null, restored.imageMode(witch).own)
+        assertEquals(mode, restored.imageMode(comic, ImageMode.STRIP))
+        assertEquals(ImageModeChoice.PAGES_LEFT_TO_RIGHT, restored.imageMode(witch, ImageMode.STRIP).general)
+        assertEquals(null, restored.imageMode(witch, ImageMode.STRIP).own)
     }
 
     @Test

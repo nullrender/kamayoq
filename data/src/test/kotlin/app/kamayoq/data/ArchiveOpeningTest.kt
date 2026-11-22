@@ -4,6 +4,8 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import app.kamayoq.core.library.FileStamp
 import app.kamayoq.core.library.FolderConvention
 import app.kamayoq.core.progress.ChapterProgress
+import app.kamayoq.core.reader.ComicInfo
+import app.kamayoq.core.reader.MangaField
 import app.kamayoq.core.progress.StripPosition
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -81,6 +83,24 @@ class ArchiveOpeningTest {
         assertEquals(chapter("Cap. 1").id, opened.chapterId)
         assertEquals(listOf("1.jpg", "2.jpg"), pagesOf(opened))
         assertFalse(chapter("Cap. 1").needsContentCheck)
+    }
+
+    @Test
+    fun `dado um CBZ com ComicInfo, quando aberto, então o Manga e as etiquetas chegam com as páginas`() {
+        importChapters("Comics/X/Cap. 1.cbz")
+        val bytes = ByteArrayOutputStream()
+        ZipOutputStream(bytes).use { zip ->
+            for ((name, content) in listOf("1.jpg" to "1.jpg", "ComicInfo.xml" to "<ComicInfo><Tags>Webtoon</Tags><Manga>No</Manga></ComicInfo>")) {
+                zip.putNextEntry(ZipEntry(name).apply { time = 0L })
+                zip.write(content.toByteArray())
+                zip.closeEntry()
+            }
+        }
+
+        val opened = opening.open(chapter("Cap. 1"), ByteArrayInputStream(bytes.toByteArray()))
+
+        assertEquals(ComicInfo(emptyList(), listOf("Webtoon"), MangaField.NO), opened.comicInfo)
+        assertEquals(listOf("1.jpg"), pagesOf(opened))
     }
 
     private val halfway = ChapterProgress(

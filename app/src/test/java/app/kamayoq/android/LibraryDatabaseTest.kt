@@ -269,7 +269,7 @@ class LibraryDatabaseTest {
         val store = (library as LibraryOpening.Opened).store
         assertEquals(7, store.progress("chapter-1").position?.strip()?.page)
         assertEquals(StoredReadingState(ReadingState.READING, null), store.readingState("work-1"))
-        assertEquals(ImageModeSettings(ImageModeChoice.AUTOMATIC, null, ImageMode.STRIP), store.imageMode("work-1"))
+        assertEquals(ImageModeSettings(ImageModeChoice.AUTOMATIC, null, ImageMode.STRIP), store.imageMode("work-1", ImageMode.STRIP))
         assertEquals(9, read(database) { version })
         assertEquals(8, read(copyOf8) { version })
         assertFalse(hasTable(copyOf8, "work_image_look"))

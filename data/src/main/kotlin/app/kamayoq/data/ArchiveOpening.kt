@@ -2,6 +2,7 @@ package app.kamayoq.data
 
 import app.kamayoq.core.reader.ArchiveChapter
 import app.kamayoq.core.reader.ArchivePages
+import app.kamayoq.core.reader.ComicInfo
 import app.kamayoq.core.reader.EpubArchive
 import app.kamayoq.core.reader.EpubLimits
 import java.io.File
@@ -27,6 +28,9 @@ class OpenedArchive internal constructor(
     private var closed = false
 
     val pages: List<String> get() = archive.pages
+
+    /** What the chapter's ComicInfo.xml says, for the image reader's Automatic. */
+    val comicInfo: ComicInfo get() = ComicInfo.NONE
 
     /** A page's data. An [IOException] once the chapter was released, which the reader shows as a broken page. */
     @Synchronized

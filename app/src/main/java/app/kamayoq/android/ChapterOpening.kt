@@ -12,6 +12,7 @@ import app.kamayoq.core.library.FolderEntry
 import app.kamayoq.core.library.FolderWalk
 import app.kamayoq.core.library.UnitContent
 import app.kamayoq.core.progress.ChapterProgress
+import app.kamayoq.core.reader.ComicInfo
 import app.kamayoq.core.reader.ContentsChapter
 import app.kamayoq.core.reader.EpubArchive
 import app.kamayoq.core.reader.EpubLimits
@@ -36,6 +37,8 @@ class OpenedChapter(
     val chapterId: String,
     val pages: List<PageImage>,
     val progress: ChapterProgress,
+    /** What the archive's ComicInfo.xml says; a folder of images has none read. */
+    val comicInfo: ComicInfo = ComicInfo.NONE,
     val release: () -> Unit,
 )
 

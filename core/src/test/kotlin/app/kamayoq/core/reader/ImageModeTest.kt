@@ -1,30 +1,23 @@
 package app.kamayoq.core.reader
 
-import app.kamayoq.core.library.ComicsSubtype
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class ImageModeTest {
 
-    private fun settings(general: ImageModeChoice = ImageModeChoice.AUTOMATIC, own: ImageModeChoice? = null, subtype: ComicsSubtype? = null) =
-        ImageModeSettings(general, own, ImageModeSettings.detected(subtype))
+    // What the chapter's images and metadata say is ImageModeDetection's (ImageModeDetectionTest).
+    private fun settings(general: ImageModeChoice = ImageModeChoice.AUTOMATIC, own: ImageModeChoice? = null, detected: ImageMode = ImageMode.STRIP) =
+        ImageModeSettings(general, own, detected)
 
     @Test
-    fun `dado um mangá sem escolha nenhuma, então abre em Páginas para a esquerda`() {
-        assertEquals(ImageMode.PAGES_RIGHT_TO_LEFT, settings(subtype = ComicsSubtype.MANGA).effective)
-    }
-
-    @Test
-    fun `dado um manhwa, um webtoon ou um quadrinho sem subtipo, sem escolha nenhuma, então abre na Tira`() {
-        listOf(ComicsSubtype.MANHWA, ComicsSubtype.WEBTOON, null).forEach { subtype ->
-            assertEquals(ImageMode.STRIP, settings(subtype = subtype).effective, "subtype $subtype")
-        }
+    fun `dado nenhuma escolha, então abre no detectado`() {
+        assertEquals(ImageMode.PAGES_RIGHT_TO_LEFT, settings(detected = ImageMode.PAGES_RIGHT_TO_LEFT).effective)
     }
 
     @Test
     fun `dado todas as obras em Páginas para a direita, quando a obra não tem escolha própria, então abre em Páginas para a direita`() {
-        assertEquals(ImageMode.PAGES_LEFT_TO_RIGHT, settings(general = ImageModeChoice.PAGES_LEFT_TO_RIGHT, subtype = ComicsSubtype.MANGA).effective)
+        assertEquals(ImageMode.PAGES_LEFT_TO_RIGHT, settings(general = ImageModeChoice.PAGES_LEFT_TO_RIGHT, detected = ImageMode.PAGES_RIGHT_TO_LEFT).effective)
     }
 
     @Test
@@ -34,7 +27,7 @@ class ImageModeTest {
 
     @Test
     fun `dado um mangá em Automático só nele e todas em Páginas para a direita, então ele abre pelo detectado`() {
-        val mode = settings(general = ImageModeChoice.PAGES_LEFT_TO_RIGHT, own = ImageModeChoice.AUTOMATIC, subtype = ComicsSubtype.MANGA).effective
+        val mode = settings(general = ImageModeChoice.PAGES_LEFT_TO_RIGHT, own = ImageModeChoice.AUTOMATIC, detected = ImageMode.PAGES_RIGHT_TO_LEFT).effective
 
         assertEquals(ImageMode.PAGES_RIGHT_TO_LEFT, mode)
     }

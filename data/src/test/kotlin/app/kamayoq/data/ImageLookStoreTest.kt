@@ -52,66 +52,77 @@ class ImageLookStoreTest {
         return works.single { it.title == "Kaoru Hana wa Rin to Saku" }.id to works.single { it.title == "Solo Leveling" }.id
     }
 
+    /** What the chapter's images and metadata said when it opened (ImageModeDetection). */
+    private val mangaDetected = ImageMode.PAGES_RIGHT_TO_LEFT
+
     @Test
-    fun `dado nenhuma escolha guardada, então o mangá abre em Páginas para a esquerda e o manhwa na Tira`() {
+    fun `dado nenhuma escolha guardada, então cada obra abre no detectado do capítulo`() {
         val (manga, manhwa) = ids()
 
-        assertEquals(ImageModeSettings(ImageModeChoice.AUTOMATIC, null, ImageMode.PAGES_RIGHT_TO_LEFT), store.imageMode(manga))
-        assertEquals(ImageModeSettings(ImageModeChoice.AUTOMATIC, null, ImageMode.STRIP), store.imageMode(manhwa))
+        assertEquals(ImageModeSettings(ImageModeChoice.AUTOMATIC, null, ImageMode.PAGES_RIGHT_TO_LEFT), store.imageMode(manga, mangaDetected))
+        assertEquals(ImageModeSettings(ImageModeChoice.AUTOMATIC, null, ImageMode.STRIP), store.imageMode(manhwa, ImageMode.STRIP))
+    }
+
+    @Test
+    fun `dado uma obra de biblioteca do tipo Manga do Kavita, quando o capítulo diz Tira, então ela abre na Tira`() {
+        // The library's type is not used: Kavita has webtoon put in Manga libraries (research of 22/11/2026).
+        val (manga, _) = ids()
+
+        assertEquals(ImageMode.STRIP, store.imageMode(manga, ImageMode.STRIP).effective)
     }
 
     @Test
     fun `dado uma escolha só para o mangá, quando reabro, então ela volta e o manhwa não muda`() {
         val (manga, manhwa) = ids()
 
-        store.saveImageMode(manga, store.imageMode(manga).choose(ImageScope.THIS_WORK, ImageModeChoice.PAGES_LEFT_TO_RIGHT))
+        store.saveImageMode(manga, store.imageMode(manga, mangaDetected).choose(ImageScope.THIS_WORK, ImageModeChoice.PAGES_LEFT_TO_RIGHT))
 
-        assertEquals(ImageModeChoice.PAGES_LEFT_TO_RIGHT, store.imageMode(manga).own)
-        assertEquals(ImageMode.PAGES_LEFT_TO_RIGHT, store.imageMode(manga).effective)
-        assertNull(store.imageMode(manhwa).own)
-        assertEquals(ImageMode.STRIP, store.imageMode(manhwa).effective)
+        assertEquals(ImageModeChoice.PAGES_LEFT_TO_RIGHT, store.imageMode(manga, mangaDetected).own)
+        assertEquals(ImageMode.PAGES_LEFT_TO_RIGHT, store.imageMode(manga, mangaDetected).effective)
+        assertNull(store.imageMode(manhwa, ImageMode.STRIP).own)
+        assertEquals(ImageMode.STRIP, store.imageMode(manhwa, ImageMode.STRIP).effective)
     }
 
     @Test
     fun `dado uma escolha para todas feita no mangá, então o manhwa também a segue`() {
         val (manga, manhwa) = ids()
 
-        store.saveImageMode(manga, store.imageMode(manga).choose(ImageScope.ALL_IMAGE_WORKS, ImageModeChoice.PAGES_LEFT_TO_RIGHT))
+        store.saveImageMode(manga, store.imageMode(manga, mangaDetected).choose(ImageScope.ALL_IMAGE_WORKS, ImageModeChoice.PAGES_LEFT_TO_RIGHT))
 
-        assertEquals(ImageModeChoice.PAGES_LEFT_TO_RIGHT, store.imageMode(manhwa).general)
-        assertEquals(ImageMode.PAGES_LEFT_TO_RIGHT, store.imageMode(manhwa).effective)
+        assertEquals(ImageModeChoice.PAGES_LEFT_TO_RIGHT, store.imageMode(manhwa, ImageMode.STRIP).general)
+        assertEquals(ImageMode.PAGES_LEFT_TO_RIGHT, store.imageMode(manhwa, ImageMode.STRIP).effective)
     }
 
     @Test
     fun `dado o mangá com escolha própria, quando restauro só esta obra, então ela sai do banco`() {
         val (manga, _) = ids()
-        store.saveImageMode(manga, store.imageMode(manga).choose(ImageScope.THIS_WORK, ImageModeChoice.STRIP))
+        store.saveImageMode(manga, store.imageMode(manga, mangaDetected).choose(ImageScope.THIS_WORK, ImageModeChoice.STRIP))
 
-        store.saveImageMode(manga, store.imageMode(manga).restore(ImageScope.THIS_WORK))
+        store.saveImageMode(manga, store.imageMode(manga, mangaDetected).restore(ImageScope.THIS_WORK))
 
-        assertNull(store.imageMode(manga).own)
-        assertEquals(ImageMode.PAGES_RIGHT_TO_LEFT, store.imageMode(manga).effective)
+        assertNull(store.imageMode(manga, mangaDetected).own)
+        assertEquals(ImageMode.PAGES_RIGHT_TO_LEFT, store.imageMode(manga, mangaDetected).effective)
     }
 
     @Test
     fun `dado Automático escolhido só para o mangá, quando reabro, então ele continua escolhido e não vira seguir todas`() {
         val (manga, manhwa) = ids()
-        store.saveImageMode(manhwa, store.imageMode(manhwa).choose(ImageScope.ALL_IMAGE_WORKS, ImageModeChoice.STRIP))
+        store.saveImageMode(manhwa, store.imageMode(manhwa, ImageMode.STRIP).choose(ImageScope.ALL_IMAGE_WORKS, ImageModeChoice.STRIP))
 
-        store.saveImageMode(manga, store.imageMode(manga).choose(ImageScope.THIS_WORK, ImageModeChoice.AUTOMATIC))
+        store.saveImageMode(manga, store.imageMode(manga, mangaDetected).choose(ImageScope.THIS_WORK, ImageModeChoice.AUTOMATIC))
 
-        assertEquals(ImageModeChoice.AUTOMATIC, store.imageMode(manga).own)
-        assertEquals(ImageMode.PAGES_RIGHT_TO_LEFT, store.imageMode(manga).effective)
+        assertEquals(ImageModeChoice.AUTOMATIC, store.imageMode(manga, mangaDetected).own)
+        assertEquals(ImageMode.PAGES_RIGHT_TO_LEFT, store.imageMode(manga, mangaDetected).effective)
     }
 
     @Test
     fun `dado um nome de modo que esta versão não conhece, então ele vale como não escolhido`() {
         val (manga, _) = ids()
-        store.saveImageMode(manga, store.imageMode(manga).choose(ImageScope.THIS_WORK, ImageModeChoice.STRIP).choose(ImageScope.ALL_IMAGE_WORKS, ImageModeChoice.STRIP))
+        store.saveImageMode(manga, store.imageMode(manga, mangaDetected).choose(ImageScope.THIS_WORK, ImageModeChoice.STRIP).choose(ImageScope.ALL_IMAGE_WORKS, ImageModeChoice.STRIP))
         driver.execute(null, "UPDATE work_image_look SET mode = 'double-page'", 0)
         driver.execute(null, "UPDATE image_look_general SET mode = 'double-page'", 0)
 
-        assertEquals(ImageModeSettings(ImageModeChoice.AUTOMATIC, null, ImageMode.PAGES_RIGHT_TO_LEFT), store.imageMode(manga))
+        assertEquals(ImageModeSettings(ImageModeChoice.AUTOMATIC, null, ImageMode.PAGES_RIGHT_TO_LEFT), store.imageMode(manga, mangaDetected))
     }
 
     @Test

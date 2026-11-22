@@ -71,6 +71,14 @@ class ImageModeSheetsTest {
     }
 
     @Test
+    fun `dado a folha de ajustes, então o detectado fica só na folha rápida`() {
+        compose.setContent { KamayoqTheme { ImageSettingsContent(manga) {} } }
+
+        compose.onNodeWithText(text(R.string.reader_image_detected, text(R.string.reader_image_mode_rtl)), substring = true).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.reader_image_mode_automatic)).assertExists()
+    }
+
+    @Test
     fun `dado a folha de ajustes em Todas, quando escolho a Tira, então muda o geral e a obra continua seguindo`() {
         var settings by mutableStateOf(manga)
         compose.setContent { KamayoqTheme { ImageSettingsContent(settings) { settings = it } } }
