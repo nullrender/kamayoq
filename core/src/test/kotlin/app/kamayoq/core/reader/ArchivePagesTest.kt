@@ -123,4 +123,63 @@ class ArchivePagesTest {
             pagesOf("not a zip at all".toByteArray())
         }
     }
+
+    /** A CBZ with two images and [comicInfo] as the content of the entry [name]. */
+    private fun withComicInfo(comicInfo: String, name: String = "ComicInfo.xml"): ByteArray {
+        val bytes = ByteArrayOutputStream()
+        ZipOutputStream(bytes).use { zip ->
+            for ((entry, content) in listOf("01.jpg" to "01.jpg", name to comicInfo, "02.jpg" to "02.jpg")) {
+                zip.putNextEntry(ZipEntry(entry))
+                zip.write(content.toByteArray())
+                zip.closeEntry()
+            }
+        }
+        return bytes.toByteArray()
+    }
+
+    private val tetoInEnglish = """
+        <?xml version="1.0" encoding="utf-8"?>
+        <ComicInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+          <Series>Teto x Egen</Series>
+          <Genre>Romance, Comédia,  Slice of Life</Genre>
+          <Tags>Long Strip,Full Color</Tags>
+          <Manga>YesAndRightToLeft</Manga>
+        </ComicInfo>
+    """.trimIndent()
+
+    @Test
+    fun `dado um CBZ com ComicInfo, então os gêneros, as etiquetas e o Manga chegam ao leitor`() {
+        val info = opened(withComicInfo(tetoInEnglish)) { it.comicInfo }
+
+        assertEquals(listOf("Romance", "Comédia", "Slice of Life"), info.genre)
+        assertEquals(listOf("Long Strip", "Full Color"), info.tags)
+        assertEquals(MangaField.YES_AND_RIGHT_TO_LEFT, info.manga)
+    }
+
+    @Test
+    fun `dado o ComicInfo com o nome em minúsculas numa pasta interna, então ele também vale`() {
+        val info = opened(withComicInfo(tetoInEnglish, name = "Capítulo 1/comicinfo.xml")) { it.comicInfo }
+
+        assertEquals(MangaField.YES_AND_RIGHT_TO_LEFT, info.manga)
+    }
+
+    @Test
+    fun `dado Manga Unknown ou vazio, então o campo não diz nada`() {
+        assertEquals(null, ComicInfo.parse("<ComicInfo><Manga>Unknown</Manga></ComicInfo>").manga)
+        assertEquals(null, ComicInfo.parse("<ComicInfo><Manga></Manga></ComicInfo>").manga)
+        assertEquals(MangaField.YES, ComicInfo.parse("<ComicInfo><Manga>Yes</Manga></ComicInfo>").manga)
+        assertEquals(MangaField.NO, ComicInfo.parse("<ComicInfo><Manga>No</Manga></ComicInfo>").manga)
+    }
+
+    @Test
+    fun `dado um ComicInfo malformado ou de outro documento, então ele não diz nada e as páginas abrem`() {
+        assertEquals(ComicInfo.NONE, ComicInfo.parse("<ComicInfo><Genre>Action</ComicInfo>"))
+        assertEquals(ComicInfo.NONE, ComicInfo.parse("<package><Genre>Action</Genre></package>"))
+        assertEquals(2, opened(withComicInfo("<ComicInfo><Genre>")) { it.pages.size })
+    }
+
+    @Test
+    fun `dado o ComicInfo só na pasta do macOS, então ele não conta`() {
+        assertEquals(ComicInfo.NONE, opened(withComicInfo(tetoInEnglish, name = "__MACOSX/ComicInfo.xml")) { it.comicInfo })
+    }
 }

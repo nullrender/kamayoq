@@ -17,9 +17,28 @@ import java.util.zip.ZipFile
 /** A file larger than [maxBytes] stopped being copied there, before filling the phone's storage. */
 class FileTooLargeException(val maxBytes: Long) : IOException("File larger than $maxBytes bytes")
 
+/**
+ * What a chapter's ComicInfo.xml says that the image reader's Automatic uses (the Anansi Project's
+ * schema): the genre and tag items, and the `Manga` field.
+ */
+data class ComicInfo(val genre: List<String>, val tags: List<String>, val manga: MangaField?) {
+    val words: List<String> get() = genre + tags
+
+    companion object {
+        val NONE = ComicInfo(emptyList(), emptyList(), null)
+
+        /** A document that is not ComicInfo, or not well formed, says nothing. */
+        fun parse(text: String): ComicInfo = NONE
+    }
+}
+
 /** The pages of a chapter's archive, read straight from it while it stays open. */
-class ArchiveChapter internal constructor(private val zip: ZipFile, private val entries: Map<String, ZipEntry>) :
-    Closeable {
+class ArchiveChapter internal constructor(
+    private val zip: ZipFile,
+    private val entries: Map<String, ZipEntry>,
+    /** What the archive's ComicInfo.xml says; nothing without one. */
+    val comicInfo: ComicInfo = ComicInfo.NONE,
+) : Closeable {
     /** Keys made here, in reading order (never the name inside the archive, which could point anywhere). */
     val pages: List<String> = entries.keys.toList()
 
