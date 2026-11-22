@@ -47,6 +47,12 @@ sealed interface ReaderMessage {
     /** The person asked for the next page on the book's last one (piece 23). */
     data object End : ReaderMessage
 
+    /**
+     * A plain touch on the page, away from a link and with no text selected: [x] is its place across
+     * the page, from 0 to 1. [TapZones] says what it does.
+     */
+    data class Tap(val x: Double) : ReaderMessage
+
     companion object {
         const val MAX_MESSAGE_LENGTH = 8 * 1024
         const val MAX_CFI_LENGTH = 2 * 1024

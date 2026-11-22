@@ -223,4 +223,23 @@ class ReaderMessageTest {
         assertEquals(ReaderMessage.Restored, ReaderMessage.parse("""{"type":"restored"}"""))
         assertIs<ReaderMessage.Refused>(ReaderMessage.parse("""{"type":"restored","cfi":"epubcfi(/6/4!/4/2)"}"""))
     }
+
+    @Test
+    fun `dado tap com a posição do toque na largura, então o toque vem com ela`() {
+        val message = assertIs<ReaderMessage.Tap>(ReaderMessage.parse("""{"type":"tap","x":0.75}"""))
+        assertEquals(0.75, message.x)
+    }
+
+    @Test
+    fun `dado tap fora de 0 a 1, sem posição, com texto no lugar do número ou com campos a mais, então é recusado`() {
+        for (raw in listOf(
+            """{"type":"tap","x":1.5}""",
+            """{"type":"tap","x":-0.1}""",
+            """{"type":"tap"}""",
+            """{"type":"tap","x":"0.5"}""",
+            """{"type":"tap","x":0.5,"href":"https://example.com"}""",
+        )) {
+            assertIs<ReaderMessage.Refused>(ReaderMessage.parse(raw), raw)
+        }
+    }
 }

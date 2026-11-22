@@ -74,7 +74,7 @@ class ReaderBookTest {
                 is ReaderMessage.Relocated -> return message
                 is ReaderMessage.Failed, is ReaderMessage.Refused, is ReaderMessage.Link, ReaderMessage.End ->
                     fail("Reader said: $message; console: $console")
-                ReaderMessage.Ready, ReaderMessage.Restored -> Unit
+                ReaderMessage.Ready, ReaderMessage.Restored, is ReaderMessage.Tap -> Unit
             }
         }
     }
