@@ -14,10 +14,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -117,10 +113,8 @@ internal fun HomeScreen(
         FirstOpening(restoreBusy, onChooseFolder, onOpenKavita, onPickBackup, canRestore, Modifier.fillMaxSize().safeDrawingPadding())
         return
     }
-    // The works whose new chapters are open; Arrived starts folded (FEATURES, part 2).
-    var opened by rememberSaveable { mutableStateOf(ArrayList<String>()) }
     Box(modifier = Modifier.fillMaxSize()) {
-    LazyColumn(modifier = Modifier.fillMaxSize().safeDrawingPadding(), contentPadding = PaddingValues(bottom = 16.dp)) {
+    LazyColumn(modifier = Modifier.fillMaxSize().safeDrawingPadding(), state = listState, contentPadding = PaddingValues(bottom = 16.dp)) {
         item(key = "header") {
             Text(
                 stringResource(R.string.app_name),
@@ -141,7 +135,7 @@ internal fun HomeScreen(
                 ArrivedGroup(
                     item = group,
                     open = open,
-                    onToggle = { opened = ArrayList(if (open) opened - group.work.id else opened + group.work.id) },
+                    onToggle = { onOpenedChange(if (open) opened - group.work.id else opened + group.work.id) },
                     downloaded = downloaded,
                     canDownload = canDownload,
                     onOpenWork = onOpenWork,
