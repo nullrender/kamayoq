@@ -45,7 +45,12 @@ import app.kamayoq.core.progress.StripPosition
 import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.progress.strip
 import app.kamayoq.core.reader.ContentsChapter
+import app.kamayoq.core.reader.FooterContent
+import app.kamayoq.core.reader.PageTheme
 import app.kamayoq.core.reader.ReaderFlow
+import app.kamayoq.core.reader.ReadingFont
+import app.kamayoq.core.reader.TextLookChoices
+import app.kamayoq.core.reader.TextNumber
 import app.kamayoq.core.reader.TextSettings
 import app.kamayoq.data.db.CurrentOfVersion
 import app.kamayoq.data.db.KamayoqDatabase
@@ -647,20 +652,72 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         } ?: WorkDetails.NONE
 
     /** The text reader's settings as [workId] opens: the general ones and the work's own (TextLook.sq). */
-    fun textSettings(workId: String): TextSettings = TextSettings.DEFAULT
+    fun textSettings(workId: String): TextSettings = database.transactionWithResult {
+        val general = database.textLookQueries.general().executeAsOneOrNull()?.let { row ->
+            lookChoices(row.font, row.size, row.line_height, row.paragraph_spacing, row.margin, row.indent, row.justify, row.theme, row.footer)
+        } ?: TextLookChoices.NONE
+        val own = database.textLookQueries.ofWork(workId).executeAsOneOrNull()?.let { row ->
+            lookChoices(row.font, row.size, row.line_height, row.paragraph_spacing, row.margin, row.indent, row.justify, row.theme, row.footer)
+        }?.takeIf { it.properties.isNotEmpty() }
+        TextSettings(general, own)
+    }
 
     /** Keeps [settings]: the general ones for every text work, and the own ones of [workId]. */
-    fun saveTextSettings(workId: String, settings: TextSettings) = Unit
+    fun saveTextSettings(workId: String, settings: TextSettings) = database.transaction {
+        val queries = database.textLookQueries
+        queries.ensureGeneral()
+        with(settings.general) {
+            queries.saveGeneral(
+                font?.wire, size?.toLong(), lineHeight?.toLong(), paragraphSpacing?.toLong(), margin?.toLong(),
+                indent?.let(::flag), justify?.let(::flag), theme?.wire, footer?.wire,
+            )
+        }
+        queries.ensureWork(workId)
+        with(settings.own ?: TextLookChoices.NONE) {
+            queries.saveWork(
+                font?.wire, size?.toLong(), lineHeight?.toLong(), paragraphSpacing?.toLong(), margin?.toLong(),
+                indent?.let(::flag), justify?.let(::flag), theme?.wire, footer?.wire, workId,
+            )
+        }
+    }
 
     /** The mode the person chose for [workId]; null keeps its type's default. */
-    fun textMode(workId: String): ReaderFlow? = null
+    fun textMode(workId: String): ReaderFlow? =
+        database.textLookQueries.ofWork(workId).executeAsOneOrNull()?.mode?.let { wire -> ReaderFlow.entries.find { it.wire == wire } }
 
-    fun saveTextMode(workId: String, flow: ReaderFlow) = Unit
+    fun saveTextMode(workId: String, flow: ReaderFlow) = database.transaction {
+        database.textLookQueries.ensureWork(workId)
+        database.textLookQueries.saveMode(flow.wire, workId)
+    }
 
     /** Whether the hint on the first opening in Pages was already dismissed. */
-    fun pagesHintSeen(): Boolean = false
+    fun pagesHintSeen(): Boolean = database.textLookQueries.general().executeAsOneOrNull()?.pages_hint_seen == 1L
 
-    fun markPagesHintSeen() = Unit
+    fun markPagesHintSeen() = database.transaction {
+        database.textLookQueries.ensureGeneral()
+        database.textLookQueries.markPagesHintSeen()
+    }
+
+    private fun flag(on: Boolean): Long = if (on) 1L else 0L
+
+    // A name this version does not know, or a number out of its limits, reads as not set: the
+    // default comes back instead of a failure to open the book.
+    private fun lookChoices(
+        font: String?, size: Long?, lineHeight: Long?, paragraphSpacing: Long?, margin: Long?,
+        indent: Long?, justify: Long?, theme: String?, footer: String?,
+    ) = TextLookChoices(
+        font = ReadingFont.entries.find { it.wire == font },
+        size = size?.inLimits(TextNumber.SIZE),
+        lineHeight = lineHeight?.inLimits(TextNumber.LINE_HEIGHT),
+        paragraphSpacing = paragraphSpacing?.inLimits(TextNumber.PARAGRAPH_SPACING),
+        margin = margin?.inLimits(TextNumber.MARGIN),
+        indent = indent?.let { it == 1L },
+        justify = justify?.let { it == 1L },
+        theme = PageTheme.entries.find { it.wire == theme },
+        footer = FooterContent.entries.find { it.wire == footer },
+    )
+
+    private fun Long.inLimits(number: TextNumber): Int? = toInt().takeIf { it in number.min..number.max }
 
     /** The stamp of the cover kept for [workId], null with none (WorkDetails.sq). */
     fun coverStamp(workId: String): String? =
