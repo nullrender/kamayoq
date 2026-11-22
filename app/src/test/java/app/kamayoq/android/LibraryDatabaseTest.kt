@@ -5,6 +5,9 @@ import androidx.test.core.app.ApplicationProvider
 import app.kamayoq.core.library.WorkDetails
 import app.kamayoq.core.progress.ReadingState
 import app.kamayoq.core.progress.strip
+import app.kamayoq.core.reader.ImageMode
+import app.kamayoq.core.reader.ImageModeChoice
+import app.kamayoq.core.reader.ImageModeSettings
 import app.kamayoq.core.reader.TextSettings
 import app.kamayoq.data.StoredReadingState
 import java.io.File
@@ -28,6 +31,7 @@ class LibraryDatabaseTest {
     private val copyOf5 = File(app.noBackupFilesDir, "kamayoq-v5.db")
     private val copyOf6 = File(app.noBackupFilesDir, "kamayoq-v6.db")
     private val copyOf7 = File(app.noBackupFilesDir, "kamayoq-v7.db")
+    private val copyOf8 = File(app.noBackupFilesDir, "kamayoq-v8.db")
     private val unfinishedCopy = File(app.noBackupFilesDir, "kamayoq-v1.db.tmp")
 
     /** A library as version 1 left it, from the snapshot of that schema. */
@@ -110,6 +114,16 @@ class LibraryDatabaseTest {
         }
     }
 
+    /** A library as version 8 left it, the version on phones before the image reader's mode. */
+    private fun version8() {
+        version7()
+        edit {
+            val migration = File(MIGRATION_7).readLines().filterNot { it.trimStart().startsWith("--") }.joinToString("\n")
+            migration.split(';').map(String::trim).filter(String::isNotEmpty).forEach(::execSQL)
+            version = 8
+        }
+    }
+
     private fun edit(change: SQLiteDatabase.() -> Unit) =
         SQLiteDatabase.openDatabase(database.path, null, SQLiteDatabase.OPEN_READWRITE).use { it.change() }
 
@@ -136,7 +150,7 @@ class LibraryDatabaseTest {
         val library = LibraryDatabase.open(app, NAME)
 
         assertTrue(library is LibraryOpening.Opened)
-        assertEquals(8, read(database) { version })
+        assertEquals(9, read(database) { version })
         assertFalse(copy.exists())
     }
 
@@ -160,7 +174,7 @@ class LibraryDatabaseTest {
             listOf("Dom Casmurro"),
             (library as LibraryOpening.Opened).store.works().map { it.title },
         )
-        assertEquals(8, read(database) { version })
+        assertEquals(9, read(database) { version })
         assertEquals(1, read(copy) { version })
         assertEquals("Dom Casmurro", title(copy))
         assertFalse(hasColumn(copy, "chapter", "page_count"))
@@ -174,7 +188,7 @@ class LibraryDatabaseTest {
 
         val store = (library as LibraryOpening.Opened).store
         assertEquals(7, store.progress("chapter-1").position?.strip()?.page)
-        assertEquals(8, read(database) { version })
+        assertEquals(9, read(database) { version })
         assertTrue(hasColumn(database, "chapter_progress", "position_cfi"))
         assertEquals(2, read(copyOf2) { version })
         assertFalse(hasColumn(copyOf2, "chapter_progress", "position_cfi"))
@@ -191,7 +205,7 @@ class LibraryDatabaseTest {
         assertEquals(7, store.progress("chapter-1").position?.strip()?.page)
         assertEquals(StoredReadingState(ReadingState.READING, null), store.readingState("work-1"))
         assertEquals(WorkDetails.NONE, store.details("work-1"))
-        assertEquals(8, read(database) { version })
+        assertEquals(9, read(database) { version })
         assertEquals(5, read(copyOf5) { version })
         assertFalse(hasTable(copyOf5, "work_details"))
         assertTrue(hasTable(copyOf5, "reading_state"))
@@ -209,7 +223,7 @@ class LibraryDatabaseTest {
         assertEquals(listOf("Machado de Assis"), store.details("work-1").authors)
         assertNull(store.addedAt("work-1"))
         assertTrue(store.arrivals("work-1").isEmpty())
-        assertEquals(8, read(database) { version })
+        assertEquals(9, read(database) { version })
         assertEquals(6, read(copyOf6) { version })
         assertFalse(hasColumn(copyOf6, "chapter", "arrived_at"))
         assertTrue(hasTable(copyOf6, "work_details"))
@@ -224,7 +238,7 @@ class LibraryDatabaseTest {
         val store = (library as LibraryOpening.Opened).store
         assertEquals(7, store.progress("chapter-1").position?.strip()?.page)
         assertEquals(StoredReadingState.NONE, store.readingState("work-1"))
-        assertEquals(8, read(database) { version })
+        assertEquals(9, read(database) { version })
         assertEquals(4, read(copyOf4) { version })
         assertFalse(hasTable(copyOf4, "reading_state"))
         assertTrue(hasTable(copyOf4, "edition_offer"))
@@ -240,10 +254,26 @@ class LibraryDatabaseTest {
         assertEquals(7, store.progress("chapter-1").position?.strip()?.page)
         assertEquals(StoredReadingState(ReadingState.READING, null), store.readingState("work-1"))
         assertEquals(TextSettings.DEFAULT, store.textSettings("work-1"))
-        assertEquals(8, read(database) { version })
+        assertEquals(9, read(database) { version })
         assertEquals(7, read(copyOf7) { version })
         assertFalse(hasTable(copyOf7, "work_text_look"))
         assertTrue(hasColumn(copyOf7, "chapter", "arrived_at"))
+    }
+
+    @Test
+    fun `dado um banco da versão 8, quando abro, então migra, a página e o estado continuam, o quadrinho abre no modo detectado e a cópia guarda a versão 8 intacta`() {
+        version8()
+
+        val library = LibraryDatabase.open(app, NAME)
+
+        val store = (library as LibraryOpening.Opened).store
+        assertEquals(7, store.progress("chapter-1").position?.strip()?.page)
+        assertEquals(StoredReadingState(ReadingState.READING, null), store.readingState("work-1"))
+        assertEquals(ImageModeSettings(ImageModeChoice.AUTOMATIC, null, ImageMode.STRIP), store.imageMode("work-1"))
+        assertEquals(9, read(database) { version })
+        assertEquals(8, read(copyOf8) { version })
+        assertFalse(hasTable(copyOf8, "work_image_look"))
+        assertTrue(hasTable(copyOf8, "work_text_look"))
     }
 
     @Test
@@ -367,5 +397,6 @@ class LibraryDatabaseTest {
         const val MIGRATION_4 = "../data/src/main/sqldelight/migrations/4.sqm"
         const val MIGRATION_5 = "../data/src/main/sqldelight/migrations/5.sqm"
         const val MIGRATION_6 = "../data/src/main/sqldelight/migrations/6.sqm"
+        const val MIGRATION_7 = "../data/src/main/sqldelight/migrations/7.sqm"
     }
 }

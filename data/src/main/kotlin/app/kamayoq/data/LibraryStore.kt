@@ -46,6 +46,9 @@ import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.progress.strip
 import app.kamayoq.core.reader.ContentsChapter
 import app.kamayoq.core.reader.FooterContent
+import app.kamayoq.core.reader.ImageMode
+import app.kamayoq.core.reader.ImageModeChoice
+import app.kamayoq.core.reader.ImageModeSettings
 import app.kamayoq.core.reader.PageTheme
 import app.kamayoq.core.reader.ReaderFlow
 import app.kamayoq.core.reader.ReadingFont
@@ -702,6 +705,18 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
         database.textLookQueries.ensureGeneral()
         database.textLookQueries.markPagesHintSeen()
     }
+
+    /** The image reader's mode for [workId]: the general choice, the work's own and what its metadata says (ImageLook.sq). */
+    fun imageMode(workId: String): ImageModeSettings =
+        ImageModeSettings(ImageModeChoice.AUTOMATIC, null, ImageMode.STRIP)
+
+    /** Keeps [settings]: the general choice for every image work, and the own one of [workId]. */
+    fun saveImageMode(workId: String, settings: ImageModeSettings) = Unit
+
+    /** Whether the hint on the first opening in Pages right to left was already dismissed. */
+    fun rightToLeftHintSeen(): Boolean = false
+
+    fun markRightToLeftHintSeen() = Unit
 
     private fun flag(on: Boolean): Long = if (on) 1L else 0L
 

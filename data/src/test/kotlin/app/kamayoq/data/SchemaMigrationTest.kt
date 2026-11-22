@@ -189,12 +189,42 @@ class SchemaMigrationTest {
 
         LibraryStore.schema.migrate(driver, 7, 8)
 
-        assertEquals(8, LibraryStore.schema.version)
         assertEquals(before, everyRow(columns))
         assertEquals(
             listOf(listOf("0", "0")),
             rows("SELECT (SELECT count(*) FROM text_look_general), (SELECT count(*) FROM work_text_look)", columns = 2),
         )
+    }
+
+    @Test
+    fun `dado um banco da versão 8 com obras, progresso e ajustes do leitor de texto, quando migro para a 9, então cada linha continua igual e nenhuma obra tem modo do leitor de imagens`() {
+        version1()
+        LibraryStore.schema.migrate(driver, 1, 8)
+        execute("INSERT INTO reading_state (work_id, state, automatic, state_before, changed_at, mark_chapter_id, mark_fraction) VALUES ('work-dom', 'READING', 0, NULL, NULL, NULL, NULL)")
+        execute("INSERT INTO text_look_general (id, size, pages_hint_seen) VALUES (1, 19, 1)")
+        execute("INSERT INTO work_text_look (work_id, size, mode) VALUES ('work-dom', 20, 'scrolled')")
+        val columns = columnsNow()
+        val before = everyRow(columns)
+
+        LibraryStore.schema.migrate(driver, 8, 9)
+
+        assertEquals(9, LibraryStore.schema.version)
+        assertEquals(before, everyRow(columns))
+        assertEquals(
+            listOf(listOf("0", "0")),
+            rows("SELECT (SELECT count(*) FROM image_look_general), (SELECT count(*) FROM work_image_look)", columns = 2),
+        )
+    }
+
+    @Test
+    fun `dado um banco migrado para a 9, quando o modo chega de uma obra que não existe ou com um segundo geral, então o banco recusa`() {
+        migrated()
+        execute("INSERT INTO work_image_look (work_id, mode) VALUES ('work-dom', 'strip')")
+        execute("INSERT INTO image_look_general (id, mode) VALUES (1, 'pages-rtl')")
+
+        assertFails { execute("INSERT INTO work_image_look (work_id, mode) VALUES ('work-nobody', 'strip')") }
+        assertFails { execute("INSERT INTO image_look_general (id, mode) VALUES (2, 'strip')") }
+        assertFails { execute("UPDATE image_look_general SET right_to_left_hint_seen = 2 WHERE id = 1") }
     }
 
     @Test
