@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -47,6 +48,7 @@ class TextReaderSplitTest {
     private lateinit var reading: SplitReading
     private val messages = LinkedBlockingQueue<ReaderMessage>()
     private val saves = CopyOnWriteArrayList<SplitReading.Saved>()
+    private val workChapterOpened = CopyOnWriteArrayList<String>()
 
     private fun writeBook(book: ByteArray) {
         file = File(compose.activity.cacheDir, "split.epub").apply { writeBytes(book) }
@@ -67,12 +69,25 @@ class TextReaderSplitTest {
      * Opens [book] at the chapter of place [opened] in the file and waits for the restore. No chapter
      * was ever read, unless [savedAtOpened] gives the opened one a reading.
      */
-    private fun open(opened: Int, book: ByteArray = EpubFixtures.novel(), savedAtOpened: ChapterProgress = ChapterProgress.NEVER_OPENED) {
+    private fun open(
+        opened: Int,
+        book: ByteArray = EpubFixtures.novel(),
+        savedAtOpened: ChapterProgress = ChapterProgress.NEVER_OPENED,
+        withChapterList: Boolean = false,
+    ) {
         writeBook(book)
         reading = SplitReading(List(chapters.keys.size) { if (it == opened) savedAtOpened else ChapterProgress.NEVER_OPENED }, opened, "emulator")
         val session = SplitText(reading, chapters) { saves += it }
+        // The work's chapters are the file's, as in a novel that is one split file.
+        val rows = chapters.keys.indices.map { ReaderChapterRow("chapter-$it", "Capítulo da lista $it", read = false, percent = null) }
         compose.setContent {
-            TextReader(archive, "Novela em volumes", session, onBack = {}, onMessage = messages::add, type = WorkType.NOVELS, end = TextEnd.Chapter(null) {})
+            TextReader(
+                archive, "Novela em volumes", session, onBack = {}, onMessage = messages::add, type = WorkType.NOVELS, end = TextEnd.Chapter(null) {},
+                chapterRows = rows.takeIf { withChapterList },
+                chapterIdOf = { inFile -> "chapter-${inFile ?: reading.current}" },
+                fileChapterOf = { id -> id.removePrefix("chapter-").toIntOrNull() },
+                onOpenWorkChapter = { workChapterOpened += it },
+            )
         }
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60)
         while (System.nanoTime() < deadline) {
@@ -241,5 +256,55 @@ class TextReaderSplitTest {
         compose.waitUntil(15_000) { saves.any { it.chapter == 4 } }
         assertEquals(emptyList<Int>(), saves.filter { it.progress.readMark != null }.map { it.chapter })
         assertEquals(4, reading.current)
+    }
+
+    /** Next page until chapter [chapter] has a place past its start, and returns that place. */
+    private fun readPartway(chapter: Int): Int {
+        repeat(60) {
+            saves.lastOrNull { it.chapter == chapter }?.progress?.points()?.takeIf { it > 0 }?.let { return it }
+            compose.pageAction(R.string.reader_next_page)
+            compose.waitForIdle()
+            Thread.sleep(400)
+        }
+        throw AssertionError("No place past the start of chapter $chapter; saved: ${saves.map { it.chapter to it.progress.points() }}")
+    }
+
+    private fun awaitSaveIn(chapter: Int): SplitReading.Saved {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15)
+        while (System.nanoTime() < deadline) {
+            saves.lastOrNull()?.takeIf { it.chapter == chapter }?.let { return it }
+            Thread.sleep(200)
+        }
+        throw AssertionError("No save in chapter $chapter; saved: ${saves.map { it.chapter to it.progress.points() }}")
+    }
+
+    // Gemini's review of slice 5, finding 2: the bar's chapter buttons went to the chapter's start
+    // and saved it there, losing where the person had stopped in it (progress contract, C3).
+    @Test
+    fun `dado o capítulo 0 lido até o meio quando vou ao próximo pela barra e volto pelo anterior então ele reabre onde parei`() {
+        open(0)
+        val partway = readPartway(0)
+        saves.clear()
+        compose.onNodeWithContentDescription(compose.activity.getString(R.string.reader_next_chapter)).performClick()
+        awaitSaveIn(1)
+        saves.clear()
+        compose.onNodeWithContentDescription(compose.activity.getString(R.string.reader_previous_chapter)).performClick()
+        val back = awaitSaveIn(0)
+
+        assertTrue("Chapter 0 came back at ${back.progress.points()}, it was at $partway", (back.progress.points() ?: 0) >= partway)
+    }
+
+    // Gemini's review of slice 5, finding 3: in a split file, the chapter list handed every chapter to
+    // the app to open, which did nothing for one in the same file.
+    @Test
+    fun `dado um romance num arquivo só quando escolho na lista um capítulo do mesmo arquivo então a página vai até ele`() {
+        open(0, withChapterList = true)
+        readInto(1)
+        saves.clear()
+        compose.onNodeWithText(compose.activity.getString(R.string.reader_chapters)).performClick()
+        compose.onNodeWithText("Capítulo da lista 0").performClick()
+
+        awaitSaveIn(0)
+        assertTrue("The list handed the chapter to the app: $workChapterOpened", workChapterOpened.isEmpty())
     }
 }

@@ -35,6 +35,9 @@ interface TextSession {
 
     /** The end block shows. */
     fun ended(at: Instant)
+
+    /** Where a chapter of a split file was left, to go back there and not to its start; null for none. */
+    fun placeOf(chapter: Int): String? = null
 }
 
 /** A book, or a chapter that is a whole file: one progress, handed to [onSave] at each change. */

@@ -149,6 +149,7 @@ fun TextReader(
     chapterRows: List<ReaderChapterRow>? = null,
     chapterIdOf: (Int?) -> String? = { null },
     onOpenWorkChapter: ((String) -> Unit)? = null,
+    fileChapterOf: (String) -> Int? = { null },
     pagesHint: Boolean = false,
     onPagesHintSeen: () -> Unit = {},
 ) {
