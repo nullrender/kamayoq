@@ -3,7 +3,7 @@ import { EPUB } from './foliate-js/epub.js'
 import { neutralizeRefresh } from './sections.js'
 import { relocatedMessage, contentsOf, navigationQueue, chapterOf, chapterFraction, orderedSender } from './messages.js'
 import { elementOf, markerOf } from './markers.js'
-import { DEFAULT_LOOK, checkedLook, stylesOf, marginOf, markAligned, hostBackgroundOf, hyphenatesPortuguese } from './look.js'
+import { DEFAULT_LOOK, checkedLook, stylesOf, marginOf, markAligned, hostBackgroundOf, hyphenatesIn, probeLanguage } from './look.js'
 import { tapFraction } from './taps.js'
 import { neighbourOf, withinSpan } from './moves.js'
 
@@ -106,7 +106,7 @@ const open = async token => {
     } else await view.init({ lastLocation: start })
     post(() => ({ type: 'restored' }))
     // Once per opening, for the panel's warning; nothing is sent when it cannot tell.
-    const hyphenates = hyphenatesPortuguese(document)
+    const hyphenates = hyphenatesIn(document, probeLanguage(view.language?.canonical))
     if (typeof hyphenates === 'boolean') post(() => ({ type: 'hyphenation', available: hyphenates }))
 }
 

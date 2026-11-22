@@ -52,7 +52,7 @@
     <string name="reader_margins_up">Aumentar as margens</string>
     <string name="reader_indent">Recuo</string>
     <string name="reader_justify">Justificar e hifenizar</string>
-    <string name="reader_no_hyphenation">Este aparelho não hifeniza em português; o texto justificado pode ficar com espaços largos.</string>
+    <string name="reader_no_hyphenation">Este aparelho não hifeniza o idioma deste livro; o texto justificado pode ficar com espaços largos.</string>
     <string name="reader_mode">Modo</string>
     <string name="reader_mode_scroll">Rolar</string>
     <string name="reader_mode_pages">Páginas</string>

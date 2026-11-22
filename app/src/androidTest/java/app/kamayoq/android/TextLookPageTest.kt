@@ -168,4 +168,15 @@ class TextLookPageTest {
         }
         throw AssertionError("No hyphenation measure arrived; console: $console")
     }
+
+    // A measure of the WebView, as the one above: the probe's words break in English too, so an English
+    // book is measured and not taken for one with no dictionary (research hyphenation-text.md).
+    @Test
+    fun `dado a medida da hifenização em inglês então as palavras da medida quebram`() {
+        open(shown())
+        // The probe's own box and words, in the reader's page, with English as the language.
+        val answer = evaluate("(() => { const p = document.createElement('div'); p.lang = 'en'; p.style.cssText = 'position: absolute; visibility: hidden; width: 5em; font-size: 16px; line-height: 20px;'; p.textContent = 'inconstitucionalmente internationalization'; document.body.append(p); p.style.hyphens = 'manual'; const plain = p.getBoundingClientRect().height; p.style.hyphens = 'auto'; const cut = p.getBoundingClientRect().height; p.remove(); return String(cut > plain) })()")
+        android.util.Log.i("KamayoqMeasure", "Hyphenates English: $answer")
+        assertEquals("\"true\"", answer)
+    }
 }

@@ -52,7 +52,7 @@
     <string name="reader_margins_up">Wider margins</string>
     <string name="reader_indent">Indent</string>
     <string name="reader_justify">Justify and hyphenate</string>
-    <string name="reader_no_hyphenation">This device doesn\'t hyphenate Portuguese; justified text may show wide spaces.</string>
+    <string name="reader_no_hyphenation">This device doesn\'t hyphenate this book\'s language; justified text may show wide spaces.</string>
     <string name="reader_mode">Mode</string>
     <string name="reader_mode_scroll">Scroll</string>
     <string name="reader_mode_pages">Pages</string>

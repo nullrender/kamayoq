@@ -122,19 +122,27 @@ export const markAligned = doc => {
 export const hostBackgroundOf = look => look.background ?? ''
 
 /**
- * Whether this WebView hyphenates Portuguese, or null when it cannot tell: a long word in a narrow box
- * breaks over more lines with hyphens on than off only where a dictionary exists.
+ * The language whose hyphenation the page measures for the panel's warning: the book's own. None for
+ * a book that declares none, which no browser hyphenates, nor for Chinese, Japanese and Korean, which
+ * are not hyphenated and leave no wide spaces when justified.
  */
-/** The language whose hyphenation the page measures for the panel's warning. Not used yet: Portuguese. */
-export const probeLanguage = lang => 'pt'
+export const probeLanguage = lang => {
+    if (typeof lang !== 'string' || lang === '') return null
+    return ['zh', 'ja', 'ko'].includes(lang.toLowerCase().split('-')[0]) ? null : lang
+}
 
-export const hyphenatesPortuguese = doc => {
+/**
+ * Whether this WebView hyphenates [lang], or null when it cannot tell: long words in a narrow box
+ * break over more lines with hyphens on than off only where a dictionary exists. One Portuguese and
+ * one English word, so a dictionary of either kind of language has something to break.
+ */
+export const hyphenatesIn = (doc, lang) => {
     const body = doc.body
-    if (!body) return null
+    if (!body || !lang) return null
     const probe = doc.createElement('div')
-    probe.lang = 'pt'
+    probe.lang = lang
     probe.style.cssText = 'position: absolute; visibility: hidden; left: 0; top: 0; width: 5em; font-size: 16px; line-height: 20px; overflow-wrap: normal; word-break: normal;'
-    probe.textContent = 'paralelepípedo inconstitucionalmente'
+    probe.textContent = 'inconstitucionalmente internationalization'
     body.append(probe)
     try {
         probe.style.hyphens = 'manual'
