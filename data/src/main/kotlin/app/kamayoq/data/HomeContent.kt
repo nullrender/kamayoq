@@ -12,7 +12,7 @@ import java.time.Instant
 
 /**
  * A work of Continue reading: the chapter Continue opens ([target], [goesOn] as on the Work screen),
- * the place the reading stopped, and when it last moved.
+ * the place the reading stopped, when it last moved, and whether two chapters are in conflict.
  */
 data class ContinueItem(
     val work: StoredWork,
@@ -21,6 +21,9 @@ data class ContinueItem(
     val chapterCount: Int,
     val position: ReadingPosition?,
     val lastReadAt: Instant,
+    // Kavita's reading went to another chapter than this device's: where to go on is the person's,
+    // asked on the Work screen before the reader opens (progress contract, case 5).
+    val crossing: Boolean,
 )
 
 /** A chapter of Arrived and when it arrived. */
@@ -62,6 +65,7 @@ fun LibraryStore.home(): HomeContent = atOneMoment {
             chapterCount = list.size,
             position = progress.getValue(target.chapterId).position,
             lastReadAt = checkNotNull(lastRead[id]),
+            crossing = resume != null && alternatives(id).any { it.reason == LibraryStore.CONFLICT && it.chapterId != resume.id },
         )
     }
     val arrivalWorks = works.map { work ->
