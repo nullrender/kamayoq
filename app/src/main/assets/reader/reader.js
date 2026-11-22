@@ -3,7 +3,7 @@ import { EPUB } from './foliate-js/epub.js'
 import { neutralizeRefresh } from './sections.js'
 import { relocatedMessage, contentsOf, navigationQueue, chapterOf, chapterFraction, orderedSender } from './messages.js'
 import { elementOf, markerOf } from './markers.js'
-import { DEFAULT_LOOK, checkedLook, stylesOf, marginOf, markAligned, hostBackgroundOf } from './look.js'
+import { DEFAULT_LOOK, checkedLook, stylesOf, marginOf, markAligned, hostBackgroundOf, hyphenatesPortuguese } from './look.js'
 import { tapFraction } from './taps.js'
 
 const send = message => kamayoqBridge.postMessage(JSON.stringify(message))
@@ -96,6 +96,9 @@ const open = async token => {
         view.history.pushState(start.index)
     } else await view.init({ lastLocation: start })
     post(() => ({ type: 'restored' }))
+    // Once per opening, for the panel's warning; nothing is sent when it cannot tell.
+    const hyphenates = hyphenatesPortuguese(document)
+    if (typeof hyphenates === 'boolean') post(() => ({ type: 'hyphenation', available: hyphenates }))
 }
 
 // Milestone B7, for a file split by its table of contents: tells, for a place the fork reports, the

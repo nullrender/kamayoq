@@ -60,6 +60,7 @@ import app.kamayoq.core.reader.ShownLook
 import app.kamayoq.core.reader.TapZone
 import app.kamayoq.core.reader.TapZones
 import app.kamayoq.core.reader.TextLook
+import app.kamayoq.core.reader.TextSettings
 import app.kamayoq.core.reader.ReaderLink
 import app.kamayoq.core.reader.RendererCrashes
 import app.kamayoq.core.reader.TextReading
@@ -95,6 +96,9 @@ fun TextReader(
     chapter: ChapterPlace? = null,
     onPreviousChapter: (() -> Unit)? = null,
     onNextChapter: (() -> Unit)? = null,
+    settings: TextSettings = TextSettings.DEFAULT,
+    onSettings: ((TextSettings) -> Unit)? = null,
+    onFlow: ((ReaderFlow) -> Unit)? = null,
 ) {
     val save by rememberUpdatedState(onSave)
     val session = remember(reading) { WholeText(reading) { save(it) } }
@@ -108,7 +112,8 @@ fun TextReader(
  * The same screen for any text: [session] says where the page opens and saves what each move changes.
  * The [look] is the settings panel's; [chosenFlow] the mode the person chose for this work. A novel's
  * [chapterOf] says which chapter of the work the page is in, from the chapter of a split file the
- * page names (null for a file that is one chapter).
+ * page names (null for a file that is one chapter). The [settings] and the panel's [onSettings] and
+ * [onFlow] are not used yet.
  */
 @Composable
 fun TextReader(
@@ -124,6 +129,9 @@ fun TextReader(
     chapterOf: (Int?) -> ChapterPlace? = { null },
     onPreviousChapter: (() -> Unit)? = null,
     onNextChapter: (() -> Unit)? = null,
+    settings: TextSettings = TextSettings.DEFAULT,
+    onSettings: ((TextSettings) -> Unit)? = null,
+    onFlow: ((ReaderFlow) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     // Checked before any WebView is made: below the floor the fork fails later, with no clear reason.

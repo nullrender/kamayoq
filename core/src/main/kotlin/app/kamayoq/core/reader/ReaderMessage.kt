@@ -53,6 +53,12 @@ sealed interface ReaderMessage {
      */
     data class Tap(val x: Double) : ReaderMessage
 
+    /**
+     * Whether this device's WebView hyphenates Portuguese, measured on the page once it opens; without
+     * it the panel warns that justified text may show wide spaces (DESIGN, hyphenation).
+     */
+    data class Hyphenation(val available: Boolean) : ReaderMessage
+
     companion object {
         const val MAX_MESSAGE_LENGTH = 8 * 1024
         const val MAX_CFI_LENGTH = 2 * 1024

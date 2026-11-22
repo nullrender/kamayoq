@@ -242,4 +242,17 @@ class ReaderMessageTest {
             assertIs<ReaderMessage.Refused>(ReaderMessage.parse(raw), raw)
         }
     }
+
+    @Test
+    fun `dado a medida da hifenização, então ela vem como sim ou não, e qualquer outra coisa é recusada`() {
+        assertEquals(ReaderMessage.Hyphenation(true), ReaderMessage.parse("""{"type":"hyphenation","available":true}"""))
+        assertEquals(ReaderMessage.Hyphenation(false), ReaderMessage.parse("""{"type":"hyphenation","available":false}"""))
+        for (raw in listOf(
+            """{"type":"hyphenation","available":"true"}""",
+            """{"type":"hyphenation"}""",
+            """{"type":"hyphenation","available":true,"lang":"pt"}""",
+        )) {
+            assertIs<ReaderMessage.Refused>(ReaderMessage.parse(raw), raw)
+        }
+    }
 }

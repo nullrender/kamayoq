@@ -117,3 +117,9 @@ export const markAligned = doc => {
 
 /** The color behind the book's frames, the theme's background; empty keeps the page's own. */
 export const hostBackgroundOf = look => look.background ?? ''
+
+/**
+ * Whether this WebView hyphenates Portuguese, or null when it cannot tell: a long word in a narrow box
+ * breaks over more lines with hyphens on than off only where a dictionary exists. Not measured yet.
+ */
+export const hyphenatesPortuguese = doc => null

@@ -153,4 +153,19 @@ class TextLookPageTest {
         assertInBook("24px", style("p", "fontSize"))
         assertInBook("yes", "globalThis.samePage")
     }
+
+    // A measurement of the WebView, kept in the log: whether it hyphenates Portuguese is the device's.
+    @Test
+    fun `dado o livro aberto então a página diz se o aparelho hifeniza português`() {
+        open(shown())
+        val deadline = SystemClock.uptimeMillis() + 30_000
+        while (SystemClock.uptimeMillis() < deadline) {
+            val message = messages.poll(1, TimeUnit.SECONDS) ?: continue
+            if (message is ReaderMessage.Hyphenation) {
+                android.util.Log.i("KamayoqMeasure", "Hyphenates Portuguese: ${message.available}")
+                return
+            }
+        }
+        throw AssertionError("No hyphenation measure arrived; console: $console")
+    }
 }
