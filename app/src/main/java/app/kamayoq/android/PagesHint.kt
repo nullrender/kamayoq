@@ -28,16 +28,17 @@ import androidx.compose.ui.unit.dp
  * Got it. Touches stop at the veil, so none turns a page behind it.
  */
 @Composable
-internal fun PagesHint(onDismiss: () -> Unit) {
+internal fun PagesHint(onDismiss: () -> Unit, rightToLeft: Boolean = false) {
     Box(
         // Takes the touches, so none turns a page behind it, with no node of its own for a screen reader.
         modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.72f))
             .pointerInput(Unit) { detectTapGestures {} },
     ) {
         Row(modifier = Modifier.fillMaxSize()) {
-            Zone(stringResource(R.string.reader_hint_previous), Modifier.weight(0.3f))
+            // Right to left (the image reader's Pages ←), the left side goes forward.
+            Zone(stringResource(if (rightToLeft) R.string.reader_hint_next else R.string.reader_hint_previous), Modifier.weight(0.3f))
             Zone(stringResource(R.string.reader_hint_controls), Modifier.weight(0.4f))
-            Zone(stringResource(R.string.reader_hint_next), Modifier.weight(0.3f))
+            Zone(stringResource(if (rightToLeft) R.string.reader_hint_previous else R.string.reader_hint_next), Modifier.weight(0.3f))
         }
         Column(
             modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp).padding(bottom = 48.dp),

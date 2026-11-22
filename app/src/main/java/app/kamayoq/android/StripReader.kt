@@ -189,6 +189,17 @@ fun ImageReader(
                 )
             }
         }
+        // Once in the app, the first time a chapter shows in Pages right to left (DESIGN, "Leitor de imagem", 4).
+        var hintShown by remember(rightToLeftHint) { mutableStateOf(rightToLeftHint) }
+        if (hintShown && mode == ImageMode.PAGES_RIGHT_TO_LEFT) {
+            PagesHint(
+                onDismiss = {
+                    hintShown = false
+                    onRightToLeftHintSeen()
+                },
+                rightToLeft = true,
+            )
+        }
         if (quickOpen) {
             ImageModeQuickSheet(settings, onChoose = { change(settings.choose(ImageScope.THIS_WORK, it)) }, onDismiss = { quickOpen = false })
         }
