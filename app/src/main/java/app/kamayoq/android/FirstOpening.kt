@@ -41,6 +41,7 @@ internal fun FirstOpening(
     onChooseFolder: () -> Unit,
     onOpenKavita: () -> Unit,
     onPickBackup: () -> Unit,
+    canRestore: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Column(

@@ -519,7 +519,8 @@ fun LibraryApp(
                                 backupPicker.launch(arrayOf("*/*"))
                             },
                             content = homeContent,
-                            hasWorks = rows.orEmpty().isNotEmpty(),
+                            hasWorks = rows?.isNotEmpty(),
+                            canRestore = empty,
                             onOpenLibrary = { tab = AppTab.LIBRARY },
                             onOpenWork = { openWorkId = it },
                             onRead = { work, chapter ->
@@ -702,6 +703,7 @@ private fun LibraryScreen(
                 onChooseFolder = onChooseFolder,
                 onOpenKavita = onOpenKavita,
                 onPickBackup = onPickBackup,
+                canRestore = canRestore,
             )
             !hasFolder -> {
                 Notice(R.string.no_folder, onChooseFolder)

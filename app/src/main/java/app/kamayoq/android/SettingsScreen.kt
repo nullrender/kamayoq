@@ -93,7 +93,10 @@ internal fun HomeScreen(
     onOpenKavita: () -> Unit,
     onPickBackup: () -> Unit,
     content: HomeContent?,
-    hasWorks: Boolean,
+    // Null until the Library's rows are read: Home does not say the app is empty before it knows.
+    hasWorks: Boolean?,
+    // False when something is stored (a Kavita server with no work marked): a restore would refuse it.
+    canRestore: Boolean,
     onOpenLibrary: () -> Unit,
     onOpenWork: (String) -> Unit,
     onRead: (workId: String, chapterId: String) -> Unit,
@@ -104,8 +107,8 @@ internal fun HomeScreen(
     notices: SnackbarHostState,
 ) {
     // With no work at all, Home shows the ways in, as the first opening does: a folder chosen may be empty.
-    if (firstOpening || (content != null && content.isEmpty && !hasWorks)) {
-        FirstOpening(restoreBusy, onChooseFolder, onOpenKavita, onPickBackup, Modifier.fillMaxSize().safeDrawingPadding())
+    if (firstOpening || (content != null && content.isEmpty && hasWorks != true)) {
+        FirstOpening(restoreBusy, onChooseFolder, onOpenKavita, onPickBackup, canRestore = true, modifier = Modifier.fillMaxSize().safeDrawingPadding())
         return
     }
     // The works whose new chapters are open; Arrived starts folded (FEATURES, part 2).
