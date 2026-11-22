@@ -93,7 +93,6 @@ internal fun ImageSettingsContent(settings: ImageModeSettings, onSettings: (Imag
     // This work first, as on the board: the quick sheet and this one agree on what a touch changes.
     var scope by rememberSaveable { mutableStateOf(ImageScope.THIS_WORK) }
     val chosen = settings.chosen(scope)
-    val detected = stringResource(R.string.reader_image_detected, settings.detected.label())
     Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.reader_settings_description), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
@@ -118,8 +117,8 @@ internal fun ImageSettingsContent(settings: ImageModeSettings, onSettings: (Imag
         Label(stringResource(R.string.reader_mode))
         Column(modifier = Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             ImageModeChoice.entries.forEach { choice ->
-                val label = if (choice == ImageModeChoice.AUTOMATIC) "${choice.name()} · $detected" else choice.name()
-                Choice(choice == chosen, label, Modifier.fillMaxWidth()) { onSettings(settings.choose(scope, choice)) }
+                // What Automatic detected shows in the quick sheet only, where the choice is made.
+                Choice(choice == chosen, choice.name(), Modifier.fillMaxWidth()) { onSettings(settings.choose(scope, choice)) }
             }
         }
     }

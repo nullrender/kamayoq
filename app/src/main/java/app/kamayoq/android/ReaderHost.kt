@@ -42,6 +42,7 @@ import app.kamayoq.core.reader.FileTooLargeException
 import app.kamayoq.core.reader.ImageModeDetection
 import app.kamayoq.core.reader.ImageModeSettings
 import app.kamayoq.core.reader.ImageSignals
+import app.kamayoq.core.reader.ImageSize
 import app.kamayoq.core.reader.ReaderFlow
 import app.kamayoq.core.reader.SplitReading
 import app.kamayoq.core.reader.TextSettings
@@ -446,7 +447,15 @@ private fun chapterRows(store: LibraryStore, workId: String, type: WorkType): Li
  * What the image reader's Automatic reads of a chapter: its images' sizes, the work's genre and tag
  * items from Kavita and from the archive's ComicInfo, and ComicInfo's Manga field.
  */
-internal fun imageSignals(chapter: OpenedChapter, workWords: List<String>): ImageSignals = ImageSignals(emptyList())
+internal fun imageSignals(chapter: OpenedChapter, workWords: List<String>): ImageSignals = ImageSignals(
+    sizes = chapter.pages.map { page ->
+        val width = page.width
+        val height = page.height
+        if (width != null && height != null) ImageSize(width, height) else null
+    },
+    words = workWords + chapter.comicInfo.words,
+    manga = chapter.comicInfo.manga,
+)
 
 /** A comic's chapters for the image reader's Chapters sheet, with how far a chapter begun goes. */
 private fun imageChapterRows(store: LibraryStore, chapters: List<StoredChapter>): List<ReaderChapterRow> = chapters.map { chapter ->

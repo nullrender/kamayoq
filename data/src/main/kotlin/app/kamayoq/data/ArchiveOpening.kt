@@ -30,7 +30,7 @@ class OpenedArchive internal constructor(
     val pages: List<String> get() = archive.pages
 
     /** What the chapter's ComicInfo.xml says, for the image reader's Automatic. */
-    val comicInfo: ComicInfo get() = ComicInfo.NONE
+    val comicInfo: ComicInfo get() = archive.comicInfo
 
     /** A page's data. An [IOException] once the chapter was released, which the reader shows as a broken page. */
     @Synchronized

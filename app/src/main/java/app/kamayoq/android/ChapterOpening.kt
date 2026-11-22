@@ -156,7 +156,7 @@ class ChapterOpening(
         val opened = archives.open(request, chapter, input)
         try {
             val pages = opened.pages.map { key -> page { opened.open(key) } }
-            return OpenedChapter(opened.chapterId, pages, store.progress(opened.chapterId)) { archives.release(opened) }
+            return OpenedChapter(opened.chapterId, pages, store.progress(opened.chapterId), opened.comicInfo) { archives.release(opened) }
         } catch (e: Exception) {
             // Reading a page header or the progress failed: the file must not stay open.
             archives.release(opened)

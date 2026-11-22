@@ -711,11 +711,10 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
      * [detected], what the chapter being opened says (ImageModeDetection), worked out at each opening.
      */
     fun imageMode(workId: String, detected: ImageMode): ImageModeSettings = database.transactionWithResult {
-        val subtype = database.workQueries.subtypeOf(workId).executeAsOneOrNull()?.subtype?.let(ComicsSubtype::valueOf)
         // A name this version does not know reads as not chosen: the work opens instead of failing.
         val general = database.imageLookQueries.general().executeAsOneOrNull()?.mode?.let(::imageChoice) ?: ImageModeChoice.AUTOMATIC
         val own = database.imageLookQueries.ofWork(workId).executeAsOneOrNull()?.mode?.let(::imageChoice)
-        ImageModeSettings(general, own, ImageModeSettings.detected(subtype))
+        ImageModeSettings(general, own, detected)
     }
 
     /** Keeps [settings]: the general choice for every image work, and the own one of [workId]. */

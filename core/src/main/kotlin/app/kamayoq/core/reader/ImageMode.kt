@@ -1,7 +1,5 @@
 package app.kamayoq.core.reader
 
-import app.kamayoq.core.library.ComicsSubtype
-
 /** How the image reader lays a chapter out (product design, "Leitor de imagem", item 1). */
 enum class ImageMode {
     STRIP,
@@ -48,15 +46,5 @@ data class ImageModeSettings(
     fun restore(scope: ImageScope): ImageModeSettings = when (scope) {
         ImageScope.THIS_WORK -> copy(own = null)
         ImageScope.ALL_IMAGE_WORKS -> copy(general = ImageModeChoice.AUTOMATIC)
-    }
-
-    companion object {
-        /**
-         * What the metadata says (his decision pending, question 1 of slice 6): manga turns pages
-         * right to left; manhwa, webtoon and comics with no subtype scroll as the Strip, as the app
-         * opened every comic before.
-         */
-        fun detected(subtype: ComicsSubtype?): ImageMode =
-            if (subtype == ComicsSubtype.MANGA) ImageMode.PAGES_RIGHT_TO_LEFT else ImageMode.STRIP
     }
 }
