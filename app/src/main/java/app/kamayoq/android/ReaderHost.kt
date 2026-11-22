@@ -88,6 +88,7 @@ private sealed interface Opening {
         val workId: String,
         val settings: TextSettings,
         val mode: ReaderFlow?,
+        val rows: List<ReaderChapterRow>?,
     ) : Opening
 
     /** A compiled novel: one file read across its chapters; [next] is the chapter after the file. */
@@ -102,6 +103,7 @@ private sealed interface Opening {
         val workId: String,
         val settings: TextSettings,
         val mode: ReaderFlow?,
+        val rows: List<ReaderChapterRow>?,
     ) : Opening
 
     /** In a book, [sections] says the pages are sections. */
@@ -304,6 +306,9 @@ fun ReaderHost(
                 chapter = ChapterPlace(at + 1, current.order.size).takeIf { novel && at >= 0 },
                 onPreviousChapter = previous?.let { { onOpenChapter(it) } },
                 onNextChapter = current.next?.takeIf { novel }?.let { { onOpenChapter(it.id) } },
+                chapterRows = current.rows,
+                chapterId = current.text.chapterId,
+                onOpenWorkChapter = onOpenChapter,
                 chosenFlow = current.mode,
                 settings = current.settings,
                 onSettings = { kept -> keepSettings(store, opening.turns, current.round, current.workId, kept) },
@@ -340,6 +345,9 @@ fun ReaderHost(
                 },
                 onPreviousChapter = before?.let { { onOpenChapter(it) } },
                 onNextChapter = current.next?.let { { onOpenChapter(it.id) } },
+                chapterRows = current.rows,
+                chapterIdOf = { inFile -> inFile?.let(ids::getOrNull) ?: readingNow ?: ids[current.split.opened] },
+                onOpenWorkChapter = onOpenChapter,
                 chosenFlow = current.mode,
                 settings = current.settings,
                 onSettings = { kept -> keepSettings(store, opening.turns, current.round, current.workId, kept) },
@@ -394,6 +402,17 @@ fun ReaderHost(
  * failed save is logged and the reading goes on. Shared with the test that kills the process.
  * [marker] gives Kavita's marker of the same place, read when the place is handed out.
  */
+/** A novel's chapters for the reader's Chapters sheet; a book has none and keeps its contents. */
+private fun chapterRows(store: LibraryStore, workId: String, type: WorkType): List<ReaderChapterRow>? {
+    if (type != WorkType.NOVELS) return null
+    return store.chapters(workId).map { chapter ->
+        val progress = store.progress(chapter.id)
+        val read = progress.readMark != null
+        val share = (progress.position as? TextPosition)?.fraction?.value?.div(100)
+        ReaderChapterRow(chapter.id, chapter.name, read, share?.takeIf { !read && it in 1..99 })
+    }
+}
+
 /** The panel's settings, in the same line as the saves of the place, off the main thread. */
 private fun keepSettings(store: LibraryStore, turns: OpeningTurns, round: Long, workId: String, settings: TextSettings) {
     turns.inLine(round) {
@@ -616,6 +635,7 @@ private fun openText(
             when (val file = store.splitOpening(text.chapterId, SplitContents.of(text.archive))) {
                 is SplitOpening -> return Opening.ReadySplit(
                     text, work ?: chapter.name, file, round, type, afterFile, order, workId, store.textSettings(workId), store.textMode(workId),
+                    chapterRows(store, workId, type),
                 )
                 // A file that lost its division since the folder was read: one chapter took the
                 // place of the ones it had, and the reading is that chapter's from here on, with its
@@ -635,6 +655,7 @@ private fun openText(
         val marker = turn?.let { store.syncItem(whole.chapterId)?.knownPlace(progress.position as? TextPosition)?.marker }
         return Opening.ReadyText(
             whole, title, progress, round, turn, marker, type, nextNow, order, workId, store.textSettings(workId), store.textMode(workId),
+            chapterRows(store, workId, type),
         )
     } catch (e: Exception) {
         text.release()

@@ -5,12 +5,14 @@ import android.content.IntentFilter
 import android.os.BatteryManager
 import android.text.format.DateFormat
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
@@ -35,8 +37,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -109,7 +113,7 @@ internal fun TextReaderBottomBar(
                 Text(contentsLabel, fontSize = 10.sp, maxLines = 1)
             }
         }
-        ProgressArea(progress, Modifier.weight(1f))
+        ProgressArea(progress, Modifier.weight(1f), onProgress)
         end()
         IconButton(onClick = { onNextChapter?.invoke() }, enabled = enabled && onNextChapter != null, modifier = Modifier.size(48.dp), colors = barIconColors()) {
             Icon(KamayoqIcons.chevron, contentDescription = stringResource(R.string.reader_next_chapter))
@@ -118,9 +122,19 @@ internal fun TextReaderBottomBar(
 }
 
 @Composable
-private fun ProgressArea(progress: TextProgress, modifier: Modifier) {
+private fun ProgressArea(progress: TextProgress, modifier: Modifier, onClick: (() -> Unit)?) {
     val palette = LocalPalette.current
-    Column(modifier = modifier.padding(horizontal = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    // The place is a button: it opens Go to (board SinteseLeitorPaginado).
+    val description = stringResource(R.string.reader_go_to_place, listOfNotNull(progress.place(), progress.inChapter()).joinToString(" · "))
+    val touchable = if (onClick != null) {
+        Modifier.heightIn(min = 48.dp).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = description }
+    } else {
+        Modifier
+    }
+    Column(
+        modifier = modifier.then(touchable).padding(horizontal = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
+    ) {
         Box(modifier = Modifier.fillMaxWidth().height(4.dp).background(palette.line, RoundedCornerShape(2.dp))) {
             Box(modifier = Modifier.fillMaxWidth(progress.fraction.coerceIn(0f, 1f)).height(4.dp).background(palette.action, RoundedCornerShape(2.dp)))
         }

@@ -113,6 +113,7 @@ fun TextReader(
         archive, title, session, onBack, onMessage, type, end, chosenFlow,
         chapterOf = { chapter }, onPreviousChapter = onPreviousChapter, onNextChapter = onNextChapter,
         settings = settings, onSettings = onSettings, onFlow = onFlow,
+        chapterRows = chapterRows, chapterIdOf = { chapterId }, onOpenWorkChapter = onOpenWorkChapter,
     )
 }
 
@@ -121,8 +122,9 @@ fun TextReader(
  * [chosenFlow] is the mode the person chose for this work. A novel's [chapterOf] says which chapter
  * of the work the page is in, from the chapter of a split file the page names (null for a file that
  * is one chapter). The [settings] are the panel's as the work opens; [onSettings] and [onFlow] keep
- * what the panel changes, and without [onSettings] there is no panel. A novel's [chapterRows],
- * [chapterIdOf] and [onOpenWorkChapter] are not used yet.
+ * what the panel changes, and without [onSettings] there is no panel. A novel's [chapterRows] are
+ * its chapters for the Chapters sheet, [chapterIdOf] the one the page is in (from the chapter of a
+ * split file), and [onOpenWorkChapter] opens another; without rows, Chapters shows the file's contents.
  */
 @Composable
 fun TextReader(
@@ -160,6 +162,8 @@ fun TextReader(
     var current by remember(archive) { mutableStateOf(settings) }
     var chosen by remember(archive) { mutableStateOf(chosenFlow) }
     var panelOpen by remember(archive) { mutableStateOf(false) }
+    var goToOpen by remember(archive) { mutableStateOf(false) }
+    var chaptersOpen by remember(archive) { mutableStateOf(false) }
     // Until the page measures it, no warning: a false one would blame a device that hyphenates.
     var hyphenates by remember(archive) { mutableStateOf(true) }
     val look = current.effective()
@@ -318,10 +322,11 @@ fun TextReader(
             enabled = ready,
             contentsLabel = stringResource(if (type == WorkType.NOVELS) R.string.reader_chapters else R.string.reader_contents),
             progress = progress,
-            onPreviousChapter = inFile(session.chapters, fileChapter, -1)?.let { item -> { webView?.goToContents(item) } } ?: onPreviousChapter,
-            onContents = { contentsOpen = true },
-            onNextChapter = inFile(session.chapters, fileChapter, +1)?.let { item -> { webView?.goToContents(item) } } ?: onNextChapter,
+            onPreviousChapter = chapterMove(type, contents, session.chapters, fileChapter, -1, webView, onPreviousChapter),
+            onContents = { if (chapterRows != null) chaptersOpen = true else contentsOpen = true },
+            onNextChapter = chapterMove(type, contents, session.chapters, fileChapter, +1, webView, onNextChapter),
             modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding(),
+            onProgress = { goToOpen = true },
             end = { if (onSettings != null) SettingsButton(enabled = ready) { panelOpen = true } },
         )
     }
@@ -353,6 +358,38 @@ fun TextReader(
             webView?.applyLook(PageLook.command(shown))
             pageLook = shown
         }
+    }
+
+    if (goToOpen) {
+        // In a split file the share is of the chapter the page is in; a whole file is its own chapter.
+        val inChapter = fileChapter.takeIf { session.chapters != null }
+        GoToSheet(
+            progress = progress,
+            onGo = { share ->
+                goToOpen = false
+                webView?.goToFraction(share, inChapter)
+            },
+            onStart = {
+                goToOpen = false
+                webView?.goToFraction(0.0, inChapter)
+            },
+            onDismiss = { goToOpen = false },
+        )
+    }
+
+    val rows = chapterRows
+    if (chaptersOpen && rows != null) {
+        val currentId = chapterIdOf(fileChapter)
+        ReaderChaptersSheet(
+            // The chapter on screen says how far the page is now, not when the reader opened.
+            rows = rows.map { if (it.id == currentId) it.copy(percent = progress.percent) else it },
+            currentId = currentId,
+            onOpen = { id ->
+                chaptersOpen = false
+                if (id != currentId) onOpenWorkChapter?.invoke(id)
+            },
+            onDismiss = { chaptersOpen = false },
+        )
     }
 
     if (contentsOpen) {
@@ -445,10 +482,22 @@ private fun SettingsButton(enabled: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** The first item of the contents that leads to the chapter [step] away from [current] in a split file; null outside it. */
-private fun inFile(chapters: ReaderChapters?, current: Int?, step: Int): Int? {
-    if (chapters == null || current == null) return null
-    return chapters.ofItem.indexOfFirst { it == current + step }.takeIf { it >= 0 }
+/**
+ * What a chapter button does: in a book, the contents' item [step] away; in a split file, its own
+ * chapter [step] away while there is one; otherwise [outside], the work's chapter beside this file.
+ */
+private fun chapterMove(
+    type: WorkType,
+    contents: List<ReaderContentsItem>?,
+    chapters: ReaderChapters?,
+    current: Int?,
+    step: Int,
+    webView: WebView?,
+    outside: (() -> Unit)?,
+): (() -> Unit)? {
+    if (type != WorkType.NOVELS) return if (contents.isNullOrEmpty()) null else { { webView?.goToNeighbour(step) } }
+    val inFile = chapters?.let { known -> current?.plus(step)?.takeIf { it in known.keys.indices } }
+    return inFile?.let { chapter -> { webView?.goToChapter(chapter) } } ?: outside
 }
 
 /** The place the bars and the footer show for the page's [message]. */
