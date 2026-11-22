@@ -97,8 +97,17 @@ export const stylesOf = (look, origin) => {
     return [before.join('\n'), after.join('\n')]
 }
 
-/** The paginator's attributes for the page's sides. */
-export const sidesOf = look => ({ gap: '7%', 'margin-left': `${look.margin}px`, 'margin-right': `${look.margin}px` })
+/**
+ * The paginator's attributes for the page's sides, so the panel's margin is the space a person sees
+ * between the text and each side. foliate-js puts half of each side margin and half of its column gap
+ * beside the text (in two columns, a quarter of each in the grid's outer track and a quarter in the
+ * page's padding): with no gap and the margin doubled, each side gets the panel's number. Pages still
+ * tile, since the space between two pages is the two sides added up.
+ */
+export const sidesOf = look => {
+    const side = `${look.margin * 2}px`
+    return { gap: '0%', 'margin-left': side, 'margin-right': side }
+}
 
 /**
  * Marks the paragraphs that [doc]'s own styles center or set to the right, read with the person's
