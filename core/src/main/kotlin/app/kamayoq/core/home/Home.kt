@@ -73,10 +73,13 @@ object Home {
             }
             .sortedByDescending { it.latest }
 
-    /** The works of Continue reading, the most recently read first. */
+    /**
+     * The works of Continue reading, the one touched last first: read, or in Reading by read marks
+     * alone with nothing opened (his decision of 22/11/2026).
+     */
     fun continueReading(works: List<ReadingWork>): List<String> =
-        works.filter { it.state == ReadingState.READING && it.lastReadAt != null }
-            .sortedByDescending { it.lastReadAt }
+        works.filter { it.state == ReadingState.READING && lastTouched(it) != null }
+            .sortedByDescending { lastTouched(it) }
             .take(CONTINUE_SHOWN)
             .map { it.workId }
 
@@ -86,6 +89,8 @@ object Home {
             .sortedByDescending { it.second }
             .take(ADDED_SHOWN)
             .map { it.first.workId }
+
+    private fun lastTouched(work: ReadingWork): Instant? = listOfNotNull(work.lastReadAt, work.lastMarkedAt).maxOrNull()
 
     /** How long before [now] [since] was. */
     fun elapsed(since: Instant, now: Instant): Elapsed {

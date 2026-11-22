@@ -129,7 +129,9 @@ private fun ContinueCard(item: ContinueItem, onOpenWork: (String) -> Unit, onRea
                 Text(stringResource(R.string.home_where_left, item.target.name), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
             } else {
                 Text(placeOf(item), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
-                Text(elapsedText(item.lastReadAt), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                // Nothing read here to time: the card says when the chapters were marked, not a reading.
+                val time = if (item.byMarks) stringResource(R.string.home_marked_ago, elapsedText(item.lastReadAt)) else elapsedText(item.lastReadAt)
+                Text(time, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             }
             Spacer(modifier = Modifier.size(4.dp))
             Button(onClick = { goOn(item, onOpenWork, onRead) }, modifier = Modifier.sizeIn(minHeight = 48.dp)) {
