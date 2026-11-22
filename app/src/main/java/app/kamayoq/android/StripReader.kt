@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -105,7 +106,7 @@ fun ImageReader(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(if (mode == ImageMode.STRIP) MaterialTheme.colorScheme.background else Color.Black)
             // The same as the tap in the middle, for TalkBack.
             .semantics {
                 onClick(label = controlsAction) {
@@ -115,7 +116,11 @@ fun ImageReader(
             },
     ) {
         val toggle = { showControls = !showControls }
-        StripPages(chapter, reading.startPage, nextChapterName, onShown, toggle, onNext)
+        if (mode == ImageMode.STRIP) {
+            StripPages(chapter, reading.startPage, nextChapterName, onShown, toggle, onNext)
+        } else {
+            PagedPages(chapter, reading.startPage, nextChapterName, mode, onShown, toggle, onNext)
+        }
         if (saveFailed) {
             Text(
                 stringResource(R.string.reader_save_failed),
