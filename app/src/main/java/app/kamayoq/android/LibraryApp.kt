@@ -375,10 +375,8 @@ fun LibraryApp(
     }
     fun downloadFromHome(work: String, chapter: StoredChapter) {
         scope.launch {
-            val count = withContext(Dispatchers.IO) { kavitaSync.download(work, listOf(chapter)) }
-            val message = if (count > 0) homeResources.getQuantityString(R.plurals.download_started, count, count)
-            else homeResources.getString(R.string.download_already_coming)
-            homeNotices.showSnackbar(message, duration = SnackbarDuration.Long)
+            val (count, here) = withContext(Dispatchers.IO) { kavitaSync.download(work, listOf(chapter)) to kavitaSync.isDownloaded(chapter) }
+            homeNotices.showSnackbar(homeDownloadNotice(homeResources, count, here), duration = SnackbarDuration.Long)
         }
     }
 
