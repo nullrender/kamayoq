@@ -3,6 +3,7 @@ package app.kamayoq.core.reader
 import app.kamayoq.core.library.ContentCheck
 import app.kamayoq.core.library.FolderConvention
 import app.kamayoq.core.library.NaturalOrder
+import java.io.ByteArrayOutputStream
 import java.io.Closeable
 import java.io.File
 import java.io.IOException
@@ -27,8 +28,16 @@ data class ComicInfo(val genre: List<String>, val tags: List<String>, val manga:
     companion object {
         val NONE = ComicInfo(emptyList(), emptyList(), null)
 
+        /** Larger than any ComicInfo seen: past it the entry is left unread, as one that says nothing. */
+        const val MAX_BYTES = 1024 * 1024
+
         /** A document that is not ComicInfo, or not well formed, says nothing. */
-        fun parse(text: String): ComicInfo = NONE
+        fun parse(text: String): ComicInfo {
+            val root = XmlTree.parse(text)?.takeIf { it.localName == "ComicInfo" } ?: return NONE
+            // Items separated by commas, as Kavita and the ComicInfo writers of Mihon and Komga write them.
+            fun items(name: String) = root.child(name)?.text.orEmpty().split(',').map(String::trim).filter(String::isNotEmpty)
+            return ComicInfo(items("Genre"), items("Tags"), MangaField.of(root.child("Manga")?.text))
+        }
     }
 }
 
@@ -88,11 +97,41 @@ object ArchivePages {
                 .sortedWith(compareBy<ZipEntry, String>(NaturalOrder) { it.name })
                 .toList()
             require(pages.isNotEmpty()) { "The archive has no images" }
-            return ArchiveChapter(zip, pages.withIndex().associate { (index, entry) -> "page$index" to entry })
+            return ArchiveChapter(zip, pages.withIndex().associate { (index, entry) -> "page$index" to entry }, comicInfoOf(zip))
         } catch (e: Exception) {
             zip.close()
             throw e
         }
+    }
+
+    /** The archive's ComicInfo.xml nearest its root; a missing, oversized or unreadable one says nothing. */
+    private fun comicInfoOf(zip: ZipFile): ComicInfo {
+        val entry = zip.entries().asSequence()
+            .filter { !it.isDirectory && visible(it.name) && it.name.substringAfterLast('/').equals("ComicInfo.xml", ignoreCase = true) }
+            .minByOrNull { it.name.count { char -> char == '/' } }
+            ?: return ComicInfo.NONE
+        if (entry.size > ComicInfo.MAX_BYTES) return ComicInfo.NONE
+        return try {
+            // Bounded by hand: an entry's size can be missing or wrong, and readNBytes needs Android 13.
+            val bytes = ByteArrayOutputStream()
+            zip.getInputStream(entry).use { input ->
+                val buffer = ByteArray(8 * 1024)
+                while (bytes.size() <= ComicInfo.MAX_BYTES) {
+                    val read = input.read(buffer)
+                    if (read < 0) break
+                    bytes.write(buffer, 0, read)
+                }
+            }
+            if (bytes.size() > ComicInfo.MAX_BYTES) ComicInfo.NONE else ComicInfo.parse(bytes.toString(Charsets.UTF_8.name()))
+        } catch (e: IOException) {
+            // The pages may still read: the metadata is a hint, never a reason to refuse the chapter.
+            ComicInfo.NONE
+        }
+    }
+
+    private fun visible(name: String): Boolean {
+        val parts = name.split('/').filter { it.isNotEmpty() }
+        return parts.isNotEmpty() && parts.none { it.startsWith('.') || it == "__MACOSX" }
     }
 
     /** An image, outside hidden folders and the `__MACOSX` folder that macOS adds to archives. */
