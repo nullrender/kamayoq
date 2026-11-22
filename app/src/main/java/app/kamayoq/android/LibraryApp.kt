@@ -356,12 +356,14 @@ fun LibraryApp(
         homeDownloaded = there
     }
     val homeResources = LocalResources.current
-    // A marking said with Undo, as on the Work screen.
+    // A marking said with Undo, as on the Work screen. The Library's rows count the new chapters and
+    // show the state, which a marking may change by itself: they are read again too.
     fun markFromHome(work: String, chapter: String) {
         scope.launch {
             val change = withContext(Dispatchers.IO) { store.markRead(work, listOf(chapter), Instant.now()) }
             progressVersion++
             if (change.changed == 0) return@launch
+            show(withContext(Dispatchers.IO) { readRows() })
             val answer = homeNotices.showSnackbar(
                 homeResources.getQuantityString(R.plurals.marked_read, change.changed, change.changed),
                 actionLabel = homeResources.getString(R.string.undo),
@@ -370,6 +372,7 @@ fun LibraryApp(
             if (answer == SnackbarResult.ActionPerformed) {
                 withContext(Dispatchers.IO) { store.undoMarks(change) }
                 progressVersion++
+                show(withContext(Dispatchers.IO) { readRows() })
             }
         }
     }
