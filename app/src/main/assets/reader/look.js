@@ -122,6 +122,9 @@ export const hostBackgroundOf = look => look.background ?? ''
  * Whether this WebView hyphenates Portuguese, or null when it cannot tell: a long word in a narrow box
  * breaks over more lines with hyphens on than off only where a dictionary exists.
  */
+/** The language whose hyphenation the page measures for the panel's warning. Not used yet: Portuguese. */
+export const probeLanguage = lang => 'pt'
+
 export const hyphenatesPortuguese = doc => {
     const body = doc.body
     if (!body) return null

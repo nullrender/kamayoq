@@ -1,7 +1,7 @@
 // The settings panel's look as CSS (slice 5): defaults under the book, what the person chose over it.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { DEFAULT_LOOK, checkedLook, stylesOf, marginOf, hostBackgroundOf } from '../main/assets/reader/look.js'
+import { DEFAULT_LOOK, checkedLook, stylesOf, marginOf, hostBackgroundOf, probeLanguage } from '../main/assets/reader/look.js'
 
 const ORIGIN = 'https://appassets.androidplatform.net'
 const look = changes => ({ ...DEFAULT_LOOK, background: '#EFE4CC', text: '#3A2E20', ...changes })
@@ -29,7 +29,7 @@ test('dado o tamanho escolhido, então ele vence o tamanho do livro no texto cor
 
 test('dado a letra escolhida, então ela vence a do livro, menos no código', () => {
     const [, after] = stylesOf(look({ font: 'garamond', chosen: ['font'] }), ORIGIN)
-    assert.match(after, /body, body \*:not\(code\):not\(pre\):not\(kbd\):not\(samp\):not\(tt\) \{ font-family: 'EB Garamond', serif !important; \}/)
+    assert.match(after, /font-family: 'EB Garamond', serif !important;/)
 })
 
 test('dado a letra trocada sem ser escolhida, então ela fica só por baixo do livro', () => {
@@ -83,3 +83,28 @@ test('dado um nome de letra herdado de Object.prototype, então a aparência é 
     for (const font of ['toString', 'constructor', '__proto__', 'hasOwnProperty'])
         assert.equal(checkedLook(look({ font })), null, font)
 })
+
+// Slice 5, choice after research (kamayoq-notes, research slice-5-small-choices, fallback-code.md).
+test('dado a Atkinson, então a reserva é sem serifa, e a das três serifadas é serifada', () => {
+    const [before] = stylesOf(look({ font: 'atkinson' }), ORIGIN)
+    assert.match(before, /font-family: 'Atkinson Hyperlegible', sans-serif;/)
+    const [beforeSerif] = stylesOf(look({ font: 'garamond' }), ORIGIN)
+    assert.match(beforeSerif, /font-family: 'EB Garamond', serif;/)
+})
+
+test('dado a letra escolhida, então ela não chega ao código nem ao que está dentro dele', () => {
+    const [, after] = stylesOf(look({ font: 'plex', chosen: ['font'] }), ORIGIN)
+    assert.match(after, /body, body \*:not\(code, pre, kbd, samp, tt, var\):not\(code \*, pre \*, kbd \*, samp \*, tt \*, var \*\) \{ font-family: 'IBM Plex Serif', serif !important; \}/)
+})
+
+// Slice 5, choice after research (hyphenation-text.md): the warning is about the book's own language.
+test('dado o idioma declarado do livro, então a medida da hifenização é nele', () => {
+    assert.equal(probeLanguage('pt-BR'), 'pt-BR')
+    assert.equal(probeLanguage('en'), 'en')
+})
+
+test('dado um livro sem idioma ou em chinês, japonês ou coreano, então não há medida nem aviso', () => {
+    for (const lang of [undefined, null, '', 'zh', 'zh-Hant', 'ja', 'ko', 'ko-KR'])
+        assert.equal(probeLanguage(lang), null, String(lang))
+})
+
