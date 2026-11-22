@@ -37,6 +37,9 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
@@ -44,6 +47,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
@@ -59,7 +63,6 @@ import app.kamayoq.core.reader.PageThemes
 import app.kamayoq.core.reader.ShownLook
 import app.kamayoq.core.reader.TapZone
 import app.kamayoq.core.reader.TapZones
-import app.kamayoq.core.reader.TextLook
 import app.kamayoq.core.reader.TextSettings
 import app.kamayoq.core.reader.ReaderLink
 import app.kamayoq.core.reader.RendererCrashes
@@ -91,7 +94,6 @@ fun TextReader(
     onMessage: (PageMessage) -> Unit = {},
     type: WorkType = WorkType.BOOKS,
     end: TextEnd = TextEnd.Book,
-    look: TextLook = TextLook.DEFAULT,
     chosenFlow: ReaderFlow? = null,
     chapter: ChapterPlace? = null,
     onPreviousChapter: (() -> Unit)? = null,
@@ -103,17 +105,18 @@ fun TextReader(
     val save by rememberUpdatedState(onSave)
     val session = remember(reading) { WholeText(reading) { save(it) } }
     TextReader(
-        archive, title, session, onBack, onMessage, type, end, look, chosenFlow,
+        archive, title, session, onBack, onMessage, type, end, chosenFlow,
         chapterOf = { chapter }, onPreviousChapter = onPreviousChapter, onNextChapter = onNextChapter,
+        settings = settings, onSettings = onSettings, onFlow = onFlow,
     )
 }
 
 /**
  * The same screen for any text: [session] says where the page opens and saves what each move changes.
- * The [look] is the settings panel's; [chosenFlow] the mode the person chose for this work. A novel's
- * [chapterOf] says which chapter of the work the page is in, from the chapter of a split file the
- * page names (null for a file that is one chapter). The [settings] and the panel's [onSettings] and
- * [onFlow] are not used yet.
+ * [chosenFlow] is the mode the person chose for this work. A novel's [chapterOf] says which chapter
+ * of the work the page is in, from the chapter of a split file the page names (null for a file that
+ * is one chapter). The [settings] are the panel's as the work opens; [onSettings] and [onFlow] keep
+ * what the panel changes, and without [onSettings] there is no panel.
  */
 @Composable
 fun TextReader(
@@ -124,7 +127,6 @@ fun TextReader(
     onMessage: (PageMessage) -> Unit = {},
     type: WorkType = WorkType.BOOKS,
     end: TextEnd = TextEnd.Book,
-    look: TextLook = TextLook.DEFAULT,
     chosenFlow: ReaderFlow? = null,
     chapterOf: (Int?) -> ChapterPlace? = { null },
     onPreviousChapter: (() -> Unit)? = null,
@@ -145,8 +147,17 @@ fun TextReader(
     // A dead renderer leaves a WebView that cannot be used again: a new number makes a new one.
     var renderer by remember(archive) { mutableIntStateOf(0) }
     val touchExploration = touchExplorationEnabled()
-    val flow = ReaderFlow.of(type, touchExploration, chosenFlow)
-    val shown = ShownLook(look, PageThemes.colors(look.theme, systemDark = isSystemInDarkTheme()))
+    // What the panel changed since the work opened; the store keeps it through onSettings and onFlow.
+    var current by remember(archive) { mutableStateOf(settings) }
+    var chosen by remember(archive) { mutableStateOf(chosenFlow) }
+    var panelOpen by remember(archive) { mutableStateOf(false) }
+    // Until the page measures it, no warning: a false one would blame a device that hyphenates.
+    var hyphenates by remember(archive) { mutableStateOf(true) }
+    val look = current.effective()
+    val systemDark = isSystemInDarkTheme()
+    // A new mode opens the book again at the place kept, as the fork misplaces a flow changed on it.
+    val flow = ReaderFlow.of(type, touchExploration, chosen)
+    val shown = ShownLook(look, PageThemes.colors(look.theme, systemDark))
     // The look the page opened with: a later one goes by command, without opening the book again.
     var pageLook by remember(archive) { mutableStateOf(shown) }
     // Shown at opening; a touch in the middle, or turning the page by touch, hides them; in Scroll a
@@ -258,6 +269,7 @@ fun TextReader(
                                             }
                                         }
                                     }
+                                    is PageMessage.Hyphenation -> hyphenates = message.available
                                     PageMessage.End -> if (ready) {
                                         atEnd = true
                                         session.ended(Instant.now())
@@ -290,7 +302,7 @@ fun TextReader(
     if (controlsShown || problem != null) {
         TextReaderTopBar(title, progress, onBack, Modifier.align(Alignment.TopCenter).statusBarsPadding())
     }
-    if (controlsShown && problem == null) {
+    if (controlsShown && problem == null && !panelOpen) {
         TextReaderBottomBar(
             enabled = ready,
             contentsLabel = stringResource(if (type == WorkType.NOVELS) R.string.reader_chapters else R.string.reader_contents),
@@ -299,8 +311,29 @@ fun TextReader(
             onContents = { contentsOpen = true },
             onNextChapter = inFile(session.chapters, fileChapter, +1)?.let { item -> { webView?.goToContents(item) } } ?: onNextChapter,
             modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding(),
+            end = { if (onSettings != null) SettingsButton(enabled = ready) { panelOpen = true } },
         )
     }
+    }
+
+    if (panelOpen && onSettings != null) {
+        TextSettingsPanel(
+            settings = current,
+            onSettings = { changed ->
+                current = changed
+                onSettings(changed)
+            },
+            type = type,
+            flow = flow,
+            onFlow = { changed ->
+                chosen = changed
+                onFlow?.invoke(changed)
+            },
+            touchExploration = touchExploration,
+            hyphenates = hyphenates,
+            systemDark = systemDark,
+            onDismiss = { panelOpen = false },
+        )
     }
 
     // A new look with the page open goes by command: reopening would cost the place on screen.
@@ -380,6 +413,23 @@ private fun EndOfText(end: TextEnd) {
                     }
                 }
             }
+        }
+    }
+}
+
+/** "Aa · Settings": only the Aa gains a label that says what it opens (FEATURES, part 6). */
+@Composable
+private fun SettingsButton(enabled: Boolean, onClick: () -> Unit) {
+    val description = stringResource(R.string.reader_settings_description)
+    TextButton(
+        onClick = onClick,
+        enabled = enabled,
+        colors = barTextColors(),
+        modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).semantics { contentDescription = description },
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("Aa", fontFamily = FontFamily.Serif, fontSize = 18.sp, color = LocalPalette.current.action.takeIf { enabled } ?: LocalPalette.current.secondaryText)
+            Text(stringResource(R.string.reader_settings), fontSize = 10.sp, maxLines = 1)
         }
     }
 }

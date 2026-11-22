@@ -120,6 +120,22 @@ export const hostBackgroundOf = look => look.background ?? ''
 
 /**
  * Whether this WebView hyphenates Portuguese, or null when it cannot tell: a long word in a narrow box
- * breaks over more lines with hyphens on than off only where a dictionary exists. Not measured yet.
+ * breaks over more lines with hyphens on than off only where a dictionary exists.
  */
-export const hyphenatesPortuguese = doc => null
+export const hyphenatesPortuguese = doc => {
+    const body = doc.body
+    if (!body) return null
+    const probe = doc.createElement('div')
+    probe.lang = 'pt'
+    probe.style.cssText = 'position: absolute; visibility: hidden; left: 0; top: 0; width: 5em; font-size: 16px; line-height: 20px; overflow-wrap: normal; word-break: normal;'
+    probe.textContent = 'paralelepípedo inconstitucionalmente'
+    body.append(probe)
+    try {
+        probe.style.hyphens = 'manual'
+        const plain = probe.getBoundingClientRect().height
+        probe.style.hyphens = 'auto'
+        return probe.getBoundingClientRect().height > plain
+    } finally {
+        probe.remove()
+    }
+}

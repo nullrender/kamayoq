@@ -81,7 +81,18 @@ sealed interface ReaderMessage {
                 "link" -> link(message)
                 "end" -> if (message.keys == setOf("type")) End else Refused("unexpected fields")
                 "tap" -> tap(message)
+                "hyphenation" -> hyphenation(message)
                 else -> Refused("unknown type")
+            }
+        }
+
+        private fun hyphenation(message: JsonObject): ReaderMessage {
+            if (message.keys != setOf("type", "available")) return Refused("unexpected fields")
+            val available = (message["available"] as? JsonPrimitive)?.takeUnless { it.isString }?.content
+            return when (available) {
+                "true" -> Hyphenation(true)
+                "false" -> Hyphenation(false)
+                else -> Refused("bad hyphenation")
             }
         }
 

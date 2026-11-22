@@ -38,7 +38,9 @@ import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.progress.strip
 import app.kamayoq.core.reader.FileTooLargeException
+import app.kamayoq.core.reader.ReaderFlow
 import app.kamayoq.core.reader.SplitReading
+import app.kamayoq.core.reader.TextSettings
 import app.kamayoq.core.reader.TextReading
 import app.kamayoq.data.LibraryStore
 import app.kamayoq.data.ProgressSaving
@@ -83,6 +85,9 @@ private sealed interface Opening {
         val next: StoredChapter?,
         /** The work's chapters, in order, for the chapter's place and the one before it. */
         val order: List<String>,
+        val workId: String,
+        val settings: TextSettings,
+        val mode: ReaderFlow?,
     ) : Opening
 
     /** A compiled novel: one file read across its chapters; [next] is the chapter after the file. */
@@ -94,6 +99,9 @@ private sealed interface Opening {
         val type: WorkType,
         val next: StoredChapter?,
         val order: List<String>,
+        val workId: String,
+        val settings: TextSettings,
+        val mode: ReaderFlow?,
     ) : Opening
 
     /** In a book, [sections] says the pages are sections. */
@@ -296,6 +304,10 @@ fun ReaderHost(
                 chapter = ChapterPlace(at + 1, current.order.size).takeIf { novel && at >= 0 },
                 onPreviousChapter = previous?.let { { onOpenChapter(it) } },
                 onNextChapter = current.next?.takeIf { novel }?.let { { onOpenChapter(it.id) } },
+                chosenFlow = current.mode,
+                settings = current.settings,
+                onSettings = { kept -> keepSettings(store, opening.turns, current.round, current.workId, kept) },
+                onFlow = { kept -> keepMode(store, opening.turns, current.round, current.workId, kept) },
             )
         }
         is Opening.ReadySplit -> {
@@ -328,6 +340,10 @@ fun ReaderHost(
                 },
                 onPreviousChapter = before?.let { { onOpenChapter(it) } },
                 onNextChapter = current.next?.let { { onOpenChapter(it.id) } },
+                chosenFlow = current.mode,
+                settings = current.settings,
+                onSettings = { kept -> keepSettings(store, opening.turns, current.round, current.workId, kept) },
+                onFlow = { kept -> keepMode(store, opening.turns, current.round, current.workId, kept) },
             )
         }
         is Opening.Conflict -> {
@@ -378,6 +394,27 @@ fun ReaderHost(
  * failed save is logged and the reading goes on. Shared with the test that kills the process.
  * [marker] gives Kavita's marker of the same place, read when the place is handed out.
  */
+/** The panel's settings, in the same line as the saves of the place, off the main thread. */
+private fun keepSettings(store: LibraryStore, turns: OpeningTurns, round: Long, workId: String, settings: TextSettings) {
+    turns.inLine(round) {
+        try {
+            store.saveTextSettings(workId, settings)
+        } catch (e: Exception) {
+            Log.e("Kamayoq", "Saving the reader's settings failed", e)
+        }
+    }
+}
+
+private fun keepMode(store: LibraryStore, turns: OpeningTurns, round: Long, workId: String, flow: ReaderFlow) {
+    turns.inLine(round) {
+        try {
+            store.saveTextMode(workId, flow)
+        } catch (e: Exception) {
+            Log.e("Kamayoq", "Saving the reader's mode failed", e)
+        }
+    }
+}
+
 internal fun textSaving(
     store: LibraryStore,
     turns: OpeningTurns,
@@ -577,7 +614,9 @@ private fun openText(
         var nextNow = next
         if (turn == null && (chapter.tocKey.isNotEmpty() || FolderConvention.splitsByContents(chapter.path))) {
             when (val file = store.splitOpening(text.chapterId, SplitContents.of(text.archive))) {
-                is SplitOpening -> return Opening.ReadySplit(text, work ?: chapter.name, file, round, type, afterFile, order)
+                is SplitOpening -> return Opening.ReadySplit(
+                    text, work ?: chapter.name, file, round, type, afterFile, order, workId, store.textSettings(workId), store.textMode(workId),
+                )
                 // A file that lost its division since the folder was read: one chapter took the
                 // place of the ones it had, and the reading is that chapter's from here on, with its
                 // name and the chapter after it as the work's chapters are now.
@@ -594,7 +633,9 @@ private fun openText(
         // The marker known for the saved place, queued here or agreed with Kavita: it opens a place
         // from Kavita, and goes with the place when the end block saves it with no move first.
         val marker = turn?.let { store.syncItem(whole.chapterId)?.knownPlace(progress.position as? TextPosition)?.marker }
-        return Opening.ReadyText(whole, title, progress, round, turn, marker, type, nextNow, order)
+        return Opening.ReadyText(
+            whole, title, progress, round, turn, marker, type, nextNow, order, workId, store.textSettings(workId), store.textMode(workId),
+        )
     } catch (e: Exception) {
         text.release()
         throw e
