@@ -163,6 +163,25 @@ class WorkStateTest {
     }
 
     @Test
+    fun `dado o leitor aberto e fechado pela Obra sem mudar nada, quando o estado muda sozinho depois de sair dela, então reabrir a Obra não avisa`() {
+        openWork("Sakamoto Days")
+        compose.onNode(hasText("Cap. 1")).performClick()
+        compose.waitForIdle()
+        pressBack()
+        waitFor(app.getString(R.string.back))
+        pressBack()
+        waitUntilGone(app.getString(R.string.back))
+
+        // Read elsewhere, as from Home: the Work screen keeps its line, and no notice on opening it.
+        readToEnd("Sakamoto Days")
+        compose.onNode(hasText("Sakamoto Days")).performClick()
+
+        waitFor(app.getString(R.string.state_changed_by_itself, name(ReadingState.READING)))
+        compose.waitForIdle()
+        assertEquals(0, compose.onAllNodes(hasText(app.getString(R.string.state_auto_notice, name(ReadingState.READING)))).fetchSemanticsNodes().size)
+    }
+
+    @Test
     fun `dado o aviso de que mudou sozinho, quando toco em Desfazer, então a obra volta a ficar sem estado e a linha some`() {
         openWork("Sakamoto Days")
         readInReader("Sakamoto Days")
