@@ -90,6 +90,11 @@
     <string name="reader_chapter_read">read</string>
     <string name="reader_chapter_unread">not read</string>
     <string name="reader_chapter_reading">reading · %1$d%%</string>
+    <string name="reader_hint_previous">Previous</string>
+    <string name="reader_hint_controls">Controls</string>
+    <string name="reader_hint_next">Next</string>
+    <string name="reader_hint_text">Touch the sides to turn the page; the middle, to see the controls.</string>
+    <string name="reader_hint_ok">Got it</string>
     <!-- The app's name. A proper noun: never translated. -->
     <string name="app_name" translatable="false">Kamayoq</string>
     <!-- Title of the main screen: the app's own library (from the product vocabulary). -->

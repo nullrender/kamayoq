@@ -106,6 +106,8 @@ fun TextReader(
     chapterRows: List<ReaderChapterRow>? = null,
     chapterId: String? = null,
     onOpenWorkChapter: ((String) -> Unit)? = null,
+    pagesHint: Boolean = false,
+    onPagesHintSeen: () -> Unit = {},
 ) {
     val save by rememberUpdatedState(onSave)
     val session = remember(reading) { WholeText(reading) { save(it) } }
@@ -125,6 +127,7 @@ fun TextReader(
  * what the panel changes, and without [onSettings] there is no panel. A novel's [chapterRows] are
  * its chapters for the Chapters sheet, [chapterIdOf] the one the page is in (from the chapter of a
  * split file), and [onOpenWorkChapter] opens another; without rows, Chapters shows the file's contents.
+ * The [pagesHint] and [onPagesHintSeen] are not used yet.
  */
 @Composable
 fun TextReader(
@@ -145,6 +148,8 @@ fun TextReader(
     chapterRows: List<ReaderChapterRow>? = null,
     chapterIdOf: (Int?) -> String? = { null },
     onOpenWorkChapter: ((String) -> Unit)? = null,
+    pagesHint: Boolean = false,
+    onPagesHintSeen: () -> Unit = {},
 ) {
     val context = LocalContext.current
     // Checked before any WebView is made: below the floor the fork fails later, with no clear reason.

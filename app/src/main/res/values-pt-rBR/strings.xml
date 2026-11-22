@@ -90,6 +90,11 @@
     <string name="reader_chapter_read">lido</string>
     <string name="reader_chapter_unread">não lido</string>
     <string name="reader_chapter_reading">lendo · %1$d %%</string>
+    <string name="reader_hint_previous">Anterior</string>
+    <string name="reader_hint_controls">Controles</string>
+    <string name="reader_hint_next">Próxima</string>
+    <string name="reader_hint_text">Toque nas laterais para virar a página; no meio, para ver os controles.</string>
+    <string name="reader_hint_ok">Entendi</string>
     <string name="library_title">Biblioteca</string>
     <string name="no_folder">Escolha uma pasta para o Kamayoq. Suas obras ficam na pasta Library dentro dela, que o Kamayoq cria se faltar. O Kamayoq nunca altera seus arquivos.</string>
     <string name="choose_folder">Escolher pasta</string>
