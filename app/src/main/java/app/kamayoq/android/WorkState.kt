@@ -2,7 +2,6 @@ package app.kamayoq.android
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,7 +12,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -88,11 +86,7 @@ internal fun StateSheet(current: ReadingState?, onPick: (ReadingState?) -> Unit,
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        dragHandle = {
-            Box(Modifier.sizeIn(minWidth = 48.dp), contentAlignment = Alignment.Center) {
-                BottomSheetDefaults.DragHandle()
-            }
-        },
+        dragHandle = { SheetHandle() },
     ) {
         // Scrolls: on a short screen the last state and the button must still be reachable.
         Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 20.dp)) {

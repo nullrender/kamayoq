@@ -23,7 +23,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -704,13 +703,7 @@ private fun DownloadSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        // Material's handle is 32 dp wide, and the sheet makes the touch target the size of what it
-        // gets here; the wider box gives it 48 dp and keeps the same pill on screen.
-        dragHandle = {
-            Box(Modifier.sizeIn(minWidth = 48.dp), contentAlignment = Alignment.Center) {
-                BottomSheetDefaults.DragHandle()
-            }
-        },
+        dragHandle = { SheetHandle() },
     ) {
         Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 20.dp)) {
             Text(stringResource(R.string.download_sheet_title), style = MaterialTheme.typography.titleLarge)
