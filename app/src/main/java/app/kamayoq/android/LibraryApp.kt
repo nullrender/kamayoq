@@ -338,7 +338,11 @@ fun LibraryApp(
         news = WorkNews(id, write.await())
     }
     LaunchedEffect(openWorkId) {
-        if (openWorkId == null) news = WorkNews.NONE
+        if (openWorkId == null) {
+            news = WorkNews.NONE
+            // A change made after the work is left was not made while its reader was open.
+            readingSince = null
+        }
     }
 
     // Read again whenever Home shows: what any other screen did may change it, and a download that ends.
