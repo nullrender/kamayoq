@@ -17,7 +17,7 @@ class TextLookTest {
         assertEquals(18, look.size)
         assertEquals(15, look.lineHeight)
         assertEquals(0, look.paragraphSpacing)
-        assertEquals(16, look.margin)
+        assertEquals(24, look.margin)
         assertTrue(look.indent)
         assertFalse(look.justify)
         assertEquals(PageTheme.AUTO, look.theme)
@@ -43,7 +43,7 @@ class TextLookTest {
     @Test
     fun `dado o botão de mais e o de menos, então o valor anda um passo e para no limite`() {
         val up = TextSettings.DEFAULT.change(all, TextEdit.Step(TextNumber.MARGIN, up = true)).effective()
-        assertEquals(20, up.margin)
+        assertEquals(28, up.margin)
         var atTop = TextSettings.DEFAULT
         repeat(20) { atTop = atTop.change(all, TextEdit.Step(TextNumber.LINE_HEIGHT, up = true)) }
         assertEquals(20, atTop.effective().lineHeight)
