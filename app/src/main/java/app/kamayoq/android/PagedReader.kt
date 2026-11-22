@@ -150,9 +150,7 @@ private fun Modifier.pinchZoom(onZoomed: (Boolean) -> Unit): Modifier = composed
                     val fingers = event.changes.count { it.pressed }
                     if (fingers >= 2 || scale > 1f) {
                         val pan = event.calculatePan()
-                        // Fingers back together multiply to about 1, a hair above it: that is whole again,
-                        // or the page would stay locked against turning.
-                        scale = (scale * event.calculateZoom()).coerceIn(1f, MAX_ZOOM).let { if (it < WHOLE_BELOW) 1f else it }
+                        scale = (scale * event.calculateZoom()).coerceIn(1f, MAX_ZOOM)
                         val maxX = (scale - 1) * size.width / 2
                         val maxY = (scale - 1) * size.height / 2
                         offset = Offset((offset.x + pan.x).coerceIn(-maxX, maxX), (offset.y + pan.y).coerceIn(-maxY, maxY))
@@ -171,7 +169,6 @@ private fun Modifier.pinchZoom(onZoomed: (Boolean) -> Unit): Modifier = composed
 }
 
 private const val MAX_ZOOM = 4f
-private const val WHOLE_BELOW = 1.05f
 
 /** One page whole on the screen, decoded at most twice the screen's size, so a zoom still has detail. */
 @Composable
