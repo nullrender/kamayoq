@@ -80,6 +80,16 @@
     <string name="reader_property_justify">alignment</string>
     <string name="reader_property_theme">theme</string>
     <string name="reader_property_footer">footer</string>
+    <string name="reader_go_to">Go to</string>
+    <string name="reader_go">Go</string>
+    <string name="reader_go_to_place">Go to · %1$s</string>
+    <string name="reader_go_slider_book">Place in the book</string>
+    <string name="reader_go_slider_chapter">Place in the chapter</string>
+    <string name="reader_go_book_start">Back to the start of the book</string>
+    <string name="reader_go_chapter_start">Back to the start of the chapter</string>
+    <string name="reader_chapter_read">read</string>
+    <string name="reader_chapter_unread">not read</string>
+    <string name="reader_chapter_reading">reading · %1$d%%</string>
     <!-- The app's name. A proper noun: never translated. -->
     <string name="app_name" translatable="false">Kamayoq</string>
     <!-- Title of the main screen: the app's own library (from the product vocabulary). -->

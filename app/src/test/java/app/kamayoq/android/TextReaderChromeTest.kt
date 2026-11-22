@@ -123,4 +123,18 @@ class TextReaderChromeTest {
         compose.setContent { KamayoqTheme { TextReaderFooter(FooterContent.NOTHING, book, sepia) } }
         assertEquals(0, withText(context.getString(R.string.reader_book_percent, 12)).fetchSemanticsNodes().size)
     }
+
+    @Test
+    fun `dado a barra de baixo, quando toco no lugar, então abre o Ir para`() {
+        var asked = 0
+        compose.setContent {
+            KamayoqTheme {
+                TextReaderBottomBar(true, context.getString(R.string.reader_contents), book, onPreviousChapter = null, onContents = {}, onNextChapter = null, onProgress = { asked++ })
+            }
+        }
+        val place = context.getString(R.string.reader_book_percent, 12)
+        compose.onNodeWithContentDescription(context.getString(R.string.reader_go_to_place, place))
+            .assertHeightIsAtLeast(48.dp).performClick()
+        assertEquals(1, asked)
+    }
 }

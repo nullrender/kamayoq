@@ -5,6 +5,7 @@ import { relocatedMessage, contentsOf, navigationQueue, chapterOf, chapterFracti
 import { elementOf, markerOf } from './markers.js'
 import { DEFAULT_LOOK, checkedLook, stylesOf, marginOf, markAligned, hostBackgroundOf, hyphenatesPortuguese } from './look.js'
 import { tapFraction } from './taps.js'
+import { neighbourOf, withinSpan } from './moves.js'
 
 const send = message => kamayoqBridge.postMessage(JSON.stringify(message))
 // What tells where the reader is leaves in order: a place may wait for its chapter to be measured.
@@ -14,6 +15,9 @@ const view = document.createElement('foliate-view')
 document.body.append(view)
 let contents = []
 const navigate = navigationQueue()
+// A split file's chapters, for the bars' chapter moves and Go to inside a chapter.
+let chapterKeys = []
+let meter = null
 
 // The settings panel's look: in the book's index before it opens, by command while it is open.
 const applyLook = look => {
@@ -76,6 +80,8 @@ const open = async token => {
         view.renderer.setAttribute(`margin-${side}`, '24px')
     applyLook(checkedLook(index.look) ?? DEFAULT_LOOK)
     const inChapter = index.chapters ? chapterMeter(index.chapters) : null
+    meter = inChapter
+    chapterKeys = Array.isArray(index.chapters?.keys) ? index.chapters.keys : []
     // The view handles the paginator's event first and keeps the result in lastLocation; the
     // paginator's event is the one that says why it moved. The marker is taken now, while the range
     // is the one on screen.
@@ -197,7 +203,7 @@ const chapterMeter = chapters => {
         // Before the first chapter that starts in this section: still in the one before it.
         return started ?? Math.max(here[0].chapter - 1, 0)
     }
-    return async location => {
+    const measure = async location => {
         const section = location?.section?.current
         const pieces = sizeOf(section) > PIECES_ABOVE && targets.some(target => target.section === section)
         const chapter = pieces ? await inPieces(location, section) : chapterOf(chapters.ofItem, location?.tocItem)
@@ -205,6 +211,9 @@ const chapterMeter = chapters => {
         const [start, end] = await Promise.all([startOf(chapter), startOf(chapter + 1)])
         return { chapter, chapterFraction: chapterFraction(location?.fraction, start, end) }
     }
+    // Where a chapter starts and ends in the book, for Go to inside it.
+    measure.span = chapter => Promise.all([startOf(chapter), startOf(chapter + 1)])
+    return measure
 }
 
 // The paginator shows a section above this size in pieces (CHUNK_THRESHOLD in paginator.js).
@@ -279,6 +288,25 @@ addEventListener('message', event => {
     if (event.source !== null || typeof event.data !== 'string') return
     let command
     try { command = JSON.parse(event.data) } catch { return }
+    if (command?.type === 'step' && (command.by === 1 || command.by === -1)) {
+        const to = neighbourOf(contents, view.lastLocation?.tocItem?.href, command.by)
+        if (to !== null) navigate(() => view.goTo(contents[to].href))
+        return
+    }
+    if (command?.type === 'chapter' && Number.isInteger(command.index)) {
+        const key = chapterKeys[command.index]
+        if (typeof key === 'string') navigate(() => view.goTo(key))
+        return
+    }
+    if (command?.type === 'fraction' && Number.isFinite(command.value) && command.value >= 0 && command.value <= 1) {
+        const chapter = command.chapter
+        navigate(async () => {
+            const [start, end] = Number.isInteger(chapter) && meter ? await meter.span(chapter) : [0, 1]
+            const at = withinSpan(start, end, command.value)
+            if (at !== null) await view.goToFraction(at)
+        })
+        return
+    }
     if (command?.type === 'look') {
         const look = checkedLook(command.look)
         if (look && view.renderer) applyLook(look)

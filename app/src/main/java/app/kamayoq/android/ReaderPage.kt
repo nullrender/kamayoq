@@ -31,7 +31,7 @@ import java.io.InputStream
 import java.util.concurrent.CopyOnWriteArrayList
 
 /** Everything under `/reader/` that the page may ask for: the assets of the app, fixed in the APK. */
-private val READER_FILES: Set<String> = setOf("index.html", "errors.js", "reader.js", "sections.js", "messages.js", "markers.js", "look.js", "taps.js") + listOf(
+private val READER_FILES: Set<String> = setOf("index.html", "errors.js", "reader.js", "sections.js", "messages.js", "markers.js", "look.js", "taps.js", "moves.js") + listOf(
     "view",
     "epub",
     "epubcfi",
@@ -228,6 +228,26 @@ fun WebView.readContents(answer: (List<ReaderContentsItem>?) -> Unit) =
 
 /** The settings panel's look, applied with the book open; [command] comes from [app.kamayoq.core.reader.PageLook.command]. */
 fun WebView.applyLook(command: String) = postWebMessage(WebMessage(command), Uri.parse(ReaderPolicy.ORIGIN))
+
+/** The book's previous or next chapter, by its contents ([by] is -1 or 1). */
+fun WebView.goToNeighbour(by: Int) {
+    require(by == 1 || by == -1)
+    postWebMessage(WebMessage("""{"type":"step","by":$by}"""), Uri.parse(ReaderPolicy.ORIGIN))
+}
+
+/** The chapter [index] of a split file, by the destination the app gave the page for it. */
+fun WebView.goToChapter(index: Int) {
+    require(index in 0 until ReaderContents.MAX_ITEMS)
+    postWebMessage(WebMessage("""{"type":"chapter","index":$index}"""), Uri.parse(ReaderPolicy.ORIGIN))
+}
+
+/** [value] of the way into the book, or into the chapter [chapter] of a split file. */
+fun WebView.goToFraction(value: Double, chapter: Int? = null) {
+    require(value in 0.0..1.0)
+    val place = String.format(java.util.Locale.ROOT, "%.4f", value)
+    val inChapter = chapter?.let { require(it in 0 until ReaderContents.MAX_ITEMS); ""","chapter":$it""" }.orEmpty()
+    postWebMessage(WebMessage("""{"type":"fraction","value":$place$inChapter}"""), Uri.parse(ReaderPolicy.ORIGIN))
+}
 
 fun WebView.goToContents(index: Int) {
     require(index in 0 until ReaderContents.MAX_ITEMS)

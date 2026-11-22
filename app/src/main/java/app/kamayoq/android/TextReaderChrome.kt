@@ -96,6 +96,7 @@ internal fun TextReaderBottomBar(
     onContents: () -> Unit,
     onNextChapter: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    onProgress: (() -> Unit)? = null,
     end: @Composable () -> Unit = {},
 ) {
     FloatingBar(modifier) {

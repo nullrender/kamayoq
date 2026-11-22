@@ -103,6 +103,9 @@ fun TextReader(
     settings: TextSettings = TextSettings.DEFAULT,
     onSettings: ((TextSettings) -> Unit)? = null,
     onFlow: ((ReaderFlow) -> Unit)? = null,
+    chapterRows: List<ReaderChapterRow>? = null,
+    chapterId: String? = null,
+    onOpenWorkChapter: ((String) -> Unit)? = null,
 ) {
     val save by rememberUpdatedState(onSave)
     val session = remember(reading) { WholeText(reading) { save(it) } }
@@ -118,7 +121,8 @@ fun TextReader(
  * [chosenFlow] is the mode the person chose for this work. A novel's [chapterOf] says which chapter
  * of the work the page is in, from the chapter of a split file the page names (null for a file that
  * is one chapter). The [settings] are the panel's as the work opens; [onSettings] and [onFlow] keep
- * what the panel changes, and without [onSettings] there is no panel.
+ * what the panel changes, and without [onSettings] there is no panel. A novel's [chapterRows],
+ * [chapterIdOf] and [onOpenWorkChapter] are not used yet.
  */
 @Composable
 fun TextReader(
@@ -136,6 +140,9 @@ fun TextReader(
     settings: TextSettings = TextSettings.DEFAULT,
     onSettings: ((TextSettings) -> Unit)? = null,
     onFlow: ((ReaderFlow) -> Unit)? = null,
+    chapterRows: List<ReaderChapterRow>? = null,
+    chapterIdOf: (Int?) -> String? = { null },
+    onOpenWorkChapter: ((String) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     // Checked before any WebView is made: below the floor the fork fails later, with no clear reason.

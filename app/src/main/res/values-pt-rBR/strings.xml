@@ -80,6 +80,16 @@
     <string name="reader_property_justify">alinhamento</string>
     <string name="reader_property_theme">tema</string>
     <string name="reader_property_footer">rodapé</string>
+    <string name="reader_go_to">Ir para</string>
+    <string name="reader_go">Ir</string>
+    <string name="reader_go_to_place">Ir para · %1$s</string>
+    <string name="reader_go_slider_book">Posição no livro</string>
+    <string name="reader_go_slider_chapter">Posição no capítulo</string>
+    <string name="reader_go_book_start">Voltar ao início do livro</string>
+    <string name="reader_go_chapter_start">Voltar ao início do capítulo</string>
+    <string name="reader_chapter_read">lido</string>
+    <string name="reader_chapter_unread">não lido</string>
+    <string name="reader_chapter_reading">lendo · %1$d %%</string>
     <string name="library_title">Biblioteca</string>
     <string name="no_folder">Escolha uma pasta para o Kamayoq. Suas obras ficam na pasta Library dentro dela, que o Kamayoq cria se faltar. O Kamayoq nunca altera seus arquivos.</string>
     <string name="choose_folder">Escolher pasta</string>
