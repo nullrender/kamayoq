@@ -361,4 +361,6 @@
     <string name="home_empty_title">Nothing to continue yet.</string>
     <string name="home_empty_text">What you read shows up here, and so does what comes later to your folder or to Kavita. Your works are in the Library.</string>
     <string name="home_go_library">Open the Library</string>
+    <!-- The handle at the top of a sheet, for TalkBack: dragging it down closes the sheet. -->
+    <string name="sheet_handle">Drag handle</string>
 </resources>

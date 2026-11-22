@@ -2,6 +2,7 @@ package app.kamayoq.android
 
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasContentDescription
@@ -96,13 +97,16 @@ class WorkStateTest {
     }
 
     @Test
-    fun `dado a folha de estado aberta, então a alça de arrastar tem um alvo de pelo menos 48 dp de largura`() {
+    fun `dado a folha de estado aberta, então a alça de arrastar que o TalkBack recebe tem pelo menos 48 por 48 dp`() {
         openWork("Gantz")
 
         openStates(null)
 
-        // Material's own description of the handle, as ChapterDownloadTest finds it on the Download sheet.
-        compose.onNode(hasContentDescription("Drag handle")).assertWidthIsAtLeast(48.dp)
+        // The node TalkBack gets, in the unmerged tree: on the S24 with r686 it was 32 × 4 dp while the
+        // merged node, the sheet's box around it, measured 48 dp.
+        compose.onNode(hasContentDescription(app.getString(R.string.sheet_handle)), useUnmergedTree = true)
+            .assertWidthIsAtLeast(48.dp)
+            .assertHeightIsAtLeast(48.dp)
     }
 
     @Test
