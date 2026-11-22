@@ -108,6 +108,7 @@ fun ImageReader(
     val mode = settings.effective
     var quickOpen by rememberSaveable { mutableStateOf(false) }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
+    var chaptersOpen by rememberSaveable { mutableStateOf(false) }
     val change: (ImageModeSettings) -> Unit = {
         settings = it
         onModeSettings(it)
@@ -176,7 +177,11 @@ fun ImageReader(
                     onPreviousChapter = onPreviousChapter,
                     onNextChapter = nextChapterName?.let { onNext },
                 )
-                ImageReaderActions(onMode = { quickOpen = true }, onSettings = { settingsOpen = true })
+                ImageReaderActions(
+                    onChapters = chapterRows?.let { { chaptersOpen = true } },
+                    onMode = { quickOpen = true },
+                    onSettings = { settingsOpen = true },
+                )
             }
         }
         if (quickOpen) {
@@ -184,6 +189,9 @@ fun ImageReader(
         }
         if (settingsOpen) {
             ImageSettingsSheet(settings, onSettings = change, onDismiss = { settingsOpen = false })
+        }
+        if (chaptersOpen && chapterRows != null) {
+            ReaderChaptersSheet(chapterRows, chapter.chapterId, onOpen = { chaptersOpen = false; onOpenChapter(it) }, onDismiss = { chaptersOpen = false })
         }
     }
 }

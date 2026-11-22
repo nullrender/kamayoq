@@ -167,10 +167,18 @@ private fun PageSlider(page: Int, total: Int, rightToLeft: Boolean, onSeek: (Int
     }
 }
 
-/** The quick actions under the bar below (FEATURES, part 5): Mode and Settings, each opening its sheet. */
+/**
+ * The quick actions under the bar below (FEATURES, part 5): Chapters, Mode and Settings, each opening
+ * its sheet without leaving the reader. Chapters is there when the work's chapters are known.
+ */
 @Composable
-internal fun ImageReaderActions(onMode: () -> Unit, onSettings: () -> Unit, modifier: Modifier = Modifier) {
+internal fun ImageReaderActions(onChapters: (() -> Unit)?, onMode: () -> Unit, onSettings: () -> Unit, modifier: Modifier = Modifier) {
     FloatingBar(modifier) {
+        if (onChapters != null) {
+            TextButton(onClick = onChapters, modifier = Modifier.weight(1f).heightIn(min = 48.dp), colors = barTextColors()) {
+                Text(stringResource(R.string.reader_chapters))
+            }
+        }
         TextButton(onClick = onMode, modifier = Modifier.weight(1f).heightIn(min = 48.dp), colors = barTextColors()) {
             Text(stringResource(R.string.reader_mode))
         }
