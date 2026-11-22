@@ -268,9 +268,9 @@ fun ReaderMessage(text: String, onBack: () -> Unit) {
     }
 }
 
-/** Full screen, into the camera cutout, with the screen kept on, while the reader is shown (5.14). */
+/** Full screen, into the camera cutout, with the screen kept on, while a reader is shown (5.14). */
 @Composable
-private fun ImmersiveScreen() {
+internal fun ImmersiveScreen() {
     val view = LocalView.current
     DisposableEffect(view) {
         val window = (view.context as Activity).window

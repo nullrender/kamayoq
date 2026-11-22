@@ -81,6 +81,8 @@ private sealed interface Opening {
         val marker: String?,
         val type: WorkType,
         val next: StoredChapter?,
+        /** The work's chapters, in order, for the chapter's place and the one before it. */
+        val order: List<String>,
     ) : Opening
 
     /** A compiled novel: one file read across its chapters; [next] is the chapter after the file. */
@@ -91,6 +93,7 @@ private sealed interface Opening {
         val round: Long,
         val type: WorkType,
         val next: StoredChapter?,
+        val order: List<String>,
     ) : Opening
 
     /** In a book, [sections] says the pages are sections. */
@@ -284,7 +287,16 @@ fun ReaderHost(
             } else {
                 TextEnd.Book
             }
-            TextReader(current.text.archive, current.title, reading, onSave = save, onBack = onBack, type = current.type, end = end)
+            // A novel moves chapter by chapter from the bars too; a book's volume has no chapter beside it here.
+            val novel = current.type == WorkType.NOVELS
+            val at = current.order.indexOf(current.text.chapterId)
+            val previous = current.order.getOrNull(at - 1).takeIf { novel }
+            TextReader(
+                current.text.archive, current.title, reading, onSave = save, onBack = onBack, type = current.type, end = end,
+                chapter = ChapterPlace(at + 1, current.order.size).takeIf { novel && at >= 0 },
+                onPreviousChapter = previous?.let { { onOpenChapter(it) } },
+                onNextChapter = current.next?.takeIf { novel }?.let { { onOpenChapter(it.id) } },
+            )
         }
         is Opening.ReadySplit -> {
             val ids = current.split.chapterIds
@@ -307,7 +319,16 @@ fun ReaderHost(
                 }
             }
             val end = TextEnd.Chapter(current.next?.name) { current.next?.let { onOpenChapter(it.id) } }
-            TextReader(current.text.archive, current.title, session, onBack = onBack, type = current.type, end = end)
+            val before = current.order.getOrNull(current.order.indexOf(ids.first()) - 1)
+            TextReader(
+                current.text.archive, current.title, session, onBack = onBack, type = current.type, end = end,
+                chapterOf = { inFile ->
+                    val id = inFile?.let(ids::getOrNull) ?: readingNow ?: ids[current.split.opened]
+                    ChapterPlace(current.order.indexOf(id) + 1, current.order.size).takeIf { current.order.contains(id) }
+                },
+                onPreviousChapter = before?.let { { onOpenChapter(it) } },
+                onNextChapter = current.next?.let { { onOpenChapter(it.id) } },
+            )
         }
         is Opening.Conflict -> {
             ConflictScreen(
@@ -463,11 +484,11 @@ private fun openChapter(
         ChapterFormat.EPUB -> {
             val next = chapters.getOrNull(chapters.indexOfFirst { it.id == chapter.id } + 1)
             return if (chapter.origin == LibraryStore.KAVITA) {
-                openKavitaText(store, opening, kavita, tree, workId, chapter, round, stillWanted, next)
+                openKavitaText(store, opening, kavita, tree, workId, chapter, round, stillWanted, next, chapters.map { it.id })
             } else {
                 // The chapter after the file: in a compiled novel the ones in between are in it.
                 val afterFile = chapters.dropWhile { it.path != chapter.path }.firstOrNull { it.path != chapter.path }
-                openText(store, opening, tree, workId, chapter, round, stillWanted, turn = null, next = next, afterFile = afterFile)
+                openText(store, opening, tree, workId, chapter, round, stillWanted, turn = null, next = next, order = chapters.map { it.id }, afterFile = afterFile)
             }
         }
         ChapterFormat.PDF, ChapterFormat.OTHER_ARCHIVE -> return Opening.FormatNotYet
@@ -513,6 +534,7 @@ private fun openKavitaText(
     round: Long,
     stillWanted: () -> Boolean,
     next: StoredChapter?,
+    order: List<String>,
 ): Opening {
     val turn = kavita.beforeOpening(chapter.id)
     turn.conflict?.let { conflict ->
@@ -522,7 +544,7 @@ private fun openKavitaText(
         return Opening.Conflict(chapter.id, here?.page ?: 0, conflict, turn.token, sections = true)
     }
     return try {
-        openText(store, opening, tree, workId, chapter, round, stillWanted, turn.token, next)
+        openText(store, opening, tree, workId, chapter, round, stillWanted, turn.token, next, order)
     } catch (e: Exception) {
         // Nothing opened: the turn ends here.
         kavita.finishReading(chapter.id, turn.token, opening.turns)
@@ -541,6 +563,7 @@ private fun openText(
     stillWanted: () -> Boolean,
     turn: Long?,
     next: StoredChapter?,
+    order: List<String>,
     afterFile: StoredChapter? = null,
 ): Opening {
     val text = opening.openText(tree, chapter, stillWanted)
@@ -554,7 +577,7 @@ private fun openText(
         var nextNow = next
         if (turn == null && (chapter.tocKey.isNotEmpty() || FolderConvention.splitsByContents(chapter.path))) {
             when (val file = store.splitOpening(text.chapterId, SplitContents.of(text.archive))) {
-                is SplitOpening -> return Opening.ReadySplit(text, work ?: chapter.name, file, round, type, afterFile)
+                is SplitOpening -> return Opening.ReadySplit(text, work ?: chapter.name, file, round, type, afterFile, order)
                 // A file that lost its division since the folder was read: one chapter took the
                 // place of the ones it had, and the reading is that chapter's from here on, with its
                 // name and the chapter after it as the work's chapters are now.
@@ -571,7 +594,7 @@ private fun openText(
         // The marker known for the saved place, queued here or agreed with Kavita: it opens a place
         // from Kavita, and goes with the place when the end block saves it with no move first.
         val marker = turn?.let { store.syncItem(whole.chapterId)?.knownPlace(progress.position as? TextPosition)?.marker }
-        return Opening.ReadyText(whole, title, progress, round, turn, marker, type, nextNow)
+        return Opening.ReadyText(whole, title, progress, round, turn, marker, type, nextNow, order)
     } catch (e: Exception) {
         text.release()
         throw e

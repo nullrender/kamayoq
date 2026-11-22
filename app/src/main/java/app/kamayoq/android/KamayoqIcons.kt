@@ -81,6 +81,8 @@ internal object KamayoqIcons {
 
     val back = stroked("back", 2f, "M15 5l-7 7 7 7")
 
+    val contents = stroked("contents", 2f, "M5 7h10", "M5 12h10", "M5 17h10", "M19 7h.01", "M19 12h.01", "M19 17h.01")
+
     val more = filled(
         "more",
         "M12 4.2a1.8 1.8 0 1 1 0 3.6a1.8 1.8 0 1 1 0-3.6z",
