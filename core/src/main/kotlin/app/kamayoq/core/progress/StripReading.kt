@@ -45,12 +45,20 @@ class StripReading private constructor(saved: ChapterProgress, val totalPages: I
     // Lives with the opening, not in the saved progress: a new opening may count a new complete read.
     private var endCounted = false
 
+    // Opening a chapter and leaving is not a reading (Gustavo's decision of 22/11/2026, P1): nothing
+    // is saved until another image, or the end block, is shown. A very tall image read halfway may
+    // not save; that limit was accepted with the decision.
+    private var moved = false
+
     /**
-     * Records that [page] is on screen and returns the progress to save. A page outside the
-     * chapter is refused (null) and changes nothing.
+     * Records that [page] is on screen and returns the progress to save. Null is nothing to save: a
+     * page outside the chapter, refused, or the image the chapter opened on while it is the only one
+     * shown.
      */
     fun show(page: Int, at: Instant): ChapterProgress? {
         if (page < 0 || page > totalPages) return null
+        if (!moved && page == startPage) return null
+        moved = true
         val current = progress.position?.strip()
         val samePlace = current != null && current.page == page && current.totalPages == totalPages
         // The end block stays news until this opening counts it, even if the last opening stopped there.
