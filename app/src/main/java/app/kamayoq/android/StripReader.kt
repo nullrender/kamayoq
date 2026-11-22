@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -92,7 +93,11 @@ fun ImageReader(
     val saving = remember(store) { ProgressSaving(store) }
     // The last save failed: said on screen until a later one works; the reading goes on.
     var saveFailed by remember { mutableStateOf(false) }
+    // The image on screen, for the bars; a jump asked by the slider, until the pages reach it.
+    var shownPage by remember(reading) { mutableIntStateOf(reading.startPage) }
+    var seek by remember(reading) { mutableStateOf<Int?>(null) }
     val onShown: (Int) -> Unit = { page ->
+        shownPage = page
         reading.show(page, Instant.now())?.let { progress ->
             // Not waited for: a page reached while this save waits must be asked for too. The save
             // outlives the screen, so it logs and reports its own failure.
@@ -118,10 +123,14 @@ fun ImageReader(
             },
     ) {
         val toggle = { showControls = !showControls }
+        val sought = { seek = null }
         if (mode == ImageMode.STRIP) {
-            StripPages(chapter, reading.startPage, nextChapterName, onShown, toggle, onNext)
+            StripPages(chapter, reading.startPage, nextChapterName, onShown, toggle, onNext, seek, sought)
         } else {
-            PagedPages(chapter, reading.startPage, nextChapterName, mode, onShown, toggle, onNext)
+            PagedPages(chapter, reading.startPage, nextChapterName, mode, onShown, toggle, onNext, seek, sought)
+        }
+        if (!showControls) {
+            ImageReaderTrace(shownPage, chapter.pages.size, mode, Modifier.align(Alignment.BottomCenter))
         }
         if (saveFailed) {
             Text(
@@ -136,20 +145,17 @@ fun ImageReader(
             )
         }
         if (showControls) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .safeDrawingPadding()
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
-            ) {
-                TextButton(onClick = onBack) { Text(stringResource(R.string.back)) }
-                Text(
-                    title,
-                    modifier = Modifier.padding(horizontal = 12.dp),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-            }
+            val placeText = place?.let { stringResource(R.string.reader_chapter_of, it.number, it.total) }
+            ImageReaderTopBar(title, placeText, mode, onBack, Modifier.align(Alignment.TopCenter).safeDrawingPadding())
+            ImageReaderBottomBar(
+                page = shownPage,
+                total = chapter.pages.size,
+                mode = mode,
+                onSeek = { seek = it },
+                onPreviousChapter = onPreviousChapter,
+                onNextChapter = nextChapterName?.let { onNext },
+                modifier = Modifier.align(Alignment.BottomCenter).safeDrawingPadding(),
+            )
         }
     }
 }
@@ -163,8 +169,16 @@ private fun StripPages(
     onShown: (Int) -> Unit,
     onToggleControls: () -> Unit,
     onNext: () -> Unit,
+    seek: Int?,
+    onSought: () -> Unit,
 ) {
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = startPage)
+    LaunchedEffect(seek) {
+        seek?.let {
+            listState.scrollToItem(it)
+            onSought()
+        }
+    }
     LaunchedEffect(chapter) {
         snapshotFlow {
             val endVisible = listState.layoutInfo.visibleItemsInfo.any { it.index == chapter.pages.size }

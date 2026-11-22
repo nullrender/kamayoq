@@ -55,10 +55,18 @@ internal fun PagedPages(
     onShown: (Int) -> Unit,
     onToggleControls: () -> Unit,
     onNext: () -> Unit,
+    seek: Int?,
+    onSought: () -> Unit,
 ) {
     val total = chapter.pages.size
     val pager = rememberPagerState(initialPage = startPage) { total + 1 }
     val scope = rememberCoroutineScope()
+    LaunchedEffect(seek) {
+        seek?.let {
+            pager.scrollToPage(it)
+            onSought()
+        }
+    }
     LaunchedEffect(chapter) {
         snapshotFlow { pager.settledPage }.distinctUntilChanged().collect { onShown(it) }
     }

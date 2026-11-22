@@ -165,7 +165,7 @@ private fun ProgressArea(progress: TextProgress, modifier: Modifier, onClick: ((
 // The bars take the app's palette in full, whatever theme is around them: a reader shown by itself
 // keeps the contrast measured for that palette (slice 1).
 @Composable
-private fun barIconColors() = LocalPalette.current.let {
+internal fun barIconColors() = LocalPalette.current.let {
     IconButtonDefaults.iconButtonColors(contentColor = it.text, disabledContentColor = it.secondaryText)
 }
 
@@ -175,7 +175,7 @@ internal fun barTextColors() = LocalPalette.current.let {
 }
 
 @Composable
-private fun FloatingBar(modifier: Modifier, content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit) {
+internal fun FloatingBar(modifier: Modifier, content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit) {
     Surface(
         modifier = modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
         shape = RoundedCornerShape(18.dp),
