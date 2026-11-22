@@ -2,11 +2,13 @@
 // :where and without !important; a property the person chose wins over the book's CSS, and only that
 // one (PERSONALITY, principle 7). Every value is checked here again, because it becomes CSS text.
 
+// Each font with the kind the system falls back to for a character it lacks: a sans-serif for the
+// sans-serif Atkinson, a serif for the others.
 const FAMILIES = {
-    literata: 'Literata',
-    garamond: 'EB Garamond',
-    plex: 'IBM Plex Serif',
-    atkinson: 'Atkinson Hyperlegible',
+    literata: "'Literata', serif",
+    garamond: "'EB Garamond', serif",
+    plex: "'IBM Plex Serif', serif",
+    atkinson: "'Atkinson Hyperlegible', sans-serif",
 }
 
 // The files in the APK (slice 1). Literata and EB Garamond are variable in weight.
@@ -66,7 +68,7 @@ const plainText = tags => tags.map(tag => `html:not([data-kamayoq-measuring]) bo
  * the reader's own files are, for the fonts.
  */
 export const stylesOf = (look, origin) => {
-    const family = name => `'${FAMILIES[name]}', serif`
+    const family = name => FAMILIES[name]
     const faces = FACES.map(([name, file, style, weight]) =>
         `@font-face { font-family: '${name}'; src: url('${origin}/reader/fonts/${file}') format('truetype'); font-style: ${style}; font-weight: ${weight}; font-display: block; }`)
     const before = [
@@ -78,7 +80,8 @@ export const stylesOf = (look, origin) => {
     const chosen = new Set(look.chosen)
     const after = []
     if (chosen.has('font'))
-        after.push(`body, body *:not(code):not(pre):not(kbd):not(samp):not(tt) { font-family: ${family(look.font)} !important; }`)
+        // Code keeps the book's font, and so does everything inside it (a highlighted span in a <pre>).
+        after.push(`body, body *:not(code, pre, kbd, samp, tt, var):not(code *, pre *, kbd *, samp *, tt *, var *) { font-family: ${family(look.font)} !important; }`)
     if (chosen.has('size'))
         after.push(`html { font-size: ${look.size}px !important; }`, `${anyText(TAGS)} { font-size: 1rem !important; }`)
     if (chosen.has('lineHeight'))
