@@ -75,7 +75,8 @@ class ImageModeSheetsTest {
         compose.setContent { KamayoqTheme { ImageSettingsContent(manga) {} } }
 
         compose.onNodeWithText(text(R.string.reader_image_detected, text(R.string.reader_image_mode_rtl)), substring = true).assertDoesNotExist()
-        compose.onNodeWithText(text(R.string.reader_image_mode_automatic)).assertExists()
+        // Chosen, it reads "✓ Automatic".
+        compose.onNodeWithText(text(R.string.reader_image_mode_automatic), substring = true).assertIsSelected()
     }
 
     @Test
