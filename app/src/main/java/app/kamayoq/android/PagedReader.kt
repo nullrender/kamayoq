@@ -5,6 +5,10 @@ import android.graphics.BitmapFactory
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -17,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -24,6 +29,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
@@ -61,6 +71,9 @@ internal fun PagedPages(
     val total = chapter.pages.size
     val pager = rememberPagerState(initialPage = startPage) { total + 1 }
     val scope = rememberCoroutineScope()
+    // A page zoomed in by two fingers moves under one finger instead of turning (FEATURES, part 5).
+    var zoomed by remember { mutableStateOf(false) }
+    LaunchedEffect(pager.settledPage) { zoomed = false }
     LaunchedEffect(seek) {
         seek?.let {
             pager.scrollToPage(it)
@@ -100,19 +113,58 @@ internal fun PagedPages(
         HorizontalPager(
             state = pager,
             reverseLayout = mode == ImageMode.PAGES_RIGHT_TO_LEFT,
+            userScrollEnabled = !zoomed,
             modifier = Modifier.fillMaxSize(),
         ) { index ->
             if (index == total) {
                 Box(modifier = Modifier.fillMaxSize().background(LocalPalette.current.background), contentAlignment = Alignment.Center) { end() }
             } else {
                 val label = stringResource(R.string.reader_page_label, index + 1, total)
-                Box(modifier = Modifier.fillMaxSize().semantics { contentDescription = label }, contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.fillMaxSize().semantics { contentDescription = label }.pinchZoom { zoomed = it }, contentAlignment = Alignment.Center) {
                     WholePage(chapter.pages[index], width, height)
                 }
             }
         }
     }
 }
+
+/**
+ * Two fingers zoom the page in, up to four times, and back to whole; zoomed in, one finger moves it
+ * inside its own edges. A touch with no movement is left alone, so the sides still turn the page.
+ */
+private fun Modifier.pinchZoom(onZoomed: (Boolean) -> Unit): Modifier = composed {
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    var size by remember { mutableStateOf(IntSize.Zero) }
+    this
+        .onSizeChanged { size = it }
+        .pointerInput(Unit) {
+            awaitEachGesture {
+                awaitFirstDown(requireUnconsumed = false)
+                do {
+                    val event = awaitPointerEvent()
+                    val fingers = event.changes.count { it.pressed }
+                    if (fingers >= 2 || scale > 1f) {
+                        val pan = event.calculatePan()
+                        scale = (scale * event.calculateZoom()).coerceIn(1f, MAX_ZOOM)
+                        val maxX = (scale - 1) * size.width / 2
+                        val maxY = (scale - 1) * size.height / 2
+                        offset = Offset((offset.x + pan.x).coerceIn(-maxX, maxX), (offset.y + pan.y).coerceIn(-maxY, maxY))
+                        onZoomed(scale > 1f)
+                        if (fingers >= 2 || pan != Offset.Zero) event.changes.forEach { it.consume() }
+                    }
+                } while (event.changes.any { it.pressed })
+            }
+        }
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+            translationX = offset.x
+            translationY = offset.y
+        }
+}
+
+private const val MAX_ZOOM = 4f
 
 /** One page whole on the screen, decoded at most twice the screen's size, so a zoom still has detail. */
 @Composable
