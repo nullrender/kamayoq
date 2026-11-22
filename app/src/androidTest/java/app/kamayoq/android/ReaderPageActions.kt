@@ -1,6 +1,7 @@
 package app.kamayoq.android
 
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.annotation.StringRes
