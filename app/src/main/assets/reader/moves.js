@@ -15,5 +15,7 @@ export const neighbourOf = (contents, href, by) => {
 /** The place in the book [value] of the way into a chapter that runs from [start] to [end]; null when either is not known. */
 export const withinSpan = (start, end, value) => {
     if (!Number.isFinite(start) || !Number.isFinite(end) || !Number.isFinite(value)) return null
-    return start + Math.min(1, Math.max(0, value)) * (end - start)
+    // Just short of the end, which is where the next chapter starts: 100 % stays in this one.
+    const last = end - Math.min(1e-4, (end - start) / 2)
+    return Math.min(last, start + Math.min(1, Math.max(0, value)) * (end - start))
 }
