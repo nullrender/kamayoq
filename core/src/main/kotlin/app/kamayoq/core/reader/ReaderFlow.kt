@@ -20,7 +20,7 @@ enum class ReaderFlow(val wire: String) {
          * unless the person [chosen] another for this work. Explore by touch always scrolls.
          */
         fun of(type: WorkType, touchExploration: Boolean, chosen: ReaderFlow? = null): ReaderFlow =
-            if (type == WorkType.NOVELS) SCROLL else forAccessibility(touchExploration)
+            if (touchExploration) SCROLL else chosen ?: defaultFor(type)
 
         /** The flow a work of [type] has when the person never chose one: the panel's "Default for…" note. */
         fun defaultFor(type: WorkType): ReaderFlow = if (type == WorkType.NOVELS) SCROLL else PAGES

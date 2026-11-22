@@ -52,7 +52,38 @@ data class TextLookChoices(
 ) {
     /** The properties this scope sets, in the panel's order. */
     val properties: List<TextProperty>
-        get() = emptyList()
+        get() = listOfNotNull(
+            TextProperty.FONT.takeIf { font != null },
+            TextProperty.SIZE.takeIf { size != null },
+            TextProperty.LINE_HEIGHT.takeIf { lineHeight != null },
+            TextProperty.PARAGRAPH_SPACING.takeIf { paragraphSpacing != null },
+            TextProperty.MARGIN.takeIf { margin != null },
+            TextProperty.INDENT.takeIf { indent != null },
+            TextProperty.JUSTIFY.takeIf { justify != null },
+            TextProperty.THEME.takeIf { theme != null },
+            TextProperty.FOOTER.takeIf { footer != null },
+        )
+
+    /** These choices over [under]; what neither sets stays as [under] has it. */
+    internal fun over(under: TextLook): TextLook = TextLook(
+        font = font ?: under.font,
+        size = size ?: under.size,
+        lineHeight = lineHeight ?: under.lineHeight,
+        paragraphSpacing = paragraphSpacing ?: under.paragraphSpacing,
+        margin = margin ?: under.margin,
+        indent = indent ?: under.indent,
+        justify = justify ?: under.justify,
+        theme = theme ?: under.theme,
+        footer = footer ?: under.footer,
+        chosen = under.chosen + properties,
+    )
+
+    internal fun withNumber(number: TextNumber, value: Int): TextLookChoices = when (number) {
+        TextNumber.SIZE -> copy(size = value)
+        TextNumber.LINE_HEIGHT -> copy(lineHeight = value)
+        TextNumber.PARAGRAPH_SPACING -> copy(paragraphSpacing = value)
+        TextNumber.MARGIN -> copy(margin = value)
+    }
 
     companion object {
         val NONE = TextLookChoices()
@@ -75,6 +106,13 @@ data class TextLook(
     val footer: FooterContent,
     val chosen: Set<TextProperty>,
 ) {
+    fun valueOf(number: TextNumber): Int = when (number) {
+        TextNumber.SIZE -> size
+        TextNumber.LINE_HEIGHT -> lineHeight
+        TextNumber.PARAGRAPH_SPACING -> paragraphSpacing
+        TextNumber.MARGIN -> margin
+    }
+
     companion object {
         /** Literata until he picks the default font on the S24 with real passages (decision Q4). */
         val DEFAULT = TextLook(
@@ -115,21 +153,60 @@ enum class TextRestore { GENERAL_DEFAULTS, OWN_DISCARDED, ALREADY_GENERAL }
 data class TextSettings(val general: TextLookChoices, val own: TextLookChoices?) {
 
     /** What the page shows: the work's own over the general, the defaults under both. */
-    fun effective(): TextLook = TextLook.DEFAULT
+    fun effective(): TextLook = shown(TextScope.THIS_WORK)
 
     /** The values the panel shows for [scope]: in "all", the general ones, without this work's. */
-    fun shown(scope: TextScope): TextLook = TextLook.DEFAULT
+    fun shown(scope: TextScope): TextLook {
+        val general = general.over(TextLook.DEFAULT)
+        return if (scope == TextScope.ALL_TEXT_WORKS) general else own?.over(general) ?: general
+    }
 
-    fun change(scope: TextScope, edit: TextEdit): TextSettings = this
+    fun change(scope: TextScope, edit: TextEdit): TextSettings {
+        val before = shown(scope)
+        val target = (if (scope == TextScope.ALL_TEXT_WORKS) general else own) ?: TextLookChoices.NONE
+        val changed = when (edit) {
+            is TextEdit.Font -> target.copy(font = edit.font)
+            is TextEdit.Number -> target.withNumber(edit.number, bounded(edit.number, edit.value, before.indent))
+            is TextEdit.Step -> {
+                val current = before.valueOf(edit.number)
+                val next = current + if (edit.up) edit.number.step else -edit.number.step
+                target.withNumber(edit.number, bounded(edit.number, next, before.indent))
+            }
+            is TextEdit.Indent -> {
+                // A paragraph never goes unmarked: no indent and no space would run them together.
+                val spacing = if (!edit.on && before.paragraphSpacing == 0) INDENTLESS_SPACING else null
+                target.copy(indent = edit.on, paragraphSpacing = spacing ?: target.paragraphSpacing)
+            }
+            is TextEdit.Justify -> target.copy(justify = edit.on)
+            is TextEdit.Theme -> target.copy(theme = edit.theme)
+            is TextEdit.Footer -> target.copy(footer = edit.footer)
+        }
+        return if (scope == TextScope.ALL_TEXT_WORKS) copy(general = changed) else copy(own = changed)
+    }
+
+    private fun bounded(number: TextNumber, value: Int, indent: Boolean): Int {
+        val floor = if (number == TextNumber.PARAGRAPH_SPACING && !indent) MIN_INDENTLESS_SPACING else number.min
+        return value.coerceIn(floor, number.max)
+    }
 
     /**
      * In "all", the general defaults come back and the work keeps its own; in "this work", the work
      * drops its own and uses the general ones. Neither touches the mode.
      */
-    fun restore(scope: TextScope): Pair<TextSettings, TextRestore> = this to TextRestore.ALREADY_GENERAL
+    fun restore(scope: TextScope): Pair<TextSettings, TextRestore> = when {
+        scope == TextScope.ALL_TEXT_WORKS -> copy(general = TextLookChoices.NONE) to TextRestore.GENERAL_DEFAULTS
+        own != null -> copy(own = null) to TextRestore.OWN_DISCARDED
+        else -> this to TextRestore.ALREADY_GENERAL
+    }
 
     companion object {
         val DEFAULT = TextSettings(TextLookChoices.NONE, null)
+
+        /** Turning the indent off with no space between paragraphs raises it to 0.8 em (DESIGN, panel). */
+        const val INDENTLESS_SPACING = 8
+
+        /** With no indent, the space between paragraphs stays at 0.4 em or more. */
+        const val MIN_INDENTLESS_SPACING = 4
     }
 }
 
@@ -138,5 +215,13 @@ data class PageColors(val background: Long, val text: Long, val secondary: Long)
 
 object PageThemes {
     /** "Auto" follows the system's light or dark; "Dark" is the app's own dark background. */
-    fun colors(theme: PageTheme, systemDark: Boolean): PageColors = PageColors(0xFF000000, 0xFF000000, 0xFF000000)
+    fun colors(theme: PageTheme, systemDark: Boolean): PageColors = when (theme) {
+        PageTheme.AUTO -> colors(if (systemDark) PageTheme.DARK else PageTheme.LIGHT, systemDark)
+        // The app's dark background and text, "Moss and amber" (slice 1).
+        PageTheme.DARK -> PageColors(0xFF11100E, 0xFFE9E8E5, 0xFFAFAEAA)
+        // The board's values (SinteseLeitorPaginado, 10/10/2026).
+        PageTheme.BLACK -> PageColors(0xFF000000, 0xFFD9D7DE, 0xFF9896A6)
+        PageTheme.SEPIA -> PageColors(0xFFEFE4CC, 0xFF3A2E20, 0xFF6A5944)
+        PageTheme.LIGHT -> PageColors(0xFFF7F6F3, 0xFF1C1A17, 0xFF565552)
+    }
 }
