@@ -32,7 +32,7 @@ enum class TextNumber(val property: TextProperty, val min: Int, val max: Int, va
     SIZE(TextProperty.SIZE, 14, 26, 1, 18),
     LINE_HEIGHT(TextProperty.LINE_HEIGHT, 12, 20, 1, 15),
     PARAGRAPH_SPACING(TextProperty.PARAGRAPH_SPACING, 0, 16, 2, 0),
-    MARGIN(TextProperty.MARGIN, 12, 44, 4, 24),
+    MARGIN(TextProperty.MARGIN, 12, 44, 4, 16),
 }
 
 /**
