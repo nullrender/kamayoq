@@ -33,5 +33,6 @@ SELECT added_at FROM work WHERE id = ?;
 visitedAt:
 SELECT visited_at FROM work WHERE id = ?;
 
+-- Never back: a clock set back would make chapters already seen new again.
 visit:
-UPDATE work SET visited_at = ? WHERE id = ?;
+UPDATE work SET visited_at = max(coalesce(visited_at, :at), :at) WHERE id = :workId;
