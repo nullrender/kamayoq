@@ -158,23 +158,34 @@ data class TextSettings(val general: TextLookChoices, val own: TextLookChoices?)
     /** The values the panel shows for [scope]: in "all", the general ones, without this work's. */
     fun shown(scope: TextScope): TextLook {
         val general = general.over(TextLook.DEFAULT)
-        return if (scope == TextScope.ALL_TEXT_WORKS) general else own?.over(general) ?: general
+        return (if (scope == TextScope.ALL_TEXT_WORKS) general else own?.over(general) ?: general).marked()
     }
+
+    // Rule 6 on what shows, whichever set brought the indent and the space: a work's own 0 under a
+    // general "no indent" would run the paragraphs together.
+    private fun TextLook.marked(): TextLook =
+        if (indent || paragraphSpacing >= MIN_INDENTLESS_SPACING) this
+        else copy(paragraphSpacing = indentless(paragraphSpacing), chosen = chosen + TextProperty.PARAGRAPH_SPACING)
 
     fun change(scope: TextScope, edit: TextEdit): TextSettings {
         val before = shown(scope)
         val target = (if (scope == TextScope.ALL_TEXT_WORKS) general else own) ?: TextLookChoices.NONE
         val changed = when (edit) {
             is TextEdit.Font -> target.copy(font = edit.font)
-            is TextEdit.Number -> target.withNumber(edit.number, bounded(edit.number, edit.value, before.indent))
-            is TextEdit.Step -> {
-                val current = before.valueOf(edit.number)
-                val next = current + if (edit.up) edit.number.step else -edit.number.step
-                target.withNumber(edit.number, bounded(edit.number, next, before.indent))
+            is TextEdit.Number, is TextEdit.Step -> {
+                val number = if (edit is TextEdit.Number) edit.number else (edit as TextEdit.Step).number
+                val wanted = when (edit) {
+                    is TextEdit.Number -> edit.value
+                    else -> before.valueOf(number) + if ((edit as TextEdit.Step).up) number.step else -number.step
+                }
+                val value = bounded(number, wanted, before.indent)
+                // A change that changes nothing, as minus at the floor, gives no setting of its own.
+                if (value == before.valueOf(number)) return this
+                target.withNumber(number, value)
             }
             is TextEdit.Indent -> {
                 // A paragraph never goes unmarked: no indent and no space would run them together.
-                val spacing = if (!edit.on && before.paragraphSpacing == 0) INDENTLESS_SPACING else null
+                val spacing = if (!edit.on && before.paragraphSpacing < MIN_INDENTLESS_SPACING) indentless(before.paragraphSpacing) else null
                 target.copy(indent = edit.on, paragraphSpacing = spacing ?: target.paragraphSpacing)
             }
             is TextEdit.Justify -> target.copy(justify = edit.on)
@@ -207,6 +218,9 @@ data class TextSettings(val general: TextLookChoices, val own: TextLookChoices?)
 
         /** With no indent, the space between paragraphs stays at 0.4 em or more. */
         const val MIN_INDENTLESS_SPACING = 4
+
+        /** The space a paragraph gets when the indent goes: 0.8 em from none, the floor from less than it. */
+        private fun indentless(spacing: Int) = if (spacing == 0) INDENTLESS_SPACING else MIN_INDENTLESS_SPACING
     }
 }
 

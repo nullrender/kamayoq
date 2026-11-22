@@ -182,7 +182,11 @@ internal fun TextSettingsContent(
             }
             NumberRow(TextNumber.SIZE, shown.size, R.string.reader_size, R.string.reader_size_slider, R.string.reader_size_down, R.string.reader_size_up, ::edit)
             NumberRow(TextNumber.LINE_HEIGHT, shown.lineHeight, R.string.reader_line_height, R.string.reader_line_height, R.string.reader_line_height_down, R.string.reader_line_height_up, ::edit)
-            NumberRow(TextNumber.PARAGRAPH_SPACING, shown.paragraphSpacing, R.string.reader_paragraphs, R.string.reader_paragraphs_slider, R.string.reader_paragraphs_down, R.string.reader_paragraphs_up, ::edit)
+            NumberRow(
+                TextNumber.PARAGRAPH_SPACING, shown.paragraphSpacing, R.string.reader_paragraphs, R.string.reader_paragraphs_slider,
+                R.string.reader_paragraphs_down, R.string.reader_paragraphs_up, ::edit,
+                floor = if (shown.indent) TextNumber.PARAGRAPH_SPACING.min else TextSettings.MIN_INDENTLESS_SPACING,
+            )
             NumberRow(TextNumber.MARGIN, shown.margin, R.string.reader_margins, R.string.reader_margins_slider, R.string.reader_margins_down, R.string.reader_margins_up, ::edit)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
                 Toggle(shown.indent, stringResource(R.string.reader_indent), Modifier.weight(1f)) { edit(TextEdit.Indent(it)) }
@@ -350,6 +354,7 @@ private fun NumberRow(
     less: Int,
     more: Int,
     onEdit: (TextEdit) -> Unit,
+    floor: Int = number.min,
 ) {
     val sliderDescription = stringResource(sliderLabel)
     val lessDescription = stringResource(less)
@@ -358,7 +363,7 @@ private fun NumberRow(
         Text(stringResource(label), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.widthIn(min = 84.dp))
         IconButton(
             onClick = { onEdit(TextEdit.Step(number, up = false)) },
-            enabled = value > number.min,
+            enabled = value > floor,
             modifier = Modifier.size(48.dp).semantics { contentDescription = lessDescription },
         ) {
             Text("−", fontSize = 20.sp, modifier = Modifier.clearAndSetSemantics {})
