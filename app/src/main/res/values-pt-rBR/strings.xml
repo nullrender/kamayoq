@@ -290,4 +290,6 @@
     <string name="home_arrived_hide">Recolher os capítulos de %1$s</string>
     <string name="home_mark_read">Marcar %1$s como lido</string>
     <string name="home_download">Baixar %1$s</string>
+    <string name="home_added_title">Adicionadas</string>
+    <string name="home_added_line">%1$s · %2$s · adicionada %3$s</string>
 </resources>

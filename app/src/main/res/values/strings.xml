@@ -355,4 +355,8 @@
     <string name="home_arrived_hide">Hide the chapters of %1$s</string>
     <string name="home_mark_read">Mark %1$s as read</string>
     <string name="home_download">Download %1$s</string>
+    <!-- Home's section of works new in the Library, until each one's page is opened. -->
+    <string name="home_added_title">Added</string>
+    <!-- A work's line in Added: its type, its chapters and when it came, as "Comics · 612 chapters · added yesterday". -->
+    <string name="home_added_line">%1$s · %2$s · added %3$s</string>
 </resources>
