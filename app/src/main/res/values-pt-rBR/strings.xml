@@ -10,10 +10,10 @@
     <string name="reader_previous_chapter">Capítulo anterior</string>
     <string name="reader_next_chapter">Próximo capítulo</string>
     <string name="reader_chapters">Capítulos</string>
-    <string name="reader_book_percent">%1$d %% do livro</string>
+    <string name="reader_book_percent">%1$d%% do livro</string>
     <string name="reader_chapter_of">Cap. %1$d de %2$d</string>
-    <string name="reader_chapter_percent">%1$d %% do capítulo</string>
-    <string name="reader_battery_time">%1$d %% · %2$s</string>
+    <string name="reader_chapter_percent">%1$d%% do capítulo</string>
+    <string name="reader_battery_time">%1$d%% · %2$s</string>
     <string name="reader_settings">Ajustes</string>
     <string name="reader_settings_description">Ajustes de leitura</string>
     <string name="reader_panel_title">Formatação</string>
@@ -89,7 +89,7 @@
     <string name="reader_go_chapter_start">Voltar ao início do capítulo</string>
     <string name="reader_chapter_read">lido</string>
     <string name="reader_chapter_unread">não lido</string>
-    <string name="reader_chapter_reading">lendo · %1$d %%</string>
+    <string name="reader_chapter_reading">lendo · %1$d%%</string>
     <string name="reader_hint_previous">Anterior</string>
     <string name="reader_hint_controls">Controles</string>
     <string name="reader_hint_next">Próxima</string>
