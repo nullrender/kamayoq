@@ -50,6 +50,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import app.kamayoq.core.progress.StripReading
+import app.kamayoq.core.reader.ImageMode
 import app.kamayoq.core.reader.StripBands
 import app.kamayoq.data.LibraryStore
 import app.kamayoq.data.ProgressSaving
@@ -61,12 +62,12 @@ import java.io.IOException
 import java.time.Instant
 
 /**
- * The Strip: pages one under another at the screen width, with no gap, then the
- * end-of-chapter block. The position is saved at each change of image; reaching the block marks
- * the chapter read (progress contract, section 9).
+ * The image reader: the chapter in [mode], the Strip or Pages, with the same saving and controls. The
+ * position is saved at each change of image; reaching the end block marks the chapter read (progress
+ * contract, section 9). The image it opened on saves nothing while it is the only one shown (P1).
  */
 @Composable
-fun StripReader(
+fun ImageReader(
     store: LibraryStore,
     chapter: OpenedChapter,
     turns: OpeningTurns,
@@ -74,6 +75,7 @@ fun StripReader(
     title: String,
     nextChapterName: String?,
     deviceId: String,
+    mode: ImageMode,
     onNext: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -83,18 +85,12 @@ fun StripReader(
         return
     }
     ImmersiveScreen()
-    val listState = rememberLazyListState(initialFirstVisibleItemIndex = reading.startPage)
     var showControls by remember { mutableStateOf(false) }
     val saving = remember(store) { ProgressSaving(store) }
     // The last save failed: said on screen until a later one works; the reading goes on.
     var saveFailed by remember { mutableStateOf(false) }
-
-    LaunchedEffect(reading) {
-        snapshotFlow {
-            val endVisible = listState.layoutInfo.visibleItemsInfo.any { it.index == chapter.pages.size }
-            if (endVisible) chapter.pages.size else listState.firstVisibleItemIndex
-        }.distinctUntilChanged().collect { page ->
-            val progress = reading.show(page, Instant.now()) ?: return@collect
+    val onShown: (Int) -> Unit = { page ->
+        reading.show(page, Instant.now())?.let { progress ->
             // Not waited for: a page reached while this save waits must be asked for too. The save
             // outlives the screen, so it logs and reports its own failure.
             turns.inLine(round) {
@@ -106,34 +102,20 @@ fun StripReader(
     }
 
     val controlsAction = stringResource(if (showControls) R.string.reader_hide_controls else R.string.reader_show_controls)
-    BoxWithConstraints(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            // The same as the tap below, for TalkBack.
+            // The same as the tap in the middle, for TalkBack.
             .semantics {
                 onClick(label = controlsAction) {
                     showControls = !showControls
                     true
                 }
-            }
-            .pointerInput(Unit) {
-                // A tap in the middle third shows or hides the controls; the rest of the screen
-                // is left for scrolling.
-                detectTapGestures { offset ->
-                    val middle = offset.y > size.height / 3f && offset.y < size.height * 2 / 3f
-                    if (middle) showControls = !showControls
-                }
             },
     ) {
-        val screenWidth = constraints.maxWidth
-        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-            itemsIndexed(chapter.pages) { index, page ->
-                val label = stringResource(R.string.reader_page_label, index + 1, chapter.pages.size)
-                Box(modifier = Modifier.semantics { contentDescription = label }) { StripPage(page, screenWidth) }
-            }
-            item { EndOfChapter(nextChapterName, onNext) }
-        }
+        val toggle = { showControls = !showControls }
+        StripPages(chapter, reading.startPage, nextChapterName, onShown, toggle, onNext)
         if (saveFailed) {
             Text(
                 stringResource(R.string.reader_save_failed),
@@ -161,6 +143,46 @@ fun StripReader(
                     style = MaterialTheme.typography.titleMedium,
                 )
             }
+        }
+    }
+}
+
+/** The Strip: pages one under another at the screen width, with no gap, then the end-of-chapter block. */
+@Composable
+private fun StripPages(
+    chapter: OpenedChapter,
+    startPage: Int,
+    nextChapterName: String?,
+    onShown: (Int) -> Unit,
+    onToggleControls: () -> Unit,
+    onNext: () -> Unit,
+) {
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = startPage)
+    LaunchedEffect(chapter) {
+        snapshotFlow {
+            val endVisible = listState.layoutInfo.visibleItemsInfo.any { it.index == chapter.pages.size }
+            if (endVisible) chapter.pages.size else listState.firstVisibleItemIndex
+        }.distinctUntilChanged().collect { onShown(it) }
+    }
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                // A tap in the middle third shows or hides the controls; the rest of the screen
+                // is left for scrolling.
+                detectTapGestures { offset ->
+                    val middle = offset.y > size.height / 3f && offset.y < size.height * 2 / 3f
+                    if (middle) onToggleControls()
+                }
+            },
+    ) {
+        val screenWidth = constraints.maxWidth
+        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+            itemsIndexed(chapter.pages) { index, page ->
+                val label = stringResource(R.string.reader_page_label, index + 1, chapter.pages.size)
+                Box(modifier = Modifier.semantics { contentDescription = label }) { StripPage(page, screenWidth) }
+            }
+            item { EndOfChapter(nextChapterName, onNext) }
         }
     }
 }
@@ -245,7 +267,7 @@ private fun decodeBands(page: PageImage, width: Int, height: Int, screenWidth: I
 
 /** The end-of-chapter block, in its minimal first version. */
 @Composable
-private fun EndOfChapter(nextChapterName: String?, onNext: () -> Unit) {
+internal fun EndOfChapter(nextChapterName: String?, onNext: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),

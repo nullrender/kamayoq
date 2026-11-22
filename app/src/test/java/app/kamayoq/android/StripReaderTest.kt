@@ -17,6 +17,7 @@ import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.test.core.app.ApplicationProvider
 import app.kamayoq.core.progress.ChapterProgress
+import app.kamayoq.core.reader.ImageMode
 import java.io.ByteArrayInputStream
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -48,7 +49,7 @@ class StripReaderTest {
 
     @Test
     fun `dado o leitor com os controles escondidos, quando o TalkBack pede para mostrá-los, então o Voltar aparece`() {
-        compose.setContent { StripReader(app.store, chapter, OpeningTurns(), 0, "Obra · Cap. 1", null, "test-device", {}, {}) }
+        compose.setContent { ImageReader(app.store, chapter, OpeningTurns(), 0, "Obra · Cap. 1", null, "test-device", ImageMode.STRIP, {}, {}) }
 
         // The tap has an action with a name.
         val label = app.getString(R.string.reader_show_controls)
@@ -62,7 +63,7 @@ class StripReaderTest {
     fun `dado uma página que falha com um erro que não é de leitura, então ela diz que a imagem não abre e o app continua`() {
         val broken = OpenedChapter("chapter", listOf(PageImage(100, 100) { error("The folder gave no stream") }), ChapterProgress.NEVER_OPENED) {}
 
-        compose.setContent { StripReader(app.store, broken, OpeningTurns(), 0, "Obra · Cap. 1", null, "test-device", {}, {}) }
+        compose.setContent { ImageReader(app.store, broken, OpeningTurns(), 0, "Obra · Cap. 1", null, "test-device", ImageMode.STRIP, {}, {}) }
 
         val message = app.getString(R.string.reader_page_failed)
         compose.waitUntil(10_000) { compose.onAllNodes(hasText(message)).fetchSemanticsNodes().isNotEmpty() }
@@ -70,7 +71,7 @@ class StripReaderTest {
 
     @Test
     fun `dado o leitor com o TalkBack, então cada página diz qual é, entre quantas`() {
-        compose.setContent { StripReader(app.store, chapter, OpeningTurns(), 0, "Obra · Cap. 1", null, "test-device", {}, {}) }
+        compose.setContent { ImageReader(app.store, chapter, OpeningTurns(), 0, "Obra · Cap. 1", null, "test-device", ImageMode.STRIP, {}, {}) }
 
         compose.onNodeWithContentDescription(app.getString(R.string.reader_page_label, 1, 1)).assertExists()
     }
@@ -80,7 +81,7 @@ class StripReaderTest {
         lateinit var view: View
         compose.setContent {
             view = LocalView.current
-            StripReader(app.store, opened, OpeningTurns(), 0, "Obra · Cap. 1", null, "test-device", {}, {})
+            ImageReader(app.store, opened, OpeningTurns(), 0, "Obra · Cap. 1", null, "test-device", ImageMode.STRIP, {}, {})
         }
         compose.waitForIdle()
         return view.keepScreenOn
@@ -107,7 +108,7 @@ class StripReaderTest {
         val holder = thread { runBlocking { turns.ifLatest(round) { busy.countDown(); mayEnd.await(5, TimeUnit.SECONDS) } } }
         busy.await()
         var shown by mutableStateOf(true)
-        compose.setContent { if (shown) StripReader(app.store, chapter, turns, round, "Obra · Cap. 1", null, "test-device", {}, {}) }
+        compose.setContent { if (shown) ImageReader(app.store, chapter, turns, round, "Obra · Cap. 1", null, "test-device", ImageMode.STRIP, {}, {}) }
         compose.waitForIdle()
         // Opening saves nothing; reaching the end block does.
         compose.onNode(hasScrollToIndexAction()).performScrollToIndex(1)
@@ -139,7 +140,7 @@ class StripReaderTest {
         val holder = thread { runBlocking { turns.ifLatest(round) { busy.countDown(); mayEnd.await(5, TimeUnit.SECONDS) } } }
         busy.await()
         var shown by mutableStateOf(true)
-        compose.setContent { if (shown) StripReader(app.store, tall, turns, round, "Obra · Cap. 1", null, "test-device", {}, {}) }
+        compose.setContent { if (shown) ImageReader(app.store, tall, turns, round, "Obra · Cap. 1", null, "test-device", ImageMode.STRIP, {}, {}) }
         compose.waitForIdle()
 
         compose.onNode(hasScrollToIndexAction()).performScrollToIndex(1)
@@ -168,7 +169,7 @@ class StripReaderTest {
         val turns = OpeningTurns()
         val round = runBlocking { turns.open { it } }
         var shown by mutableStateOf(true)
-        compose.setContent { if (shown) StripReader(app.store, tall, turns, round, "Obra · Cap. 1", null, "test-device", {}, {}) }
+        compose.setContent { if (shown) ImageReader(app.store, tall, turns, round, "Obra · Cap. 1", null, "test-device", ImageMode.STRIP, {}, {}) }
         compose.waitForIdle()
 
         shown = false

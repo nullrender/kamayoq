@@ -38,6 +38,7 @@ import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.progress.strip
 import app.kamayoq.core.reader.FileTooLargeException
+import app.kamayoq.core.reader.ImageMode
 import app.kamayoq.core.reader.ReaderFlow
 import app.kamayoq.core.reader.SplitReading
 import app.kamayoq.core.reader.TextSettings
@@ -123,6 +124,7 @@ private sealed interface Opening {
         val previous: StoredAlternative?,
         val turn: Long,
         val round: Long,
+        val mode: ImageMode,
     ) : Opening
 }
 
@@ -375,7 +377,7 @@ fun ReaderHost(
         is Opening.Ready -> {
             var noticeOpen by remember(current) { mutableStateOf(true) }
             Box(modifier = Modifier.fillMaxSize()) {
-                StripReader(
+                ImageReader(
                     store = store,
                     chapter = current.chapter,
                     turns = opening.turns,
@@ -383,6 +385,7 @@ fun ReaderHost(
                     title = current.title,
                     nextChapterName = current.next?.name,
                     deviceId = deviceId,
+                    mode = current.mode,
                     onNext = { current.next?.let { onOpenChapter(it.id) } },
                     onBack = onBack,
                 )
@@ -588,7 +591,7 @@ private fun openChapter(
         val moved = store.progress(opened.chapterId).position?.device == KavitaProgress.DEVICE
         val previous = store.alternatives(workId)
             .firstOrNull { moved && it.reason == LibraryStore.PREVIOUS && it.chapterId == opened.chapterId }
-        return Opening.Ready(opened, title, chapters.getOrNull(index + 1), previous, turn.token, round)
+        return Opening.Ready(opened, title, chapters.getOrNull(index + 1), previous, turn.token, round, store.imageMode(workId).effective)
     } catch (e: Exception) {
         opened.release()
         kavita.finishReading(opened.chapterId, turn.token, opening.turns)
