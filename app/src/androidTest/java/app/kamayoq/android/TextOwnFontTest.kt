@@ -31,11 +31,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 
-// Slice 5, found on the S24 on 22/11/2026 (kamayoq-notes, docs/tests/ui-slice-5-s24-plan-2026-11-22.md):
+// Slice 5, found on the S24 on 22/11/2026 in Balada de amor ao vento (kamayoq-notes, docs/tests/ui-slice-5-s24-plan-2026-11-22.md):
 // in a bought ebook with its own font, choosing one of the app's fonts moved the page about two
-// paragraphs on. The book here brings its font in its stylesheet, with its own line height, spacing,
-// indent and margins, and the reading goes into its second chapter by turning pages, with the first
-// still loaded before it.
+// paragraphs on. The book here is built as that one is (EpubFixtures.ownFont), and the reading goes
+// into its second chapter by turning pages, with the first still loaded before it.
 @RunWith(AndroidJUnit4::class)
 class TextOwnFontTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -105,12 +104,12 @@ class TextOwnFontTest {
             "return String(range.comparePoint(anchor.startContainer, anchor.startOffset) === 0) })()",
     )
 
-    private fun choosingFontKeepsThePlace(flow: ReaderFlow, where: String) {
+    private fun choosingFontKeepsThePlace(flow: ReaderFlow, where: String, secondChapter: Boolean = true) {
         open(flow)
         assertEquals("the book's own font shows; console: $console", "true", bookFontShows())
         // Into the second chapter by turning pages, as a person reads: the first one stays loaded before it.
         var turns = 0
-        while (evaluate("String(document.querySelector('foliate-view').renderer.primaryIndex)") != "1") {
+        while (secondChapter && evaluate("String(document.querySelector('foliate-view').renderer.primaryIndex)") != "1") {
             if (++turns > 60) throw AssertionError("Never reached the second chapter; console: $console")
             evaluate("document.querySelector('foliate-view').next(); null")
             SystemClock.sleep(700)
@@ -127,13 +126,17 @@ class TextOwnFontTest {
         SystemClock.sleep(4_000)
         val kept = startStillShows()
         val after = evaluate("document.querySelector('foliate-view').lastLocation.range.toString().slice(0, 60)")
-        Log.i("KamayoqMeasure", "$where, book with its own font, Literata chosen in the second chapter after $turns turns (sections loaded: $loaded): start kept $kept; before \"$before\", now \"$after\"")
+        Log.i("KamayoqMeasure", "$where, book with its own font, Literata chosen after $turns turns to the second chapter (sections loaded: $loaded): start kept $kept; before \"$before\", now \"$after\"")
         assertEquals("before \"$before\", now \"$after\"", "true", kept)
     }
 
     @Test
     fun `dado um livro com letra própria em Páginas quando escolho uma letra do app então o trecho do começo da página continua na tela`() =
         choosingFontKeepsThePlace(ReaderFlow.PAGES, "Pages")
+
+    @Test
+    fun `dado um livro com letra própria no primeiro capítulo em Páginas quando escolho uma letra do app então o trecho do começo da página continua na tela`() =
+        choosingFontKeepsThePlace(ReaderFlow.PAGES, "Pages, first chapter", secondChapter = false)
 
     @Test
     fun `dado um livro com letra própria em Rolar quando escolho uma letra do app então o trecho do começo da tela continua na tela`() =

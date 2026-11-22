@@ -52,22 +52,45 @@ object EpubFixtures {
     }
 
     /**
-     * EPUB 3 whose stylesheet brings its own font, as bought ebooks do, with its own line height,
-     * paragraph spacing, indent and side margins. [font] is a TrueType file the caller supplies.
+     * EPUB 3 built as a bought ebook converted by Calibre is: the font comes in a second stylesheet,
+     * the body's class sets it with justified, hyphenated text, an indent in percent, side margins in
+     * points and padding above and below; paragraphs of many lengths carry empty print-page markers.
+     * [font] is a TrueType file the caller supplies.
      */
     fun ownFont(font: ByteArray): ByteArray {
-        val head = """<link rel="stylesheet" type="text/css" href="book.css"/>"""
+        val head = """<link rel="stylesheet" type="text/css" href="styles/book.css"/>""" +
+            """<link rel="stylesheet" type="text/css" href="styles/page.css"/>"""
         // A short first chapter, so a test pages into the second one with the first still loaded before it.
-        val sections = (1..2).map { number -> Section("s$number.xhtml", "Capítulo $number", paragraphs(number, if (number == 1) 6 else 16), head) }
-        val css = "@font-face { font-family: 'Letra do livro'; src: url(fonts/livro.ttf); }\n" +
-            "body { font-family: 'Letra do livro', serif; line-height: 1.7; margin: 0 1em; }\n" +
-            "p { margin: 0 0 0.5em; text-indent: 2em; }"
-        val extra = """<item id="css" href="book.css" media-type="text/css"/>""" + "\n" +
+        val sections = (1..2).map { number ->
+            Section("s$number.xhtml", "Capítulo $number", varied(number, if (number == 1) 8 else 40), head, bodyClass = "texto")
+        }
+        val book = "body.texto { display: block; font-family: Letra do livro; font-size: 1em; hyphens: auto; -webkit-hyphens: auto; " +
+            "text-align: justify; text-indent: 3.472%; margin: 0 5pt; padding: 1.6em 0; }\n" +
+            ".par { display: block; margin: 0; }\n.marca { }"
+        val page = "@page { margin-bottom: 5pt; margin-top: 5pt; }\n" +
+            "@font-face { font-family: Letra do livro; src: url(../fonts/livro.ttf); }"
+        val extra = """<item id="css" href="styles/book.css" media-type="text/css"/>""" + "\n" +
+            """<item id="page" href="styles/page.css" media-type="text/css"/>""" + "\n" +
             """<item id="font" href="fonts/livro.ttf" media-type="font/ttf"/>"""
         return epub3(
             "Livro com letra própria", sections, sections.map { TocItem(it.title, it.file) },
-            extraItems = extra, files = listOf("OEBPS/book.css" to css.encodeToByteArray(), "OEBPS/fonts/livro.ttf" to font),
+            extraItems = extra,
+            files = listOf(
+                "OEBPS/styles/book.css" to book.encodeToByteArray(),
+                "OEBPS/styles/page.css" to page.encodeToByteArray(),
+                "OEBPS/fonts/livro.ttf" to font,
+            ),
         )
+    }
+
+    // Paragraphs from about 160 to 1,400 characters, with an empty print-page marker every few.
+    private fun varied(seed: Int, count: Int) = (1..count).joinToString("\n") { number ->
+        val sentence = "A lavadeira $seed contou a canção $number à beira do rio largo. "
+        val length = listOf(160, 380, 1_400, 260, 900, 520)[number % 6]
+        val text = sentence.repeat(length / sentence.length + 1).take(length)
+        val marker = if (number % 3 == 0) """<span class="marca" id="page_${seed}_$number"></span>""" else ""
+        val half = text.length / 2
+        """<p class="par">${text.take(half)}$marker${text.drop(half)}</p>"""
     }
 
     /** A novel compiled into one spine item above 512 KiB, with its chapters only as anchors. */
@@ -257,7 +280,7 @@ object EpubFixtures {
         "fetch('PWNED-$case')",
     ).joinToString(" ") { "try { $it } catch (e) {}" }
 
-    private class Section(val file: String, val title: String, val body: String, val head: String = "")
+    private class Section(val file: String, val title: String, val body: String, val head: String = "", val bodyClass: String? = null)
     private class TocItem(val label: String, val href: String)
 
     private fun epub3(
@@ -346,7 +369,7 @@ object EpubFixtures {
         <?xml version="1.0" encoding="UTF-8"?>
         <html xmlns="http://www.w3.org/1999/xhtml">
         <head><title>${section.title}</title>${section.head}</head>
-        <body><h1>${section.title}</h1>
+        <body${section.bodyClass?.let { " class=\"$it\"" }.orEmpty()}><h1>${section.title}</h1>
         ${section.body}
         </body>
         </html>
