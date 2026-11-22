@@ -30,6 +30,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +56,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import app.kamayoq.core.progress.StripReading
 import app.kamayoq.core.reader.ImageMode
 import app.kamayoq.core.reader.ImageModeSettings
+import app.kamayoq.core.reader.ImageScope
 import app.kamayoq.core.reader.StripBands
 import app.kamayoq.data.LibraryStore
 import app.kamayoq.data.ProgressSaving
@@ -99,8 +102,14 @@ fun ImageReader(
     var shownPage by remember(reading) { mutableIntStateOf(reading.startPage) }
     var seek by remember(reading) { mutableStateOf<Int?>(null) }
     // A change applies at once and is kept; the chapter goes on at the image on screen.
-    val settings by remember(modeSettings) { mutableStateOf(modeSettings) }
+    var settings by remember(modeSettings) { mutableStateOf(modeSettings) }
     val mode = settings.effective
+    var quickOpen by rememberSaveable { mutableStateOf(false) }
+    var settingsOpen by rememberSaveable { mutableStateOf(false) }
+    val change: (ImageModeSettings) -> Unit = {
+        settings = it
+        onModeSettings(it)
+    }
     val onShown: (Int) -> Unit = { page ->
         shownPage = page
         reading.show(page, Instant.now())?.let { progress ->
@@ -129,10 +138,14 @@ fun ImageReader(
     ) {
         val toggle = { showControls = !showControls }
         val sought = { seek = null }
-        if (mode == ImageMode.STRIP) {
-            StripPages(chapter, reading.startPage, nextChapterName, onShown, toggle, onNext, seek, sought)
-        } else {
-            PagedPages(chapter, reading.startPage, nextChapterName, mode, onShown, toggle, onNext, seek, sought)
+        // A new mode lays the chapter out again from the image on screen, not from where it opened.
+        key(mode) {
+            val from = remember { shownPage }
+            if (mode == ImageMode.STRIP) {
+                StripPages(chapter, from, nextChapterName, onShown, toggle, onNext, seek, sought)
+            } else {
+                PagedPages(chapter, from, nextChapterName, mode, onShown, toggle, onNext, seek, sought)
+            }
         }
         if (!showControls) {
             ImageReaderTrace(shownPage, chapter.pages.size, mode, Modifier.align(Alignment.BottomCenter))
@@ -161,9 +174,15 @@ fun ImageReader(
                     onPreviousChapter = onPreviousChapter,
                     onNextChapter = nextChapterName?.let { onNext },
                 )
+                ImageReaderActions(onMode = { quickOpen = true }, onSettings = { settingsOpen = true })
             }
         }
-
+        if (quickOpen) {
+            ImageModeQuickSheet(settings, onChoose = { change(settings.choose(ImageScope.THIS_WORK, it)) }, onDismiss = { quickOpen = false })
+        }
+        if (settingsOpen) {
+            ImageSettingsSheet(settings, onSettings = change, onDismiss = { settingsOpen = false })
+        }
     }
 }
 

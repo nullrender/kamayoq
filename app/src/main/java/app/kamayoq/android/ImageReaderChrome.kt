@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -13,6 +14,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -162,5 +164,18 @@ private fun PageSlider(page: Int, total: Int, rightToLeft: Boolean, onSeek: (Int
             color = LocalPalette.current.secondaryText,
             modifier = Modifier.clearAndSetSemantics {},
         )
+    }
+}
+
+/** The quick actions under the bar below (FEATURES, part 5): Mode and Settings, each opening its sheet. */
+@Composable
+internal fun ImageReaderActions(onMode: () -> Unit, onSettings: () -> Unit, modifier: Modifier = Modifier) {
+    FloatingBar(modifier) {
+        TextButton(onClick = onMode, modifier = Modifier.weight(1f).heightIn(min = 48.dp), colors = barTextColors()) {
+            Text(stringResource(R.string.reader_mode))
+        }
+        TextButton(onClick = onSettings, modifier = Modifier.weight(1f).heightIn(min = 48.dp), colors = barTextColors()) {
+            Text(stringResource(R.string.reader_settings))
+        }
     }
 }

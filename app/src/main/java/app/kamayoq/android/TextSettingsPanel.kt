@@ -265,19 +265,19 @@ private fun propertyName(property: TextProperty): String = stringResource(
 )
 
 @Composable
-private fun Label(text: String) = Text(text, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 14.dp, bottom = 6.dp))
+internal fun Label(text: String) = Text(text, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 14.dp, bottom = 6.dp))
 
 @Composable
-private fun Note(text: String) =
+internal fun Note(text: String) =
     Text(text, style = MaterialTheme.typography.bodySmall, color = LocalPalette.current.secondaryText, modifier = Modifier.padding(top = 6.dp))
 
 @Composable
-private fun Choices(modifier: Modifier = Modifier, content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit) =
+internal fun Choices(modifier: Modifier = Modifier, content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit) =
     Row(modifier = modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(6.dp), content = content)
 
 /** One option of a group; the chosen one in the neutral inverted colors, with a check. */
 @Composable
-private fun Choice(
+internal fun Choice(
     selected: Boolean,
     label: String,
     modifier: Modifier = Modifier,
