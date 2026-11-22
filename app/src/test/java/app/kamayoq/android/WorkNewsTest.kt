@@ -114,8 +114,8 @@ class WorkNewsTest {
         openWork()
         pressBack()
         waitFor("Sakamoto Days")
-        compose.waitForIdle()
 
-        assertEquals(0, count(oneNew, substring = true))
+        // The Library is read again off the main thread, which waitForIdle does not wait for.
+        compose.waitUntil(10_000) { count(oneNew, substring = true) == 0 }
     }
 }
