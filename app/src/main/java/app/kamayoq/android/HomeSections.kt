@@ -96,7 +96,12 @@ private fun ContinueCard(item: ContinueItem, onOpenWork: (String) -> Unit, onRea
             .background(colors.surfaceContainer, RoundedCornerShape(16.dp)).padding(12.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Box(modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable(onClickLabel = openPage, role = Role.Button) { onOpenWork(item.work.id) }) {
+        // The cover clears its letter from TalkBack: the button is named after the work.
+        Box(
+            modifier = Modifier.clip(RoundedCornerShape(10.dp))
+                .clickable(onClickLabel = openPage, role = Role.Button) { onOpenWork(item.work.id) }
+                .semantics { contentDescription = item.work.title },
+        ) {
             ProvisionalCover(item.work.title, initialSize = 130.sp, modifier = Modifier.size(width = 88.dp, height = 128.dp))
         }
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
