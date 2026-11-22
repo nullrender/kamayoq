@@ -137,7 +137,12 @@ internal fun HomeScreen(
                 )
             }
         }
-        if (continueReading.isEmpty() && arrived.isEmpty()) {
+        val added = content?.added.orEmpty()
+        if (added.isNotEmpty()) {
+            item(key = "added-title") { HomeSectionTitle(R.string.home_added_title) }
+            items(added, key = { "added-${it.work.id}" }) { AddedRow(it, onOpenWork) }
+        }
+        if (continueReading.isEmpty() && arrived.isEmpty() && added.isEmpty()) {
             item(key = "later") {
                 Text(
                     stringResource(R.string.home_later),

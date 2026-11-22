@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.kamayoq.core.home.Home
 import app.kamayoq.core.library.WorkType
+import app.kamayoq.data.AddedItem
 import app.kamayoq.data.ArrivedItem
 import app.kamayoq.data.ContinueItem
 import app.kamayoq.data.LibraryStore
@@ -260,6 +261,32 @@ internal fun ArrivedGroup(
                     }
                 }
             }
+        }
+    }
+}
+
+/** A work of Added (board SinteseInicio): its type, its chapters and when it came; it opens the page. */
+@Composable
+internal fun AddedRow(item: AddedItem, onOpenWork: (String) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp).clickable(role = Role.Button) { onOpenWork(item.work.id) }
+            .padding(horizontal = 18.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        ProvisionalCover(item.work.title, initialSize = 68.sp, modifier = Modifier.size(width = 44.dp, height = 64.dp).clip(RoundedCornerShape(6.dp)))
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(item.work.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                stringResource(
+                    R.string.home_added_line,
+                    stringResource(sectionName(item.work.type)),
+                    pluralStringResource(R.plurals.chapter_count, item.chapterCount, item.chapterCount),
+                    elapsedText(item.addedAt),
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
