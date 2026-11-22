@@ -204,4 +204,25 @@ class TextLookTest {
         assertEquals(settings, after)
         assertNull(after.own)
     }
+
+    // Slice 5, choice after research (backup-values.md): a value off the panel's steps, as a backup may
+    // bring, goes back to the steps at the first touch, in the touch's direction.
+    @Test
+    fun `dado uma margem 13 vinda de um backup, quando aperto o mais, então ela vai a 16`() {
+        val settings = TextSettings(TextLookChoices(margin = 13), null)
+        assertEquals(16, settings.change(all, TextEdit.Step(TextNumber.MARGIN, up = true)).effective().margin)
+    }
+
+    @Test
+    fun `dado uma margem 13 vinda de um backup, quando aperto o menos, então ela vai a 12`() {
+        val settings = TextSettings(TextLookChoices(margin = 13), null)
+        assertEquals(12, settings.change(all, TextEdit.Step(TextNumber.MARGIN, up = false)).effective().margin)
+    }
+
+    @Test
+    fun `dado parágrafos em 0,3 em, quando aperto o mais e o menos, então vão a 0,4 e a 0,2`() {
+        val settings = TextSettings(TextLookChoices(paragraphSpacing = 3), null)
+        assertEquals(4, settings.change(all, TextEdit.Step(TextNumber.PARAGRAPH_SPACING, up = true)).effective().paragraphSpacing)
+        assertEquals(2, settings.change(all, TextEdit.Step(TextNumber.PARAGRAPH_SPACING, up = false)).effective().paragraphSpacing)
+    }
 }
