@@ -3,7 +3,7 @@ import { EPUB } from './foliate-js/epub.js'
 import { neutralizeRefresh } from './sections.js'
 import { relocatedMessage, contentsOf, navigationQueue, chapterOf, chapterFraction, orderedSender } from './messages.js'
 import { elementOf, markerOf } from './markers.js'
-import { DEFAULT_LOOK, checkedLook, stylesOf, marginOf, markAligned, hostBackgroundOf, hyphenatesIn, probeLanguage } from './look.js'
+import { DEFAULT_LOOK, checkedLook, stylesOf, sidesOf, markAligned, hostBackgroundOf, hyphenatesIn, probeLanguage } from './look.js'
 import { tapFraction } from './taps.js'
 import { neighbourOf, withinSpan } from './moves.js'
 
@@ -22,7 +22,7 @@ let meter = null
 // The settings panel's look: in the book's index before it opens, by command while it is open.
 const applyLook = look => {
     view.renderer.setStyles(stylesOf(look, location.origin))
-    for (const side of ['left', 'right']) view.renderer.setAttribute(`margin-${side}`, marginOf(look))
+    for (const [name, value] of Object.entries(sidesOf(look))) view.renderer.setAttribute(name, value)
     document.body.style.background = hostBackgroundOf(look)
 }
 

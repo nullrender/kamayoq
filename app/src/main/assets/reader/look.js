@@ -97,8 +97,8 @@ export const stylesOf = (look, origin) => {
     return [before.join('\n'), after.join('\n')]
 }
 
-/** The side margins, which the paginator takes as attributes. */
-export const marginOf = look => `${look.margin}px`
+/** The paginator's attributes for the page's sides. */
+export const sidesOf = look => ({ gap: '7%', 'margin-left': `${look.margin}px`, 'margin-right': `${look.margin}px` })
 
 /**
  * Marks the paragraphs that [doc]'s own styles center or set to the right, read with the person's

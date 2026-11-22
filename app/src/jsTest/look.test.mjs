@@ -1,7 +1,7 @@
 // The settings panel's look as CSS (slice 5): defaults under the book, what the person chose over it.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { DEFAULT_LOOK, checkedLook, stylesOf, marginOf, hostBackgroundOf, probeLanguage } from '../main/assets/reader/look.js'
+import { DEFAULT_LOOK, checkedLook, stylesOf, sidesOf, hostBackgroundOf, probeLanguage } from '../main/assets/reader/look.js'
 
 const ORIGIN = 'https://appassets.androidplatform.net'
 const look = changes => ({ ...DEFAULT_LOOK, background: '#EFE4CC', text: '#3A2E20', ...changes })
@@ -55,8 +55,9 @@ test('dado a entrelinha escolhida, então ela vale no corpo e no texto corrido',
     assert.match(after, /body, body p, body li, body dd, body blockquote \{ line-height: 1\.8 !important; \}/)
 })
 
-test('dado as margens, então a página as recebe como atributo, e o fundo do tema vai para trás do livro', () => {
-    assert.equal(marginOf(look({ margin: 32 })), '32px')
+test('dado a margem do painel, então o paginador recebe vão zero e o dobro dela, e o fundo do tema vai para trás do livro', () => {
+    // foliate-js puts half of each side margin and half of its column gap beside the text.
+    assert.deepEqual(sidesOf(look({ margin: 16 })), { gap: '0%', 'margin-left': '32px', 'margin-right': '32px' })
     assert.equal(hostBackgroundOf(look({})), '#EFE4CC')
 })
 
