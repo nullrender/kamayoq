@@ -76,6 +76,8 @@ import app.kamayoq.data.WorkCovers
 import app.kamayoq.data.kavita.StoredKavitaKey
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -152,6 +154,9 @@ fun LibraryApp(
     // The chapters new at the visit of the Work screen shown now, by id, with when each arrived. Kept
     // while the work stays open, so they still say "new" on the way back from the reader.
     var news by rememberSaveable(stateSaver = NEWS_SAVER) { mutableStateOf(WorkNews.NONE) }
+    // The visit being written. It outlives a Back pressed at once, and the lists read after it wait
+    // for it: read before, Home and the Library would still show what the visit took away.
+    var visitWrite by remember { mutableStateOf<Job?>(null) }
     val context = LocalContext.current
 
     fun backUp(current: Uri) {
@@ -305,7 +310,10 @@ fun LibraryApp(
 
     // A state chosen on the Work screen, or changed by reading, shows in the Library's chips on return.
     LaunchedEffect(openWorkId) {
-        if (openWorkId == null && rows != null) show(withContext(Dispatchers.IO) { readRows() })
+        if (openWorkId == null && rows != null) {
+            visitWrite?.join()
+            show(withContext(Dispatchers.IO) { readRows() })
+        }
     }
 
     // A sync may finish after the screen that asked for it is gone, and it changes what any screen shows.
@@ -323,7 +331,9 @@ fun LibraryApp(
     LaunchedEffect(visiting) {
         val id = visiting ?: return@LaunchedEffect
         if (news.workId == id) return@LaunchedEffect
-        news = WorkNews(id, withContext(Dispatchers.IO) { store.visitWork(id, Instant.now()) })
+        val write = scope.async(Dispatchers.IO) { store.visitWork(id, Instant.now()) }
+        visitWrite = write
+        news = WorkNews(id, write.await())
     }
     LaunchedEffect(openWorkId) {
         if (openWorkId == null) news = WorkNews.NONE
@@ -333,6 +343,7 @@ fun LibraryApp(
     val downloadsNow by kavitaSync.downloads.collectAsState()
     LaunchedEffect(tab, rows, openWorkId, readingChapterId, progressVersion, downloadsNow) {
         if (tab != AppTab.HOME || openWorkId != null) return@LaunchedEffect
+        visitWrite?.join()
         val (content, there) = withContext(Dispatchers.IO) {
             val read = store.home()
             read to read.arrived.flatMap { it.chapters }.map { it.chapter }.filter(kavitaSync::isDownloaded).map { it.id }.toSet()
