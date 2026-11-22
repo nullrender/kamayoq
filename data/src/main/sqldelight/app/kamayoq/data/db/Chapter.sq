@@ -213,6 +213,11 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?);
 markArrived:
 UPDATE chapter SET arrived_at = ? WHERE id = ?;
 
+-- A new edition of a chapter keeps the arrival of the one it follows.
+keepArrival:
+UPDATE chapter SET arrived_at = (SELECT previous.arrived_at FROM chapter AS previous WHERE previous.id = :previousId)
+WHERE chapter.id = :chapterId;
+
 -- The chapters of a work that arrived after the zero mark, present and current, for "new".
 arrivalsOfWork:
 SELECT chapter.id, chapter.arrived_at

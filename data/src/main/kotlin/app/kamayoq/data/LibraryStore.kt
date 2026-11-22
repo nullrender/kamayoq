@@ -440,7 +440,8 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
      * chapters start with no reading, while the previous ones stay stored out of the lists. Then the
      * Work screen asks before any read mark passes, if there is one to pass. Returns the current
      * chapters, in order. A chapter new in the file arrives at [arrivedAt]; in another edition only
-     * one whose title the previous edition did not have is new: the others are the same chapters.
+     * one whose title the previous edition did not have is new: the others are the same chapters,
+     * and one of them that had arrived and is not read keeps its arrival.
      */
     private fun storeSplitFile(
         versionId: String,
@@ -486,10 +487,13 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
             )
         }
         if (hadReadMark) database.editionOfferQueries.offer(versionId, path)
-        if (arrivedAt != null) {
-            val oldNames = stored.map { it.name }.toSet()
-            for ((id, entry) in ids.zip(units)) {
-                if (entry.second.name !in oldNames) database.chapterQueries.markArrived(arrivedAt.toEpochMilli(), id)
+        for ((id, entry) in ids.zip(units)) {
+            val before = stored.firstOrNull { it.name == entry.second.name }
+            when {
+                before == null -> if (arrivedAt != null) database.chapterQueries.markArrived(arrivedAt.toEpochMilli(), id)
+                // Arrived and not read yet: the new edition is still that new chapter. A read one
+                // stays out of Arrived; its mark passes, or not, by the edition's question.
+                progress(before.id).readMark == null -> database.chapterQueries.keepArrival(before.id, id)
             }
         }
         return ids
