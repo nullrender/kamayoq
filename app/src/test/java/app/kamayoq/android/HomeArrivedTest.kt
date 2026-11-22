@@ -141,9 +141,9 @@ class HomeArrivedTest {
         waitFor(app.getString(R.string.back))
         pressBack()
 
+        // Home is read again off the main thread, which waitForIdle does not wait for.
         waitFor(app.getString(R.string.nav_home))
-        compose.waitForIdle()
-        assertEquals(0, count(heading))
+        waitUntilGone(heading)
     }
 
     @Test
