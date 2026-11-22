@@ -18,11 +18,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.util.Locale
 
 /**
  * The block after a chapter's last image (DESIGN, "Leitor de imagem", 5): which chapter finished and
@@ -40,6 +40,8 @@ internal fun ImageEndBlock(
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalPalette.current
+    // The configuration's language, which the screen follows when the person changes it.
+    val locale = LocalConfiguration.current.locales[0]
     Column(
         modifier = modifier.fillMaxWidth().background(palette.background).padding(horizontal = 24.dp, vertical = 40.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -47,7 +49,7 @@ internal fun ImageEndBlock(
     ) {
         if (chapterName != null) {
             Text(
-                stringResource(R.string.reader_image_chapter_finished, chapterName).uppercase(Locale.getDefault()),
+                stringResource(R.string.reader_image_chapter_finished, chapterName).uppercase(locale),
                 color = palette.imageType,
                 style = MaterialTheme.typography.labelLarge,
                 letterSpacing = 1.5.sp,
