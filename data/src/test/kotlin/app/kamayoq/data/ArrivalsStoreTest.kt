@@ -139,6 +139,28 @@ class ArrivalsStoreTest {
     }
 
     @Test
+    fun `dado um capítulo de EPUB dividido que chegou e não foi visto, quando chega outra edição do arquivo, então ele continua chegado na hora em que veio`() {
+        readNovel(first, FileStamp(1_000, 5), section(1), section(2))
+        readNovel(later, FileStamp(1_200, 6), section(1), section(2), section(3))
+
+        readNovel(latest, FileStamp(1_400, 7), section(1), section(2), section(3), section(4))
+
+        assertEquals(mapOf("Capítulo 3" to later, "Capítulo 4" to latest), store.arrivalsOf("Release That Witch"))
+    }
+
+    @Test
+    fun `dado um capítulo de EPUB dividido que chegou e foi lido, quando chega outra edição do arquivo, então ele não volta a Chegou`() {
+        readNovel(first, FileStamp(1_000, 5), section(1), section(2))
+        readNovel(later, FileStamp(1_200, 6), section(1), section(2), section(3))
+        val work = store.work("Release That Witch").id
+        store.markRead(work, listOf(store.chapter("Release That Witch", "Capítulo 3").id), later.plusSeconds(60))
+
+        readNovel(latest, FileStamp(1_400, 7), section(1), section(2), section(3), section(4))
+
+        assertEquals(mapOf("Capítulo 4" to latest), store.arrivalsOf("Release That Witch"))
+    }
+
+    @Test
     fun `dado uma pasta lida antes de restaurar um backup, quando ela é lida depois da restauração, então é marco zero outra vez`() {
         val original = newStore()
         original.read(first, "Comics/Sakamoto Days/Cap. 001.cbz")
