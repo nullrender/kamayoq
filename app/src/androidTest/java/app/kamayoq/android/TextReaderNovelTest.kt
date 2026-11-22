@@ -98,13 +98,13 @@ class TextReaderNovelTest {
 
     /** The last section from the contents, then Next page until [block] shows, as the end-of-book test does. */
     private fun readToTheEnd(block: String) {
-        compose.onNodeWithText(compose.activity.getString(R.string.reader_contents)).performClick()
+        compose.onNodeWithText(compose.activity.getString(R.string.reader_chapters)).performClick()
         compose.onNodeWithText("Seção 3").performClick()
         compose.waitForIdle()
         Thread.sleep(1_000)
         repeat(80) {
             if (shows(block)) return
-            compose.onNodeWithText(compose.activity.getString(R.string.reader_next_page)).performClick()
+            compose.pageAction(R.string.reader_next_page)
             compose.waitForIdle()
             Thread.sleep(300)
         }

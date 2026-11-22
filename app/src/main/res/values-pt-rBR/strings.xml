@@ -6,6 +6,14 @@
     <string name="reader_contents_empty">Este livro não tem sumário.</string>
     <string name="reader_contents_failed">Não foi possível ler o sumário deste livro. Você pode continuar lendo.</string>
     <string name="reader_contents_untitled">Seção sem título</string>
+    <string name="reader_back_to_work">Voltar para a obra</string>
+    <string name="reader_previous_chapter">Capítulo anterior</string>
+    <string name="reader_next_chapter">Próximo capítulo</string>
+    <string name="reader_chapters">Capítulos</string>
+    <string name="reader_book_percent">%1$d %% do livro</string>
+    <string name="reader_chapter_of">Cap. %1$d de %2$d</string>
+    <string name="reader_chapter_percent">%1$d %% do capítulo</string>
+    <string name="reader_battery_time">%1$d %% · %2$s</string>
     <string name="library_title">Biblioteca</string>
     <string name="no_folder">Escolha uma pasta para o Kamayoq. Suas obras ficam na pasta Library dentro dela, que o Kamayoq cria se faltar. O Kamayoq nunca altera seus arquivos.</string>
     <string name="choose_folder">Escolher pasta</string>

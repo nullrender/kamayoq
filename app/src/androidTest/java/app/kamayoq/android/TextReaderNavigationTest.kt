@@ -94,13 +94,13 @@ class TextReaderNavigationTest {
     }
 
     @Test
-    fun `dado o livro aberto quando toco próxima página e anterior então os botões viram a página`() {
+    fun `dado o livro aberto quando peço próxima página e anterior pela ação de acessibilidade então a página vira`() {
         val start = evaluate("document.querySelector('foliate-view').lastLocation.cfi")
         messages.clear()
-        button(R.string.reader_next_page).performClick()
+        compose.pageAction(R.string.reader_next_page)
         val next = navigation()
         assertNotEquals(start, "\"${next.cfi}\"")
-        button(R.string.reader_previous_page).performClick()
+        compose.pageAction(R.string.reader_previous_page)
         val previous = navigation()
         assertNotEquals(next.cfi, previous.cfi)
     }

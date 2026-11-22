@@ -47,6 +47,7 @@ import app.kamayoq.core.reader.EpubArchive
 import app.kamayoq.core.reader.ReaderEngine
 import app.kamayoq.core.reader.ReaderContentsItem
 import app.kamayoq.core.reader.ReaderFlow
+import app.kamayoq.core.reader.TextLook
 import app.kamayoq.core.reader.ReaderLink
 import app.kamayoq.core.reader.RendererCrashes
 import app.kamayoq.core.reader.TextReading
@@ -77,13 +78,21 @@ fun TextReader(
     onMessage: (PageMessage) -> Unit = {},
     type: WorkType = WorkType.BOOKS,
     end: TextEnd = TextEnd.Book,
+    look: TextLook = TextLook.DEFAULT,
+    chosenFlow: ReaderFlow? = null,
+    chapter: ChapterPlace? = null,
+    onPreviousChapter: (() -> Unit)? = null,
+    onNextChapter: (() -> Unit)? = null,
 ) {
     val save by rememberUpdatedState(onSave)
     val session = remember(reading) { WholeText(reading) { save(it) } }
     TextReader(archive, title, session, onBack, onMessage, type, end)
 }
 
-/** The same screen for any text: [session] says where the page opens and saves what each move changes. */
+/**
+ * The same screen for any text: [session] says where the page opens and saves what each move changes.
+ * The [look], [chosenFlow], [chapterOf] and the chapter moves are not used yet.
+ */
 @Composable
 fun TextReader(
     archive: EpubArchive,
@@ -93,6 +102,11 @@ fun TextReader(
     onMessage: (PageMessage) -> Unit = {},
     type: WorkType = WorkType.BOOKS,
     end: TextEnd = TextEnd.Book,
+    look: TextLook = TextLook.DEFAULT,
+    chosenFlow: ReaderFlow? = null,
+    chapterOf: (Int?) -> ChapterPlace? = { null },
+    onPreviousChapter: (() -> Unit)? = null,
+    onNextChapter: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     // Checked before any WebView is made: below the floor the fork fails later, with no clear reason.

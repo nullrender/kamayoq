@@ -178,17 +178,15 @@ class TextReaderSavingTest {
     }
 
     /**
-     * The middle of Next page and of the book, from the book's own view, or null before it exists.
-     * Under the book sit Contents, in a row of its own, and then Previous and Next, each row at least
-     * 48 dp (TextReaderControls); below the app's window a touch would reach the system instead.
+     * The spot that turns to the next page and the middle of the book, from the book's own view, or
+     * null before it exists. Since slice 5 the right side of the page turns it (core TapZones).
      */
     private fun targets(): Pair<Pair<Float, Float>, Pair<Float, Float>>? {
         var found: Pair<Pair<Float, Float>, Pair<Float, Float>>? = null
         scenario.onActivity { activity ->
             activity.window.decorView.findWebView()?.let { view ->
                 val (left, top) = IntArray(2).also(view::getLocationOnScreen)
-                val dp = view.resources.displayMetrics.density
-                val next = left + view.width * 0.75f to top + view.height + (48 + 24) * dp
+                val next = left + view.width * 0.85f to top + view.height * 0.5f
                 val middle = left + view.width * 0.5f to top + view.height * 0.5f
                 found = next to middle
             }

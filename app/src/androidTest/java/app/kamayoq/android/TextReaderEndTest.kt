@@ -138,7 +138,7 @@ class TextReaderEndTest {
         Thread.sleep(1_000)
         repeat(60) {
             if (endBlockShows()) return
-            button(R.string.reader_next_page).performClick()
+            compose.pageAction(R.string.reader_next_page)
             compose.waitForIdle()
             Thread.sleep(300)
         }
@@ -171,9 +171,9 @@ class TextReaderEndTest {
         readToTheEnd()
         compose.waitUntil(15_000) { saves.lastOrNull()?.readMark != null }
 
-        button(R.string.reader_previous_page).performClick()
+        compose.pageAction(R.string.reader_previous_page)
         compose.waitUntil(15_000) { !endBlockShows() }
-        button(R.string.reader_next_page).performClick()
+        compose.pageAction(R.string.reader_next_page)
         compose.waitUntil(15_000) { endBlockShows() }
         Thread.sleep(1_000)
 

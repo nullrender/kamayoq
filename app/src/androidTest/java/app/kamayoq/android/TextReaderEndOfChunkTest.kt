@@ -116,7 +116,7 @@ class TextReaderEndOfChunkTest {
         val states = mutableListOf<String>()
         repeat(4) {
             states += paginator()
-            compose.onNodeWithText(compose.activity.getString(R.string.reader_next_page)).performClick()
+            compose.pageAction(R.string.reader_next_page)
             compose.waitForIdle()
             Thread.sleep(700)
         }
@@ -141,7 +141,7 @@ class TextReaderEndOfChunkTest {
         repeat(12) {
             if (!endBlockShows()) {
                 states += paginator()
-                compose.onNodeWithText(compose.activity.getString(R.string.reader_next_page)).performClick()
+                compose.pageAction(R.string.reader_next_page)
                 compose.waitForIdle()
                 Thread.sleep(700)
             }

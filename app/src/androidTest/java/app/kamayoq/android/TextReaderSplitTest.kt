@@ -119,7 +119,7 @@ class TextReaderSplitTest {
     private fun readInto(chapter: Int) {
         repeat(80) {
             if (saves.any { it.chapter == chapter }) return
-            button(R.string.reader_next_page).performClick()
+            compose.pageAction(R.string.reader_next_page)
             compose.waitForIdle()
             Thread.sleep(400)
         }
@@ -174,7 +174,7 @@ class TextReaderSplitTest {
         saves.clear()
 
         repeat(3) {
-            button(R.string.reader_next_page).performClick()
+            compose.pageAction(R.string.reader_next_page)
             compose.waitForIdle()
             Thread.sleep(400)
         }
@@ -232,10 +232,10 @@ class TextReaderSplitTest {
     @Test
     fun `dado a leitura do capítulo 1 quando salto pelo sumário para o capítulo 5 então nenhum capítulo fica lido`() {
         open(opened = 0)
-        button(R.string.reader_next_page).performClick()
+        compose.pageAction(R.string.reader_next_page)
         compose.waitUntil(15_000) { saves.isNotEmpty() }
 
-        button(R.string.reader_contents).performClick()
+        button(R.string.reader_chapters).performClick()
         compose.onNodeWithText("Capítulo 5").performClick()
 
         compose.waitUntil(15_000) { saves.any { it.chapter == 4 } }
