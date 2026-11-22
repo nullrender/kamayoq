@@ -293,6 +293,10 @@ addEventListener('message', event => {
         if (to !== null) navigate(() => view.goTo(contents[to].href))
         return
     }
+    if (command?.type === 'place' && typeof command.cfi === 'string' && command.cfi.startsWith('epubcfi(') && command.cfi.length <= 2048) {
+        navigate(() => view.goTo(command.cfi))
+        return
+    }
     if (command?.type === 'chapter' && Number.isInteger(command.index)) {
         const key = chapterKeys[command.index]
         if (typeof key === 'string') navigate(() => view.goTo(key))

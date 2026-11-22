@@ -19,6 +19,7 @@ import app.kamayoq.core.reader.ReaderChapters
 import app.kamayoq.core.reader.ReaderContents
 import app.kamayoq.core.reader.ReaderContentsItem
 import app.kamayoq.core.reader.ReaderFlow
+import app.kamayoq.core.reader.PageCommands
 import app.kamayoq.core.reader.ReaderMessage
 import app.kamayoq.core.reader.ReaderNavigation
 import app.kamayoq.core.reader.ReaderPolicy
@@ -233,6 +234,12 @@ fun WebView.applyLook(command: String) = postWebMessage(WebMessage(command), Uri
 fun WebView.goToNeighbour(by: Int) {
     require(by == 1 || by == -1)
     postWebMessage(WebMessage("""{"type":"step","by":$by}"""), Uri.parse(ReaderPolicy.ORIGIN))
+}
+
+/** A place the app kept, by its CFI; the page refuses anything else. */
+fun WebView.goToPlace(cfi: String) {
+    require(cfi.startsWith("epubcfi(") && cfi.length <= ReaderMessage.MAX_CFI_LENGTH)
+    postWebMessage(WebMessage(PageCommands.place(cfi)), Uri.parse(ReaderPolicy.ORIGIN))
 }
 
 /** The chapter [index] of a split file, by the destination the app gave the page for it. */

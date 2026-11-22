@@ -332,9 +332,9 @@ fun TextReader(
             enabled = ready,
             contentsLabel = stringResource(if (type == WorkType.NOVELS) R.string.reader_chapters else R.string.reader_contents),
             progress = progress,
-            onPreviousChapter = chapterMove(type, contents, session.chapters, fileChapter, -1, webView, onPreviousChapter),
+            onPreviousChapter = chapterMove(type, contents, session, fileChapter, -1, webView, onPreviousChapter),
             onContents = { if (chapterRows != null) chaptersOpen = true else contentsOpen = true },
-            onNextChapter = chapterMove(type, contents, session.chapters, fileChapter, +1, webView, onNextChapter),
+            onNextChapter = chapterMove(type, contents, session, fileChapter, +1, webView, onNextChapter),
             modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding(),
             onProgress = { goToOpen = true },
             end = { if (onSettings != null) SettingsButton(enabled = ready) { panelOpen = true } },
@@ -403,7 +403,14 @@ fun TextReader(
             currentId = currentId,
             onOpen = { id ->
                 chaptersOpen = false
-                if (id != currentId) onOpenWorkChapter?.invoke(id)
+                // A chapter of this same file is a move inside it; the app would see the chapter it
+                // already opened and do nothing.
+                val inFile = fileChapterOf(id)
+                when {
+                    id == currentId -> Unit
+                    inFile != null -> webView?.goToFileChapter(session, inFile)
+                    else -> onOpenWorkChapter?.invoke(id)
+                }
             },
             onDismiss = { chaptersOpen = false },
         )
@@ -506,15 +513,24 @@ private fun SettingsButton(enabled: Boolean, onClick: () -> Unit) {
 private fun chapterMove(
     type: WorkType,
     contents: List<ReaderContentsItem>?,
-    chapters: ReaderChapters?,
+    session: TextSession,
     current: Int?,
     step: Int,
     webView: WebView?,
     outside: (() -> Unit)?,
 ): (() -> Unit)? {
     if (type != WorkType.NOVELS) return if (contents.isNullOrEmpty()) null else { { webView?.goToNeighbour(step) } }
-    val inFile = chapters?.let { known -> current?.plus(step)?.takeIf { it in known.keys.indices } }
-    return inFile?.let { chapter -> { webView?.goToChapter(chapter) } } ?: outside
+    val inFile = session.chapters?.let { known -> current?.plus(step)?.takeIf { it in known.keys.indices } }
+    return inFile?.let { chapter -> { webView?.goToFileChapter(session, chapter) } } ?: outside
+}
+
+/**
+ * A chapter of a split file: where the person left it, or its start. Its start alone would save a
+ * new place over the one kept (progress contract, C3).
+ */
+private fun WebView.goToFileChapter(session: TextSession, chapter: Int) {
+    val place = session.placeOf(chapter)
+    if (place != null) goToPlace(place) else goToChapter(chapter)
 }
 
 /** The place the bars and the footer show for the page's [message]. */

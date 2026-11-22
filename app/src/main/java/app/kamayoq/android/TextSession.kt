@@ -1,5 +1,6 @@
 package app.kamayoq.android
 
+import app.kamayoq.core.progress.BasisPoints
 import app.kamayoq.core.progress.ChapterProgress
 import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.reader.ReaderChapters
@@ -87,4 +88,8 @@ class SplitText(
         val saves = reading.ended(at)
         if (saves.isNotEmpty()) onSave(saves)
     }
+
+    // The same rule as the place the file opens at: a chapter read to its end opens at its start.
+    override fun placeOf(chapter: Int): String? =
+        (reading.progressOf(chapter).position as? TextPosition)?.takeIf { it.fraction.value < BasisPoints.END }?.cfi
 }
