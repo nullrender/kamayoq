@@ -31,15 +31,24 @@ data class ImageModeSettings(
     val detected: ImageMode,
 ) {
     /** The choice the settings show selected for [scope]. */
-    fun chosen(scope: ImageScope): ImageModeChoice = general
+    fun chosen(scope: ImageScope): ImageModeChoice = when (scope) {
+        ImageScope.THIS_WORK -> own ?: general
+        ImageScope.ALL_IMAGE_WORKS -> general
+    }
 
     /** The mode the chapter opens in. */
-    val effective: ImageMode get() = ImageMode.STRIP
+    val effective: ImageMode get() = (own ?: general).mode ?: detected
 
-    fun choose(scope: ImageScope, choice: ImageModeChoice): ImageModeSettings = this
+    fun choose(scope: ImageScope, choice: ImageModeChoice): ImageModeSettings = when (scope) {
+        ImageScope.THIS_WORK -> copy(own = choice)
+        ImageScope.ALL_IMAGE_WORKS -> copy(general = choice)
+    }
 
     /** "Restaurar padrão": this work follows the general choice again; all works go back to Automatic. */
-    fun restore(scope: ImageScope): ImageModeSettings = this
+    fun restore(scope: ImageScope): ImageModeSettings = when (scope) {
+        ImageScope.THIS_WORK -> copy(own = null)
+        ImageScope.ALL_IMAGE_WORKS -> copy(general = ImageModeChoice.AUTOMATIC)
+    }
 
     companion object {
         /**
@@ -47,6 +56,7 @@ data class ImageModeSettings(
          * right to left; manhwa, webtoon and comics with no subtype scroll as the Strip, as the app
          * opened every comic before.
          */
-        fun detected(subtype: ComicsSubtype?): ImageMode = ImageMode.STRIP
+        fun detected(subtype: ComicsSubtype?): ImageMode =
+            if (subtype == ComicsSubtype.MANGA) ImageMode.PAGES_RIGHT_TO_LEFT else ImageMode.STRIP
     }
 }
