@@ -132,6 +132,7 @@ private sealed interface Opening {
         val rows: List<ReaderChapterRow>,
         val chapterName: String,
         val workTitle: String?,
+        val rightToLeftHintSeen: Boolean,
     ) : Opening
 }
 
@@ -399,6 +400,8 @@ fun ReaderHost(
                     onOpenChapter = { id -> if (id != current.chapter.chapterId) onOpenChapter(id) },
                     chapterName = current.chapterName,
                     workTitle = current.workTitle,
+                    rightToLeftHint = !current.rightToLeftHintSeen,
+                    onRightToLeftHintSeen = { keepRightToLeftHintSeen(store, opening.turns, current.round) },
                     onPreviousChapter = current.before?.let { { onOpenChapter(it.id) } },
                     onNext = { current.next?.let { onOpenChapter(it.id) } },
                     onBack = onBack,
@@ -462,6 +465,16 @@ private fun keepImageMode(store: LibraryStore, turns: OpeningTurns, round: Long,
             store.saveImageMode(workId, settings)
         } catch (e: Exception) {
             Log.e("Kamayoq", "Saving the image reader's mode failed", e)
+        }
+    }
+}
+
+private fun keepRightToLeftHintSeen(store: LibraryStore, turns: OpeningTurns, round: Long) {
+    turns.inLine(round) {
+        try {
+            store.markRightToLeftHintSeen()
+        } catch (e: Exception) {
+            Log.e("Kamayoq", "Saving that the hint of Pages right to left was seen failed", e)
         }
     }
 }
@@ -630,6 +643,7 @@ private fun openChapter(
             rows = imageChapterRows(store, chapters),
             chapterName = chapter.name,
             workTitle = work?.title,
+            rightToLeftHintSeen = store.rightToLeftHintSeen(),
         )
     } catch (e: Exception) {
         opened.release()

@@ -89,6 +89,8 @@ fun ImageReader(
     onOpenChapter: (String) -> Unit = {},
     chapterName: String? = null,
     workTitle: String? = null,
+    rightToLeftHint: Boolean = false,
+    onRightToLeftHintSeen: () -> Unit = {},
 ) {
     val reading = remember(chapter) { StripReading.open(chapter.progress, chapter.pages.size, deviceId) }
     if (reading == null) {
