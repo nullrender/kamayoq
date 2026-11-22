@@ -44,6 +44,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
@@ -500,8 +501,12 @@ private fun SettingsButton(enabled: Boolean, onClick: () -> Unit) {
         modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).semantics { contentDescription = description },
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Aa", fontFamily = FontFamily.Serif, fontSize = 18.sp, color = LocalPalette.current.action.takeIf { enabled } ?: LocalPalette.current.secondaryText)
-            Text(stringResource(R.string.reader_settings), fontSize = 10.sp, maxLines = 1)
+            // The description says it; the texts would say it again.
+            Text(
+                "Aa", fontFamily = FontFamily.Serif, fontSize = 18.sp, color = LocalPalette.current.action.takeIf { enabled } ?: LocalPalette.current.secondaryText,
+                modifier = Modifier.clearAndSetSemantics {},
+            )
+            Text(stringResource(R.string.reader_settings), fontSize = 10.sp, maxLines = 1, modifier = Modifier.clearAndSetSemantics {})
         }
     }
 }

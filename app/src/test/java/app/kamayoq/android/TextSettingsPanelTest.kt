@@ -102,7 +102,7 @@ class TextSettingsPanelTest {
     fun `dado Esta obra sem ajuste próprio, quando toco em Usar os gerais, então o aviso diz que ela já usa os gerais, sem Desfazer`() {
         show()
         compose.onNodeWithText(text(R.string.reader_scope_work)).performClick()
-        compose.onNodeWithText(text(R.string.reader_restore_work)).assertExists()
+        compose.onNodeWithContentDescription(text(R.string.reader_restore_work_description)).assertExists()
 
         compose.onNodeWithContentDescription(text(R.string.reader_restore_work_description)).performClick()
 

@@ -127,7 +127,11 @@ internal fun TextSettingsContent(
                 },
                 modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = restoreDescription },
             ) {
-                Text(stringResource(if (scope == TextScope.ALL_TEXT_WORKS) R.string.reader_restore_all else R.string.reader_restore_work))
+                // Its description is the fuller one; the short text would be read after it.
+                Text(
+                    stringResource(if (scope == TextScope.ALL_TEXT_WORKS) R.string.reader_restore_all else R.string.reader_restore_work),
+                    modifier = Modifier.clearAndSetSemantics {},
+                )
             }
         }
         Label(stringResource(R.string.reader_scope))
@@ -294,7 +298,10 @@ private fun Choice(
         border = if (selected) null else BorderStroke(1.dp, palette.line),
     ) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 6.dp, vertical = 10.dp)) {
-            Text((if (selected) "✓ " else "") + label, fontFamily = fontFamily, maxLines = 2, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                (if (selected) "✓ " else "") + label, fontFamily = fontFamily, maxLines = 2, style = MaterialTheme.typography.bodyMedium,
+                modifier = if (description != null) Modifier.clearAndSetSemantics {} else Modifier,
+            )
         }
     }
 }
@@ -331,8 +338,8 @@ private fun ThemeChoice(theme: PageTheme, selected: Boolean, systemDark: Boolean
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text("Aa", color = Color(colors.text), fontSize = 16.sp)
-        Text((if (selected) "✓ " else "") + name, color = Color(colors.text), fontSize = 11.sp, maxLines = 1)
+        Text("Aa", color = Color(colors.text), fontSize = 16.sp, modifier = Modifier.clearAndSetSemantics {})
+        Text((if (selected) "✓ " else "") + name, color = Color(colors.text), fontSize = 11.sp, maxLines = 1, modifier = Modifier.clearAndSetSemantics {})
     }
 }
 

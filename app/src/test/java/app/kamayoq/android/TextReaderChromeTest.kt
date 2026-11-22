@@ -179,7 +179,8 @@ class TextReaderChromeTest {
             CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, fontScale = 1.3f)) {
                 KamayoqTheme {
                     Box(Modifier.width(360.dp).testTag("bar")) {
-                        TextReaderBottomBar(true, context.getString(R.string.reader_chapters), long, onPreviousChapter = {}, onContents = {}, onNextChapter = {}, onProgress = {})
+                        // Without Go to: as a button, the place is read by its description and its texts leave the tree.
+                        TextReaderBottomBar(true, context.getString(R.string.reader_chapters), long, onPreviousChapter = {}, onContents = {}, onNextChapter = {})
                     }
                 }
             }

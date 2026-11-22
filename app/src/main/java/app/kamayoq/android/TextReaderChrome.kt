@@ -40,6 +40,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -113,7 +115,8 @@ internal fun TextReaderBottomBar(
                 Text(contentsLabel, fontSize = 10.sp, maxLines = 1)
             }
         }
-        ProgressArea(progress, Modifier.weight(1f), onProgress)
+        // Go to waits for the book, as every other control does.
+        ProgressArea(progress, Modifier.weight(1f), onProgress.takeIf { enabled })
         end()
         IconButton(onClick = { onNextChapter?.invoke() }, enabled = enabled && onNextChapter != null, modifier = Modifier.size(48.dp), colors = barIconColors()) {
             Icon(KamayoqIcons.chevron, contentDescription = stringResource(R.string.reader_next_chapter))
@@ -126,8 +129,13 @@ private fun ProgressArea(progress: TextProgress, modifier: Modifier, onClick: ((
     val palette = LocalPalette.current
     // The place is a button: it opens Go to (board SinteseLeitorPaginado).
     val description = stringResource(R.string.reader_go_to_place, listOfNotNull(progress.place(), progress.inChapter()).joinToString(" · "))
+    // Said once, as the description: the texts inside it would repeat the place.
     val touchable = if (onClick != null) {
-        Modifier.heightIn(min = 48.dp).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = description }
+        Modifier.heightIn(min = 48.dp).clickable(role = Role.Button, onClick = onClick).clearAndSetSemantics {
+            contentDescription = description
+            role = Role.Button
+            onClick { onClick(); true }
+        }
     } else {
         Modifier
     }
@@ -138,9 +146,18 @@ private fun ProgressArea(progress: TextProgress, modifier: Modifier, onClick: ((
         Box(modifier = Modifier.fillMaxWidth().height(4.dp).background(palette.line, RoundedCornerShape(2.dp))) {
             Box(modifier = Modifier.fillMaxWidth(progress.fraction.coerceIn(0f, 1f)).height(4.dp).background(palette.action, RoundedCornerShape(2.dp)))
         }
+        // Each text gets at most its half of a narrow bar and ends in "…" past it, never over the other.
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(progress.place(), style = MaterialTheme.typography.bodySmall, color = palette.secondaryText, maxLines = 1)
-            progress.inChapter()?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = palette.secondaryText, maxLines = 1) }
+            Text(
+                progress.place(), style = MaterialTheme.typography.bodySmall, color = palette.secondaryText, maxLines = 1,
+                overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
+            )
+            progress.inChapter()?.let {
+                Text(
+                    it, style = MaterialTheme.typography.bodySmall, color = palette.secondaryText, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false).padding(start = 6.dp),
+                )
+            }
         }
     }
 }
@@ -166,7 +183,8 @@ private fun FloatingBar(modifier: Modifier, content: @Composable androidx.compos
         contentColor = LocalPalette.current.text,
         shadowElevation = 4.dp,
     ) {
-        Row(modifier = Modifier.height(56.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically, content = content)
+        // At least 56 dp, and taller when the system font is: a fixed height cut the place in two.
+        Row(modifier = Modifier.heightIn(min = 56.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically, content = content)
     }
 }
 
