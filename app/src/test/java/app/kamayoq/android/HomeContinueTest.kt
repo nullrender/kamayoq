@@ -14,7 +14,10 @@ import app.kamayoq.core.progress.ReadingState
 import app.kamayoq.core.progress.StripPosition
 import java.time.Duration
 import java.time.Instant
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -116,13 +119,19 @@ class HomeContinueTest {
         compose.onNode(hasText(continueCap1) and hasClickAction()).performClick()
         compose.waitForIdle()
 
-        // The reader's last page, saved in its turn and slower than the way back to Home.
+        // The reader's last page, saved in its turn and slower than the way back to Home. Put in line
+        // off the main thread: the reader's own turn ends there, and the test runs on it.
         val chapter = app.store.chapters(app.store.works().single { it.title == "Sakamoto Days" }.id).single().id
-        val round = runBlocking { app.opening.turns.open { it } }
-        app.opening.turns.inLine(round) {
-            Thread.sleep(1_500)
-            app.store.saveProgress(chapter, ChapterProgress(null, StripPosition(10, 20, Instant.now(), "test-device"), 0))
+        val queued = CompletableDeferred<Unit>()
+        CoroutineScope(Dispatchers.IO).launch {
+            val round = app.opening.turns.open { it }
+            app.opening.turns.inLine(round) {
+                Thread.sleep(1_500)
+                app.store.saveProgress(chapter, ChapterProgress(null, StripPosition(10, 20, Instant.now(), "test-device"), 0))
+            }
+            queued.complete(Unit)
         }
+        compose.waitUntil(10_000) { queued.isCompleted }
         pressBack()
 
         waitFor(app.getString(R.string.home_place, "Cap. 1", 50))
