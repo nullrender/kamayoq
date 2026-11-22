@@ -352,6 +352,7 @@ fun ReaderHost(
                 chapterRows = current.rows,
                 chapterIdOf = { inFile -> inFile?.let(ids::getOrNull) ?: readingNow ?: ids[current.split.opened] },
                 onOpenWorkChapter = onOpenChapter,
+                fileChapterOf = { id -> ids.indexOf(id).takeIf { it >= 0 } },
                 pagesHint = !current.hintSeen,
                 onPagesHintSeen = { keepHintSeen(store, opening.turns, current.round) },
                 chosenFlow = current.mode,
