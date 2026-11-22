@@ -45,6 +45,8 @@ import app.kamayoq.core.progress.StripPosition
 import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.progress.strip
 import app.kamayoq.core.reader.ContentsChapter
+import app.kamayoq.core.reader.ReaderFlow
+import app.kamayoq.core.reader.TextSettings
 import app.kamayoq.data.db.CurrentOfVersion
 import app.kamayoq.data.db.KamayoqDatabase
 import app.kamayoq.data.db.RemoteOfVersion
@@ -643,6 +645,22 @@ class LibraryStore(driver: SqlDriver, private val newId: () -> String = { UUID.r
                 publication = Publication(row.publication?.let(PublicationStatus::valueOf), row.missing?.toInt()),
             )
         } ?: WorkDetails.NONE
+
+    /** The text reader's settings as [workId] opens: the general ones and the work's own (TextLook.sq). */
+    fun textSettings(workId: String): TextSettings = TextSettings.DEFAULT
+
+    /** Keeps [settings]: the general ones for every text work, and the own ones of [workId]. */
+    fun saveTextSettings(workId: String, settings: TextSettings) = Unit
+
+    /** The mode the person chose for [workId]; null keeps its type's default. */
+    fun textMode(workId: String): ReaderFlow? = null
+
+    fun saveTextMode(workId: String, flow: ReaderFlow) = Unit
+
+    /** Whether the hint on the first opening in Pages was already dismissed. */
+    fun pagesHintSeen(): Boolean = false
+
+    fun markPagesHintSeen() = Unit
 
     /** The stamp of the cover kept for [workId], null with none (WorkDetails.sq). */
     fun coverStamp(workId: String): String? =

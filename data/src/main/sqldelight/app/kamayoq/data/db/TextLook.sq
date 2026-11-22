@@ -1,0 +1,66 @@
+-- The text reader's settings for every text work: one row at most. A null column is a property the
+-- person never set, which stays at the design's default and under the book's own CSS (core TextLook).
+CREATE TABLE text_look_general (
+    id INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
+    -- ReadingFont, PageTheme and FooterContent wire names from core.
+    font TEXT,
+    size INTEGER,
+    -- In tenths, as core keeps them.
+    line_height INTEGER,
+    paragraph_spacing INTEGER,
+    margin INTEGER,
+    indent INTEGER CHECK (indent IN (0, 1)),
+    justify INTEGER CHECK (justify IN (0, 1)),
+    theme TEXT,
+    footer TEXT,
+    -- The hint on the first opening in Pages shows once in the app (1 after "Got it").
+    pages_hint_seen INTEGER NOT NULL DEFAULT 0 CHECK (pages_hint_seen IN (0, 1))
+);
+
+-- What one work sets apart from the general settings, and its mode. Null columns follow the general
+-- settings; a row with no look column set is a work with no settings of its own. The mode belongs to
+-- the work alone: restoring never touches it.
+CREATE TABLE work_text_look (
+    work_id TEXT NOT NULL PRIMARY KEY REFERENCES work(id),
+    font TEXT,
+    size INTEGER,
+    line_height INTEGER,
+    paragraph_spacing INTEGER,
+    margin INTEGER,
+    indent INTEGER CHECK (indent IN (0, 1)),
+    justify INTEGER CHECK (justify IN (0, 1)),
+    theme TEXT,
+    footer TEXT,
+    -- ReaderFlow wire name from core; null is the default for the work's type.
+    mode TEXT
+);
+
+general:
+SELECT font, size, line_height, paragraph_spacing, margin, indent, justify, theme, footer, pages_hint_seen
+FROM text_look_general WHERE id = 1;
+
+ensureGeneral:
+INSERT OR IGNORE INTO text_look_general (id) VALUES (1);
+
+saveGeneral:
+UPDATE text_look_general
+SET font = ?, size = ?, line_height = ?, paragraph_spacing = ?, margin = ?, indent = ?, justify = ?, theme = ?, footer = ?
+WHERE id = 1;
+
+markPagesHintSeen:
+UPDATE text_look_general SET pages_hint_seen = 1 WHERE id = 1;
+
+ofWork:
+SELECT font, size, line_height, paragraph_spacing, margin, indent, justify, theme, footer, mode
+FROM work_text_look WHERE work_id = ?;
+
+ensureWork:
+INSERT OR IGNORE INTO work_text_look (work_id) VALUES (?);
+
+saveWork:
+UPDATE work_text_look
+SET font = ?, size = ?, line_height = ?, paragraph_spacing = ?, margin = ?, indent = ?, justify = ?, theme = ?, footer = ?
+WHERE work_id = ?;
+
+saveMode:
+UPDATE work_text_look SET mode = ? WHERE work_id = ?;

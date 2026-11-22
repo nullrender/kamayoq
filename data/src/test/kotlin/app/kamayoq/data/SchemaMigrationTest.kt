@@ -166,7 +166,6 @@ class SchemaMigrationTest {
 
         LibraryStore.schema.migrate(driver, 6, 7)
 
-        assertEquals(7, LibraryStore.schema.version)
         assertEquals(before, everyRow(columns))
         assertEquals(
             listOf(listOf("0", "0", "0", "0")),
@@ -177,6 +176,36 @@ class SchemaMigrationTest {
                 columns = 4,
             ),
         )
+    }
+
+    @Test
+    fun `dado um banco da versão 7 com obras, progresso, estado e chegadas, quando migro para a 8, então cada linha continua igual e nenhuma obra tem ajustes do leitor`() {
+        version1()
+        LibraryStore.schema.migrate(driver, 1, 7)
+        execute("INSERT INTO reading_state (work_id, state, automatic, state_before, changed_at, mark_chapter_id, mark_fraction) VALUES ('work-dom', 'READING', 0, NULL, NULL, NULL, NULL)")
+        execute("UPDATE work SET added_at = 1763600000000, visited_at = 1763700000000 WHERE id = 'work-dom'")
+        val columns = columnsNow()
+        val before = everyRow(columns)
+
+        LibraryStore.schema.migrate(driver, 7, 8)
+
+        assertEquals(8, LibraryStore.schema.version)
+        assertEquals(before, everyRow(columns))
+        assertEquals(
+            listOf(listOf("0", "0")),
+            rows("SELECT (SELECT count(*) FROM text_look_general), (SELECT count(*) FROM work_text_look)", columns = 2),
+        )
+    }
+
+    @Test
+    fun `dado um banco migrado para a 8, quando ajustes chegam de uma obra que não existe ou com um segundo geral, então o banco recusa`() {
+        migrated()
+        execute("INSERT INTO work_text_look (work_id, size) VALUES ('work-dom', 20)")
+        execute("INSERT INTO text_look_general (id, size) VALUES (1, 19)")
+
+        assertFails { execute("INSERT INTO work_text_look (work_id, size) VALUES ('work-nobody', 20)") }
+        assertFails { execute("INSERT INTO text_look_general (id, size) VALUES (2, 19)") }
+        assertFails { execute("UPDATE work_text_look SET indent = 2 WHERE work_id = 'work-dom'") }
     }
 
     @Test
