@@ -39,7 +39,7 @@ export const DEFAULT_LOOK = Object.freeze({
 /** The look with every value checked, or null when any of them is not one the app sends. */
 export const checkedLook = look => {
     if (!look || typeof look !== 'object') return null
-    if (!(look.font in FAMILIES)) return null
+    if (typeof look.font !== 'string' || !Object.hasOwn(FAMILIES, look.font)) return null
     for (const [name, [min, max]] of Object.entries(LIMITS))
         if (!Number.isInteger(look[name]) || look[name] < min || look[name] > max) return null
     if (typeof look.indent !== 'boolean' || typeof look.justify !== 'boolean') return null
