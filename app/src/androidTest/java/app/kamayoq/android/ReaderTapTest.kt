@@ -117,4 +117,43 @@ class ReaderTapTest {
             assertNull(session.nextMessage(seconds = 2) { it is ReaderMessage.Tap })
         }
     }
+
+    // Gemini's review of slice 5, finding 8: only the section's frames listened, so a touch on the page
+    // around them (below a short chapter in Scroll, the sides of a wide screen) did nothing.
+    @Test
+    fun `dado um toque na página fora do quadro da seção então o app recebe o toque`() {
+        withBook(EpubFixtures.short()) { session ->
+            instrumentation.runOnMainSync {
+                session.webView.evaluateJavascript(
+                    "document.querySelector('foliate-view').dispatchEvent(new MouseEvent('click', " +
+                        "{ bubbles: true, composed: true, clientX: innerWidth * 0.85, clientY: innerHeight / 2 })); null",
+                    null,
+                )
+            }
+            val tap = session.nextMessage(seconds = 5) { it is ReaderMessage.Tap } as ReaderMessage.Tap?
+            assertNotNull("No tap from outside the frames; console: ${session.console}", tap)
+            assertTrue("x = ${tap?.x}", tap!!.x in 0.8..0.9)
+        }
+    }
+
+    // Finding 8 too: a touch that only takes away a selection is no tap; the selection goes before the
+    // click comes, so the page has to remember it from the touch's start.
+    @Test
+    fun `dado uma palavra selecionada quando toco na direita para tirar a seleção então nenhum toque de página chega`() {
+        withBook(EpubFixtures.short()) { session ->
+            touchScreen(session.webView.screenPointOf("p"), holdMs = 1_500)
+            SystemClock.sleep(1_000)
+            val selected = evaluateIn(session, "String(!document.querySelector('foliate-view').renderer.getContents()[0].doc.getSelection().isCollapsed)")
+            assertTrue("Nothing was selected by the long touch", selected == "\"true\"")
+            session.messages.clear()
+            touchScreen(session.pointAt(0.85f))
+            assertNull(session.nextMessage(seconds = 3) { it is ReaderMessage.Tap })
+        }
+    }
+
+    private fun evaluateIn(session: Session, script: String): String {
+        val answer = java.util.concurrent.CompletableFuture<String>()
+        instrumentation.runOnMainSync { session.webView.evaluateJavascript(script, answer::complete) }
+        return answer.get(30, TimeUnit.SECONDS)
+    }
 }
