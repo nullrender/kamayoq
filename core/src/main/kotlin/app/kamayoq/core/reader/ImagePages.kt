@@ -28,7 +28,15 @@ object ImagePages {
      * twice its size on screen, so a zoom keeps detail, and within [StripBands.MAX_DECODED_WIDTH] on
      * each side, the common GPU texture limit. Null while the screen has no size yet.
      */
-    fun sampleSize(width: Int, height: Int, screenWidth: Int, screenHeight: Int): Int? = 1
+    fun sampleSize(width: Int, height: Int, screenWidth: Int, screenHeight: Int): Int? {
+        if (width <= 0 || height <= 0 || screenWidth <= 0 || screenHeight <= 0) return null
+        val fit = minOf(screenWidth.toDouble() / width, screenHeight.toDouble() / height)
+        val maxWidth = minOf(maxOf(1.0, 2 * width * fit), StripBands.MAX_DECODED_WIDTH.toDouble())
+        val maxHeight = minOf(maxOf(1.0, 2 * height * fit), StripBands.MAX_DECODED_WIDTH.toDouble())
+        var sample = 1
+        while (width / sample > maxWidth || height / sample > maxHeight) sample *= 2
+        return sample
+    }
 
     /** The page a turn from [page] reaches; past either end it stays where it is. */
     fun turned(page: Int, totalPages: Int, zone: TapZone): Int = when (zone) {

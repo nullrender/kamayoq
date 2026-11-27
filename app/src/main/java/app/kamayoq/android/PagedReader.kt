@@ -175,12 +175,14 @@ private const val MAX_ZOOM = 4f
 private fun WholePage(page: PageImage, screenWidth: Int, screenHeight: Int) {
     val width = page.width
     val height = page.height
-    var bitmap by remember(page) { mutableStateOf<Bitmap?>(null) }
+    var bitmap by remember(page, screenWidth, screenHeight) { mutableStateOf<Bitmap?>(null) }
     var failed by remember(page) { mutableStateOf(width == null || height == null) }
-    LaunchedEffect(page) {
+    // Again when the screen changes size (split screen, a folding phone), at the new size.
+    LaunchedEffect(page, screenWidth, screenHeight) {
         if (width == null || height == null) return@LaunchedEffect
+        val sample = ImagePages.sampleSize(width, height, screenWidth, screenHeight) ?: return@LaunchedEffect
         try {
-            bitmap = withContext(Dispatchers.IO) { decodeFit(page, width, height, screenWidth, screenHeight) }
+            bitmap = withContext(Dispatchers.IO) { decodeSampled(page, sample) }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -190,7 +192,7 @@ private fun WholePage(page: PageImage, screenWidth: Int, screenHeight: Int) {
         }
     }
     // A page that left the pager is freed; it decodes again if it comes back.
-    DisposableEffect(page) {
+    DisposableEffect(page, screenWidth, screenHeight) {
         onDispose { bitmap?.recycle() }
     }
     val decoded = bitmap
@@ -205,14 +207,7 @@ private fun WholePage(page: PageImage, screenWidth: Int, screenHeight: Int) {
     }
 }
 
-private fun decodeFit(page: PageImage, width: Int, height: Int, screenWidth: Int, screenHeight: Int): Bitmap {
-    // Shown whole, the page is scaled by `fit`; decoded at twice that, a zoom keeps its detail. The
-    // sample is the largest power of two that still decodes that much: a tall Strip image shown in
-    // Pages is small on screen, and decoding it whole would take tens of megabytes.
-    val fit = minOf(screenWidth.toDouble() / width, screenHeight.toDouble() / height)
-    val wanted = minOf(1.0, 2 * fit)
-    var sample = 1
-    while (sample * 2 * wanted <= 1.0) sample *= 2
+private fun decodeSampled(page: PageImage, sample: Int): Bitmap {
     val options = BitmapFactory.Options().apply { inSampleSize = sample }
     return page.open().use { BitmapFactory.decodeStream(it, null, options) } ?: throw IOException("Undecodable page")
 }
