@@ -45,6 +45,12 @@ internal fun ImageMode.label(): String = stringResource(
     },
 )
 
+/** The counter's colors over the page, which may be anything from white to black. */
+internal object CounterColors {
+    val text = Color.White.copy(alpha = 0.8f)
+    val background = Color.Black.copy(alpha = 0.45f)
+}
+
 /** The image shown, counted from 1; the end block counts as the last image. */
 private fun shownNumber(page: Int, total: Int) = (page + 1).coerceAtMost(total)
 
@@ -62,10 +68,10 @@ internal fun ImageReaderTrace(page: Int, total: Int, mode: ImageMode, modifier: 
             Text(
                 counter,
                 fontSize = 11.sp,
-                color = Color.White.copy(alpha = 0.8f),
+                color = CounterColors.text,
                 modifier = Modifier
                     .padding(bottom = 6.dp)
-                    .background(Color.Black.copy(alpha = 0.45f), MaterialTheme.shapes.small)
+                    .background(CounterColors.background, MaterialTheme.shapes.small)
                     .padding(horizontal = 6.dp, vertical = 2.dp),
             )
         }
