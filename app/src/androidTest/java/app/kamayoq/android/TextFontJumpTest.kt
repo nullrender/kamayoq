@@ -187,6 +187,23 @@ class TextFontJumpTest {
         choosingGaramondKeepsThePlace("reopened, back and on again")
     }
 
+    // On the S24 sections 5 and 7 were loaded without 6: a jump from the Contents keeps the page of the
+    // chapter left behind just before the new one, though they are not neighbours.
+    @Test
+    fun `dado um salto pelo Sumário do primeiro capítulo ao terceiro quando escolho a Garamond na terceira página então o lugar guardado não anda`() {
+        open(book(), position = null)
+        repeat(3) { turn() }
+        evaluate("document.querySelector('foliate-view').goTo('OEBPS/s3.xhtml'); null")
+        var waited = 0
+        while (section() != "2") {
+            if (++waited > 20) throw AssertionError("Never reached the third chapter; console: $console")
+            SystemClock.sleep(500)
+        }
+        SystemClock.sleep(1_500)
+        repeat(2) { turn() }
+        choosingGaramondKeepsThePlace("jumped from the first chapter to the third")
+    }
+
     private companion object {
         const val S24_WIDTH_DP = 384
     }

@@ -65,7 +65,8 @@ object EpubFixtures {
         val head = """<link rel="stylesheet" type="text/css" href="styles/book.css"/>""" +
             """<link rel="stylesheet" type="text/css" href="styles/page.css"/>"""
         // A short first chapter by default, so a test pages into the second one with the first still loaded before it.
-        val sections = (1..2).map { number ->
+        // A third chapter, for a jump from the Contents that skips the one between.
+        val sections = (1..3).map { number ->
             Section("s$number.xhtml", "Capítulo $number", varied(number, if (number == 1) firstChapter else 40), head, bodyClass = "texto")
         }
         val book = "body.texto { display: block; font-family: Letra do livro; font-size: 1em; hyphens: auto; -webkit-hyphens: auto; " +
