@@ -44,6 +44,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
@@ -128,6 +129,10 @@ fun ImageReader(
         }
     }
 
+    // Once in the app, the first time a chapter shows in Pages right to left (DESIGN, "Leitor de imagem", 4).
+    var hintShown by remember(rightToLeftHint) { mutableStateOf(rightToLeftHint) }
+    // While the hint shows, nothing behind it takes focus or a touch: it is read first, as in the text reader.
+    val hintShowing = hintShown && mode == ImageMode.PAGES_RIGHT_TO_LEFT
     val controlsAction = stringResource(if (showControls) R.string.reader_hide_controls else R.string.reader_show_controls)
     Box(
         modifier = Modifier
@@ -135,9 +140,11 @@ fun ImageReader(
             .background(if (mode == ImageMode.STRIP) MaterialTheme.colorScheme.background else Color.Black)
             // The same as the tap in the middle, for TalkBack.
             .semantics {
-                onClick(label = controlsAction) {
-                    showControls = !showControls
-                    true
+                if (!hintShowing) {
+                    onClick(label = controlsAction) {
+                        showControls = !showControls
+                        true
+                    }
                 }
             },
     ) {
@@ -148,11 +155,13 @@ fun ImageReader(
         }
         // A new mode lays the chapter out again from the image on screen, not from where it opened.
         key(mode) {
-            val from = remember { shownPage }
-            if (mode == ImageMode.STRIP) {
-                StripPages(chapter, from, end, onShown, toggle, seek, sought)
-            } else {
-                PagedPages(chapter, from, end, mode, onShown, toggle, seek, sought)
+            Box(modifier = if (hintShowing) Modifier.fillMaxSize().clearAndSetSemantics {} else Modifier.fillMaxSize()) {
+                val from = remember { shownPage }
+                if (mode == ImageMode.STRIP) {
+                    StripPages(chapter, from, end, onShown, toggle, seek, sought)
+                } else {
+                    PagedPages(chapter, from, end, mode, onShown, toggle, seek, sought)
+                }
             }
         }
         if (!showControls) {
@@ -170,7 +179,7 @@ fun ImageReader(
                     .announced(),
             )
         }
-        if (showControls) {
+        if (showControls && !hintShowing) {
             val placeText = place?.let { stringResource(R.string.reader_chapter_of, it.number, it.total) }
             ImageReaderTopBar(title, placeText, mode, onBack, Modifier.align(Alignment.TopCenter).safeDrawingPadding())
             Column(modifier = Modifier.align(Alignment.BottomCenter).safeDrawingPadding()) {
@@ -189,9 +198,7 @@ fun ImageReader(
                 )
             }
         }
-        // Once in the app, the first time a chapter shows in Pages right to left (DESIGN, "Leitor de imagem", 4).
-        var hintShown by remember(rightToLeftHint) { mutableStateOf(rightToLeftHint) }
-        if (hintShown && mode == ImageMode.PAGES_RIGHT_TO_LEFT) {
+        if (hintShowing) {
             PagesHint(
                 onDismiss = {
                     hintShown = false
