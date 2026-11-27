@@ -31,6 +31,9 @@ data class ComicInfo(val genre: List<String>, val tags: List<String>, val manga:
         /** Larger than any ComicInfo seen: past it the entry is left unread, as one that says nothing. */
         const val MAX_BYTES = 1024 * 1024
 
+        /** The file as stored in the archive, in the encoding it declares. */
+        fun parse(bytes: ByteArray): ComicInfo = parse(bytes.toString(Charsets.UTF_8))
+
         /** A document that is not ComicInfo, or not well formed, says nothing. */
         fun parse(text: String): ComicInfo {
             val root = XmlTree.parse(text)?.takeIf { it.localName == "ComicInfo" } ?: return NONE
@@ -122,7 +125,7 @@ object ArchivePages {
                     bytes.write(buffer, 0, read)
                 }
             }
-            if (bytes.size() > ComicInfo.MAX_BYTES) ComicInfo.NONE else ComicInfo.parse(bytes.toString(Charsets.UTF_8.name()))
+            if (bytes.size() > ComicInfo.MAX_BYTES) ComicInfo.NONE else ComicInfo.parse(bytes.toByteArray())
         } catch (e: IOException) {
             // The pages may still read: the metadata is a hint, never a reason to refuse the chapter.
             ComicInfo.NONE

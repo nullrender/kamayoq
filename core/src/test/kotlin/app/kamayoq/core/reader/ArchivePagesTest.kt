@@ -182,4 +182,35 @@ class ArchivePagesTest {
     fun `dado o ComicInfo só na pasta do macOS, então ele não conta`() {
         assertEquals(ComicInfo.NONE, opened(withComicInfo(tetoInEnglish, name = "__MACOSX/ComicInfo.xml")) { it.comicInfo })
     }
+
+    // Gemini's review of slice 6, finding 3: the file was always read as UTF-8.
+    @Test
+    fun `dado um ComicInfo em UTF-16 com BOM, então ele é lido`() {
+        val text = "<?xml version=\"1.0\" encoding=\"utf-16\"?><ComicInfo><Genre>Japonês</Genre><Manga>No</Manga></ComicInfo>"
+        for (charset in listOf(Charsets.UTF_16LE, Charsets.UTF_16BE)) {
+            val bom = if (charset == Charsets.UTF_16LE) byteArrayOf(0xFF.toByte(), 0xFE.toByte()) else byteArrayOf(0xFE.toByte(), 0xFF.toByte())
+            val info = ComicInfo.parse(bom + text.toByteArray(charset))
+            assertEquals(listOf("Japonês"), info.genre, charset.name())
+            assertEquals(MangaField.NO, info.manga, charset.name())
+        }
+    }
+
+    @Test
+    fun `dado um ComicInfo que declara ISO-8859-1, então os acentos chegam inteiros`() {
+        val text = "<?xml version='1.0' encoding='ISO-8859-1'?><ComicInfo><Genre>Chinês, Inglês</Genre></ComicInfo>"
+        assertEquals(listOf("Chinês", "Inglês"), ComicInfo.parse(text.toByteArray(Charsets.ISO_8859_1)).genre)
+    }
+
+    @Test
+    fun `dado um ComicInfo em UTF-8 com BOM ou sem declaração, então ele é lido como antes`() {
+        val text = "<ComicInfo><Genre>Mangá</Genre></ComicInfo>"
+        assertEquals(listOf("Mangá"), ComicInfo.parse(byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) + text.toByteArray()).genre)
+        assertEquals(listOf("Mangá"), ComicInfo.parse(text.toByteArray()).genre)
+    }
+
+    @Test
+    fun `dado uma codificação que o aparelho não conhece, então o arquivo é lido como UTF-8`() {
+        val text = "<?xml version=\"1.0\" encoding=\"x-made-up\"?><ComicInfo><Genre>Mangá</Genre></ComicInfo>"
+        assertEquals(listOf("Mangá"), ComicInfo.parse(text.toByteArray()).genre)
+    }
 }
