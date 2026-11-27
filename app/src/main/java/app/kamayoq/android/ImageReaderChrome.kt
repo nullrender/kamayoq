@@ -45,10 +45,13 @@ internal fun ImageMode.label(): String = stringResource(
     },
 )
 
-/** The counter's colors over the page, which may be anything from white to black. */
+/**
+ * The counter's colors over the page, which may be anything from white to black: white text on black
+ * at 70 % reads at 8.5:1 over a white page and more over a dark one (CounterColoursTest).
+ */
 internal object CounterColors {
-    val text = Color.White.copy(alpha = 0.8f)
-    val background = Color.Black.copy(alpha = 0.45f)
+    val text = Color.White
+    val background = Color.Black.copy(alpha = 0.7f)
 }
 
 /** The image shown, counted from 1; the end block counts as the last image. */
