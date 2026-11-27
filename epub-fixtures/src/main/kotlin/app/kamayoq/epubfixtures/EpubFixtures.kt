@@ -56,16 +56,17 @@ object EpubFixtures {
      * the body's class sets it with justified, hyphenated text, an indent in percent, side margins in
      * points and padding above and below; paragraphs of many lengths carry empty print-page markers.
      * [font] is a font file the caller supplies: TrueType, or with [openType] an OpenType file with
-     * CFF outlines, declared with the type Calibre gives it.
+     * CFF outlines, declared with the type Calibre gives it. [firstChapter] is the first chapter's
+     * paragraph count.
      */
-    fun ownFont(font: ByteArray, openType: Boolean = false): ByteArray {
+    fun ownFont(font: ByteArray, openType: Boolean = false, firstChapter: Int = 8): ByteArray {
         val fontFile = if (openType) "livro.otf" else "livro.ttf"
         val fontType = if (openType) "application/vnd.ms-opentype" else "font/ttf"
         val head = """<link rel="stylesheet" type="text/css" href="styles/book.css"/>""" +
             """<link rel="stylesheet" type="text/css" href="styles/page.css"/>"""
-        // A short first chapter, so a test pages into the second one with the first still loaded before it.
+        // A short first chapter by default, so a test pages into the second one with the first still loaded before it.
         val sections = (1..2).map { number ->
-            Section("s$number.xhtml", "Capítulo $number", varied(number, if (number == 1) 8 else 40), head, bodyClass = "texto")
+            Section("s$number.xhtml", "Capítulo $number", varied(number, if (number == 1) firstChapter else 40), head, bodyClass = "texto")
         }
         val book = "body.texto { display: block; font-family: Letra do livro; font-size: 1em; hyphens: auto; -webkit-hyphens: auto; " +
             "text-align: justify; text-indent: 3.472%; margin: 0 5pt; padding: 1.6em 0; }\n" +
