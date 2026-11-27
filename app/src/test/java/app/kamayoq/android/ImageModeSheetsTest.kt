@@ -1,6 +1,20 @@
 package app.kamayoq.android
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodes
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -130,5 +144,30 @@ class ImageModeSheetsTest {
         compose.onRoot().performTouchInput { click(Offset(width * 0.1f, height / 2f)) }
         compose.waitForIdle()
         compose.onNodeWithContentDescription(text(R.string.reader_page_label, 2, 5)).assertIsDisplayed()
+    }
+
+    // Gemini's review of slice 6, finding 6: two lines at most cut "detected: Pages ←" with a large
+    // font, and the four choices were two groups of two for TalkBack.
+    @Test
+    fun `dado a folha rápida, então as quatro escolhas são um grupo só`() {
+        compose.setContent { KamayoqTheme { ImageModeQuickContent(manga) {} } }
+
+        compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.SelectableGroup)).assertCountEquals(1)
+    }
+
+    @Test
+    fun `dado a letra do sistema no dobro numa tela estreita, então o detectado do Automático aparece inteiro`() {
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
+                KamayoqTheme { Box(Modifier.width(320.dp)) { ImageModeQuickContent(manga) {} } }
+            }
+        }
+        val detected = text(R.string.reader_image_detected, text(R.string.reader_image_mode_rtl))
+        val layouts = mutableListOf<TextLayoutResult>()
+        compose.onNodeWithText(detected, substring = true, useUnmergedTree = true)
+            .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+
+        assertEquals(false, layouts.single().hasVisualOverflow)
     }
 }
