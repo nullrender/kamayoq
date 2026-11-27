@@ -9,6 +9,7 @@ import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import java.nio.charset.Charset
 import java.security.DigestInputStream
 import java.security.MessageDigest
 import java.util.zip.ZipEntry
@@ -32,7 +33,27 @@ data class ComicInfo(val genre: List<String>, val tags: List<String>, val manga:
         const val MAX_BYTES = 1024 * 1024
 
         /** The file as stored in the archive, in the encoding it declares. */
-        fun parse(bytes: ByteArray): ComicInfo = parse(bytes.toString(Charsets.UTF_8))
+        fun parse(bytes: ByteArray): ComicInfo = parse(decode(bytes))
+
+        // A byte order mark first, then the declaration's encoding, as an XML parser reads it; UTF-8
+        // without either. Tools on Windows write UTF-16, and older ones ISO-8859-1.
+        private fun decode(bytes: ByteArray): String {
+            fun at(index: Int) = bytes.getOrNull(index)?.toInt()?.and(0xFF)
+            return when {
+                at(0) == 0xFF && at(1) == 0xFE -> String(bytes, 2, bytes.size - 2, Charsets.UTF_16LE)
+                at(0) == 0xFE && at(1) == 0xFF -> String(bytes, 2, bytes.size - 2, Charsets.UTF_16BE)
+                at(0) == 0xEF && at(1) == 0xBB && at(2) == 0xBF -> String(bytes, 3, bytes.size - 3, Charsets.UTF_8)
+                else -> {
+                    // Without a byte order mark the declaration is in ASCII, whatever follows it.
+                    val head = String(bytes, 0, minOf(bytes.size, 256), Charsets.ISO_8859_1)
+                    val declared = declaration.find(head)?.groupValues?.get(1)
+                    val charset = declared?.let { name -> runCatching { Charset.forName(name) }.getOrNull() } ?: Charsets.UTF_8
+                    String(bytes, charset)
+                }
+            }
+        }
+
+        private val declaration = Regex("""^\s*<\?xml[^>]*?encoding\s*=\s*["']([A-Za-z0-9._:-]+)["']""")
 
         /** A document that is not ComicInfo, or not well formed, says nothing. */
         fun parse(text: String): ComicInfo {
