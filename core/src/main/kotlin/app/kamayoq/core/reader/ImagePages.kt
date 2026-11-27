@@ -23,6 +23,13 @@ object ImagePages {
         }
     }
 
+    /**
+     * The power of two a page shown whole in Pages is decoded at: the smallest that keeps it within
+     * twice its size on screen, so a zoom keeps detail, and within [StripBands.MAX_DECODED_WIDTH] on
+     * each side, the common GPU texture limit. Null while the screen has no size yet.
+     */
+    fun sampleSize(width: Int, height: Int, screenWidth: Int, screenHeight: Int): Int? = 1
+
     /** The page a turn from [page] reaches; past either end it stays where it is. */
     fun turned(page: Int, totalPages: Int, zone: TapZone): Int = when (zone) {
         TapZone.NEXT -> (page + 1).coerceAtMost(totalPages)
