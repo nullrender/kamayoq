@@ -13,10 +13,10 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.reader.EpubArchive
 import app.kamayoq.core.reader.ReaderMessage
 import app.kamayoq.core.reader.ReadingFont
-import app.kamayoq.core.reader.TextPosition
 import app.kamayoq.core.reader.TextReading
 import app.kamayoq.core.reader.TextSettings
 import app.kamayoq.epubfixtures.EpubFixtures
