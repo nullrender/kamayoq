@@ -104,24 +104,24 @@ class TextFontJumpTest {
 
     private fun section() = evaluate("String(document.querySelector('foliate-view').renderer.primaryIndex)")
 
-    @Test
-    fun `dado um livro com letra própria reaberto na terceira página de um capítulo com o anterior carregado quando escolho a Garamond então o lugar guardado não anda`() {
+    private fun book(): File {
         val font = instrumentation.context.assets.open("fonts/SourceSerif4-Regular.otf").use { it.readBytes() }
-        val file = File(instrumentation.targetContext.cacheDir, "font-jump.epub")
+        return File(instrumentation.targetContext.cacheDir, "font-jump.epub")
             .apply { writeBytes(EpubFixtures.ownFont(font, openType = true, firstChapter = 40)) }
+    }
 
-        // Read into the second chapter's third page, and keep the place, as the app does when it closes.
-        open(file, position = null)
+    /** Turns pages until the second chapter shows, and two more, to its third page. */
+    private fun readIntoSecondChapter(): Int {
         var turns = 0
         while (section() != "1") {
             if (++turns > 120) throw AssertionError("Never reached the second chapter; console: $console")
             turn()
         }
         repeat(2) { turn() }
-        val kept = evaluate("document.querySelector('foliate-view').lastLocation.cfi")
-        closeBook()
+        return turns
+    }
 
-        open(file, position = kept)
+    private fun choosingGaramondKeepsThePlace(where: String) {
         evaluate(
             "(() => { const view = document.querySelector('foliate-view'); const log = globalThis.probe = []; " +
                 "view.renderer.addEventListener('relocate', ({ detail }) => log.push(detail.reason + ' ' + (detail.range?.toString().slice(0, 30) ?? ''))); " +
@@ -144,10 +144,47 @@ class TextFontJumpTest {
         val events = evaluate("JSON.stringify(globalThis.probe)")
         Log.i(
             "KamayoqMeasure",
-            "Font jump, S24 replica after $turns turns: sections loaded $loaded; kept $kept; before $before \"$top\"; " +
-                "after $after \"$now\"; start still shows $still; events $events",
+            "Font jump, $where: sections loaded $loaded; before $before \"$top\"; after $after \"$now\"; start still shows $still; events $events",
         )
-        assertEquals("before $before \"$top\", after $after \"$now\"; events $events", "true", still)
+        assertEquals("$where: sections loaded $loaded; before $before \"$top\", after $after \"$now\"; events $events", "true", still)
+    }
+
+    @Test
+    fun `dado um livro com letra própria reaberto na terceira página de um capítulo quando escolho a Garamond então o lugar guardado não anda`() {
+        val file = book()
+        // Read into the second chapter's third page, and keep the place, as the app does when it closes.
+        open(file, position = null)
+        readIntoSecondChapter()
+        val kept = evaluate("document.querySelector('foliate-view').lastLocation.cfi")
+        closeBook()
+        open(file, position = kept)
+        choosingGaramondKeepsThePlace("reopened")
+    }
+
+    @Test
+    fun `dado um livro com letra própria lido até a terceira página de um capítulo com o anterior longo carregado quando escolho a Garamond então o lugar guardado não anda`() {
+        open(book(), position = null)
+        val turns = readIntoSecondChapter()
+        choosingGaramondKeepsThePlace("read on after $turns turns")
+    }
+
+    @Test
+    fun `dado um livro com letra própria reaberto e uma volta até o capítulo anterior quando escolho a Garamond na terceira página então o lugar guardado não anda`() {
+        val file = book()
+        open(file, position = null)
+        readIntoSecondChapter()
+        val kept = evaluate("document.querySelector('foliate-view').lastLocation.cfi")
+        closeBook()
+        open(file, position = kept)
+        // Back into the chapter before, which loads it before this one, and forward again.
+        var back = 0
+        while (section() != "0") {
+            if (++back > 10) throw AssertionError("Never went back to the first chapter; console: $console")
+            evaluate("document.querySelector('foliate-view').prev(); null")
+            SystemClock.sleep(700)
+        }
+        readIntoSecondChapter()
+        choosingGaramondKeepsThePlace("reopened, back and on again")
     }
 
     private companion object {
