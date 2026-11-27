@@ -60,12 +60,15 @@ internal fun ImageModeQuickContent(settings: ImageModeSettings, onChoose: (Image
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
         Text(stringResource(R.string.reader_image_mode_title), style = MaterialTheme.typography.titleMedium)
         Note(stringResource(R.string.reader_image_mode_note))
-        // Two by two, as on the board: each choice large enough to hit without looking twice.
-        ImageModeChoice.entries.chunked(2).forEach { pair ->
-            Choices(Modifier.padding(top = 8.dp)) {
-                pair.forEach { choice ->
-                    val label = if (choice == ImageModeChoice.AUTOMATIC) "${choice.name()}\n$detected" else choice.name()
-                    Choice(choice == chosen, label, Modifier.weight(1f).heightIn(min = 64.dp)) { onChoose(choice) }
+        // Two by two, as on the board: each choice large enough to hit without looking twice. One
+        // group for the four, so TalkBack reads them as one choice; the detected mode never cut.
+        Column(modifier = Modifier.selectableGroup()) {
+            ImageModeChoice.entries.chunked(2).forEach { pair ->
+                Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    pair.forEach { choice ->
+                        val label = if (choice == ImageModeChoice.AUTOMATIC) "${choice.name()}\n$detected" else choice.name()
+                        Choice(choice == chosen, label, Modifier.weight(1f).heightIn(min = 64.dp), maxLines = Int.MAX_VALUE) { onChoose(choice) }
+                    }
                 }
             }
         }

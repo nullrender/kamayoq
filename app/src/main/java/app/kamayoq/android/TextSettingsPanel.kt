@@ -285,6 +285,7 @@ internal fun Choice(
     enabled: Boolean = true,
     fontFamily: FontFamily? = null,
     description: String? = null,
+    maxLines: Int = 2,
     onClick: () -> Unit,
 ) {
     val palette = LocalPalette.current
@@ -299,7 +300,7 @@ internal fun Choice(
     ) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 6.dp, vertical = 10.dp)) {
             Text(
-                (if (selected) "✓ " else "") + label, fontFamily = fontFamily, maxLines = 2, style = MaterialTheme.typography.bodyMedium,
+                (if (selected) "✓ " else "") + label, fontFamily = fontFamily, maxLines = maxLines, style = MaterialTheme.typography.bodyMedium,
                 modifier = if (description != null) Modifier.clearAndSetSemantics {} else Modifier,
             )
         }
