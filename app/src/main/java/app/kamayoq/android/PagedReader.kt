@@ -84,6 +84,10 @@ internal fun PagedPages(
     LaunchedEffect(chapter) {
         snapshotFlow { pager.settledPage }.distinctUntilChanged().collect { onShown(it) }
     }
+    // Leaving while a turn still moves: the page it was going to is the one the person turned to.
+    DisposableEffect(pager) {
+        onDispose { if (pager.isScrollInProgress) onShown(pager.targetPage) }
+    }
     fun turn(zone: TapZone) {
         val target = ImagePages.turned(pager.currentPage, total, zone)
         if (target != pager.currentPage) scope.launch { pager.animateScrollToPage(target) }
