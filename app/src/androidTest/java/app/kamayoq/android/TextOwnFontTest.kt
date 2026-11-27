@@ -46,10 +46,12 @@ class TextOwnFontTest {
 
     private fun shown(settings: TextSettings) = ShownLook(settings.effective(), PageThemes.colors(PageTheme.DARK, systemDark = true))
 
-    private fun open(flow: ReaderFlow) {
+    private fun open(flow: ReaderFlow, openType: Boolean) {
         val context = instrumentation.targetContext
-        val font = context.assets.open("reader/fonts/EBGaramond.ttf").use { it.readBytes() }
-        val file = File(context.cacheDir, "own-font.epub").apply { writeBytes(EpubFixtures.ownFont(font)) }
+        // Source Serif 4 (SIL OFL 1.1), OpenType with CFF outlines as the S24's book has, is in the test APK only.
+        val font = if (openType) instrumentation.context.assets.open("fonts/SourceSerif4-Regular.otf").use { it.readBytes() }
+        else context.assets.open("reader/fonts/EBGaramond.ttf").use { it.readBytes() }
+        val file = File(context.cacheDir, "own-font.epub").apply { writeBytes(EpubFixtures.ownFont(font, openType)) }
         val opened = EpubArchive.open(file).also { archive = it }
         scenario = ActivityScenario.launch(ComponentActivity::class.java).apply {
             onActivity { activity ->
@@ -104,8 +106,8 @@ class TextOwnFontTest {
             "return String(range.comparePoint(anchor.startContainer, anchor.startOffset) === 0) })()",
     )
 
-    private fun choosingFontKeepsThePlace(flow: ReaderFlow, where: String, secondChapter: Boolean = true) {
-        open(flow)
+    private fun choosingFontKeepsThePlace(flow: ReaderFlow, where: String, secondChapter: Boolean = true, openType: Boolean = false) {
+        open(flow, openType)
         assertEquals("the book's own font shows; console: $console", "true", bookFontShows())
         // Into the second chapter by turning pages, as a person reads: the first one stays loaded before it.
         var turns = 0
@@ -137,6 +139,10 @@ class TextOwnFontTest {
     @Test
     fun `dado um livro com letra própria no primeiro capítulo em Páginas quando escolho uma letra do app então o trecho do começo da página continua na tela`() =
         choosingFontKeepsThePlace(ReaderFlow.PAGES, "Pages, first chapter", secondChapter = false)
+
+    @Test
+    fun `dado um livro com letra própria OpenType em Páginas quando escolho uma letra do app então o trecho do começo da página continua na tela`() =
+        choosingFontKeepsThePlace(ReaderFlow.PAGES, "Pages, OpenType", openType = true)
 
     @Test
     fun `dado um livro com letra própria em Rolar quando escolho uma letra do app então o trecho do começo da tela continua na tela`() =

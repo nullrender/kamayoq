@@ -55,9 +55,12 @@ object EpubFixtures {
      * EPUB 3 built as a bought ebook converted by Calibre is: the font comes in a second stylesheet,
      * the body's class sets it with justified, hyphenated text, an indent in percent, side margins in
      * points and padding above and below; paragraphs of many lengths carry empty print-page markers.
-     * [font] is a TrueType file the caller supplies.
+     * [font] is a font file the caller supplies: TrueType, or with [openType] an OpenType file with
+     * CFF outlines, declared with the type Calibre gives it.
      */
-    fun ownFont(font: ByteArray): ByteArray {
+    fun ownFont(font: ByteArray, openType: Boolean = false): ByteArray {
+        val fontFile = if (openType) "livro.otf" else "livro.ttf"
+        val fontType = if (openType) "application/vnd.ms-opentype" else "font/ttf"
         val head = """<link rel="stylesheet" type="text/css" href="styles/book.css"/>""" +
             """<link rel="stylesheet" type="text/css" href="styles/page.css"/>"""
         // A short first chapter, so a test pages into the second one with the first still loaded before it.
@@ -68,17 +71,17 @@ object EpubFixtures {
             "text-align: justify; text-indent: 3.472%; margin: 0 5pt; padding: 1.6em 0; }\n" +
             ".par { display: block; margin: 0; }\n.marca { }"
         val page = "@page { margin-bottom: 5pt; margin-top: 5pt; }\n" +
-            "@font-face { font-family: Letra do livro; src: url(../fonts/livro.ttf); }"
+            "@font-face { font-family: Letra do livro; src: url(../fonts/$fontFile); }"
         val extra = """<item id="css" href="styles/book.css" media-type="text/css"/>""" + "\n" +
             """<item id="page" href="styles/page.css" media-type="text/css"/>""" + "\n" +
-            """<item id="font" href="fonts/livro.ttf" media-type="font/ttf"/>"""
+            """<item id="font" href="fonts/$fontFile" media-type="$fontType"/>"""
         return epub3(
             "Livro com letra própria", sections, sections.map { TocItem(it.title, it.file) },
             extraItems = extra,
             files = listOf(
                 "OEBPS/styles/book.css" to book.encodeToByteArray(),
                 "OEBPS/styles/page.css" to page.encodeToByteArray(),
-                "OEBPS/fonts/livro.ttf" to font,
+                "OEBPS/fonts/$fontFile" to font,
             ),
         )
     }

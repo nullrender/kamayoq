@@ -13,6 +13,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import app.kamayoq.core.progress.TextPosition
 import app.kamayoq.core.reader.EpubArchive
 import app.kamayoq.core.reader.ReaderMessage
@@ -93,10 +94,21 @@ class TextReaderOwnFontTest {
     private fun top() = evaluate("document.querySelector('foliate-view').lastLocation.range.toString().slice(0, 60)")
 
     @Test
-    fun `dado um livro com letra própria reaberto no meio do segundo capítulo quando escolho uma letra no painel então o trecho do começo da página continua na tela`() {
+    fun `dado um livro com letra própria reaberto no meio do segundo capítulo quando escolho uma letra no painel então o trecho do começo da página continua na tela`() =
+        reopenAndChoose(compose.activity.assets.open("reader/fonts/IBMPlexSerif-Regular.ttf").use { it.readBytes() }, openType = false)
+
+    // The S24's book brings OpenType fonts with CFF outlines; Source Serif 4 (SIL OFL 1.1) is one, in
+    // the test APK's assets only.
+    @Test
+    fun `dado um livro com letra própria OpenType reaberto no meio do segundo capítulo quando escolho uma letra no painel então o trecho do começo da página continua na tela`() =
+        reopenAndChoose(
+            InstrumentationRegistry.getInstrumentation().context.assets.open("fonts/SourceSerif4-Regular.otf").use { it.readBytes() },
+            openType = true,
+        )
+
+    private fun reopenAndChoose(font: ByteArray, openType: Boolean) {
         val context = compose.activity
-        val font = context.assets.open("reader/fonts/IBMPlexSerif-Regular.ttf").use { it.readBytes() }
-        val book = File(context.cacheDir, "own-font-app.epub").apply { writeBytes(EpubFixtures.ownFont(font)) }.also { file = it }
+        val book = File(context.cacheDir, "own-font-app.epub").apply { writeBytes(EpubFixtures.ownFont(font, openType)) }.also { file = it }
         val opened = EpubArchive.open(book).also { archive = it }
         show(opened, saved = null)
         awaitRestored()
@@ -123,7 +135,7 @@ class TextReaderOwnFontTest {
                 "return String(range.comparePoint(anchor.startContainer, anchor.startOffset) === 0) })()",
         )
         val after = top()
-        Log.i("KamayoqMeasure", "App path, book with its own font reopened at ${place.fraction.value}, EB Garamond chosen in the panel: start kept $kept; before \"$before\", now \"$after\"; font chosen ${settings.general.font}")
+        Log.i("KamayoqMeasure", "App path, book with its own ${if (openType) "OpenType" else "TrueType"} font reopened at ${place.fraction.value}, EB Garamond chosen in the panel: start kept $kept; before \"$before\", now \"$after\"; font chosen ${settings.general.font}")
         assertEquals(ReadingFont.GARAMOND, settings.general.font)
         assertEquals("before \"$before\", now \"$after\"", "true", kept)
     }
