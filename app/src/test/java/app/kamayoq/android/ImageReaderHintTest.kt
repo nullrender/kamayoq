@@ -1,7 +1,10 @@
 package app.kamayoq.android
 
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
@@ -70,5 +73,29 @@ class ImageReaderHintTest {
         show(ImageMode.PAGES_RIGHT_TO_LEFT, hint = false)
 
         compose.onNodeWithText(text(R.string.reader_hint_ok)).assertDoesNotExist()
+    }
+
+    // Gemini's review of slice 6, finding 4: the bars and the pages stayed reachable behind the hint.
+    @Test
+    fun `dado a dica na tela, então nem as páginas nem os controles atrás dela recebem o foco do TalkBack`() {
+        show(ImageMode.PAGES_RIGHT_TO_LEFT, hint = true)
+
+        compose.onNodeWithContentDescription(app.getString(R.string.reader_page_label, 1, 3)).assertDoesNotExist()
+        compose.onNode(hasClickLabel(text(R.string.reader_show_controls))).assertDoesNotExist()
+    }
+
+    @Test
+    fun `dado a dica fechada por Entendi, então as páginas e a ação dos controles voltam`() {
+        show(ImageMode.PAGES_RIGHT_TO_LEFT, hint = true)
+
+        compose.onNodeWithText(text(R.string.reader_hint_ok)).performClick()
+        compose.waitForIdle()
+
+        compose.onNodeWithContentDescription(app.getString(R.string.reader_page_label, 1, 3)).assertExists()
+        compose.onNode(hasClickLabel(text(R.string.reader_show_controls))).assertExists()
+    }
+
+    private fun hasClickLabel(label: String) = SemanticsMatcher("has the action '$label'") {
+        it.config.getOrElseNullable(SemanticsActions.OnClick) { null }?.label == label
     }
 }
