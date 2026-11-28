@@ -1,6 +1,14 @@
 package app.kamayoq.android
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.click
@@ -84,5 +92,29 @@ class ImageEndBlockTest {
         compose.waitForIdle()
 
         compose.onNodeWithText("Capítulo 1").assertIsDisplayed()
+    }
+
+    // Gemini's review of slice 6, finding 7: in Pages the end block neither scrolled nor kept to the
+    // screen's edges, so in landscape or with a large font its buttons could fall off the screen.
+    @Test
+    fun `dado o bloco de fim em Páginas numa tela baixa com a letra grande, então rolando se chega a Voltar à obra`() {
+        val chapter = OpenedChapter("c2", listOf(PageImage(100, 150) { ByteArrayInputStream(ByteArray(0)) }), ChapterProgress.NEVER_OPENED) {}
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
+                Box(Modifier.height(320.dp)) {
+                    ImageReader(
+                        app.store, chapter, OpeningTurns(), 0, "Teto x Egen · Capítulo 2", "Capítulo 3", "test-device",
+                        detectedAs(ImageMode.PAGES_LEFT_TO_RIGHT), {}, {},
+                        chapterRows = rows, chapterName = "Capítulo 2", workTitle = "Teto x Egen",
+                    )
+                }
+            }
+        }
+        // Inside the 320 dp the reader has, not the middle of the whole window.
+        compose.onRoot().performTouchInput { click(Offset(width * 0.9f, 100.dp.toPx())) }
+        compose.waitForIdle()
+
+        compose.onNodeWithText(text(R.string.reader_back_to_work)).performScrollTo().assertIsDisplayed()
     }
 }
